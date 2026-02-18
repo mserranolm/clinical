@@ -1,0 +1,9 @@
+{
+  "doctorId": "doc_001",
+  "patientId": "pat_123",
+  "startAt": "2026-02-20T14:00:00Z",
+  "endAt": "2026-02-20T15:00:00Z",
+  "treatmentPlan": "Evaluación y limpieza",
+  "paymentAmount": 35,
+  "paymentMethod": "cash"
+}

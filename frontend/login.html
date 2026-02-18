@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CliniSense | Iniciar Sesión</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="./public/images/favicon.png" />
+    <link rel="apple-touch-icon" href="./public/images/favicon-64.png" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-wrap">
+      <section class="login-card">
+        <a class="back-home" href="./index.html">← Volver al inicio</a>
+
+        <div class="login-brand">
+          <img class="brand-logo" src="./public/images/logo.png" alt="Logo CliniSense" />
+        </div>
+
+        <h1>Bienvenido de nuevo</h1>
+        <p>Ingresa tus credenciales para continuar</p>
+
+        <form id="pageLoginForm" class="form-grid page-auth-form">
+          <label>
+            Correo Electrónico
+            <input name="email" type="email" placeholder="correo@ejemplo.com" required />
+          </label>
+          <label>
+            Contraseña
+            <input name="password" type="password" placeholder="••••••••" required />
+          </label>
+          <button type="submit">Iniciar Sesión</button>
+        </form>
+
+        <form id="pageRegisterForm" class="form-grid page-auth-form hidden">
+          <label>
+            Nombre completo
+            <input name="name" placeholder="Nombre y apellido" required />
+          </label>
+          <label>
+            Correo Electrónico
+            <input name="email" type="email" placeholder="correo@ejemplo.com" required />
+          </label>
+          <label>
+            Contraseña
+            <input name="password" type="password" placeholder="Mínimo 8 caracteres" required />
+          </label>
+          <button type="submit">Crear cuenta</button>
+        </form>
+
+        <form id="pageForgotForm" class="form-grid page-auth-form hidden">
+          <label>
+            Correo Electrónico
+            <input name="email" type="email" placeholder="correo@ejemplo.com" required />
+          </label>
+          <button type="submit">Enviar token de recuperación</button>
+        </form>
+
+        <form id="pageResetForm" class="form-grid page-auth-form hidden">
+          <label>
+            Token de recuperación
+            <input name="token" placeholder="Token recibido" required />
+          </label>
+          <label>
+            Nueva contraseña
+            <input name="newPassword" type="password" placeholder="Nueva contraseña" required />
+          </label>
+          <button type="submit">Actualizar contraseña</button>
+        </form>
+
+        <div class="auth-links">
+          <button id="showForgot" type="button" class="text-link">¿Olvidaste tu clave?</button>
+          <p>¿No tienes una cuenta? <button id="showRegister" type="button" class="text-link">Regístrate</button></p>
+          <p class="hidden" id="backToLoginWrap"><button id="backToLogin" type="button" class="text-link">Volver al login</button></p>
+        </div>
+
+        <pre id="pageLog" class="mini-log"></pre>
+      </section>
+    </main>
+
+    <script src="./src/login.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "patientId": "pat_123",
+  "doctorId": "doc_001",
+  "title": "Consentimiento para tratamiento odontológico",
+  "content": "Declaro haber sido informado del tratamiento propuesto...",
+  "deliveryMethod": "email"
+}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CliniSense | Control de Pacientes</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="./public/images/favicon.png" />
+    <link rel="apple-touch-icon" href="./public/images/favicon-64.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <header class="topbar container">
+      <div class="brand-block">
+        <img class="brand-logo" src="./public/images/logo.png" alt="Logo CliniSense" />
+        <h1 class="brand-name"><span>Clini</span>Sense</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="topLoginBtn" type="button" class="ghost">Iniciar sesión</button>
+        <button id="logoutBtn" type="button" class="ghost hidden">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="landingSection" class="landing marketing-layout">
+        <article class="hero hero-centered landing-wide">
+          <h2>Todo lo que necesitas para <span>elevar la gestión clínica</span></h2>
+          <p>
+            CliniSense centraliza agenda por doctor, historial evolutivo del paciente, pagos por cita,
+            onboarding médico y consentimiento informado en una sola plataforma.
+          </p>
+        </article>
+
+        <article class="feature-card feature-card-lg">
+          <div class="feature-icon feature-icon-indigo">📅</div>
+          <h3>Agenda Inteligente por Doctor</h3>
+          <p>
+            Programa citas por especialidad, optimiza horarios y activa recordatorios automáticos por SMS o email
+            24 horas antes para confirmar asistencia.
+          </p>
+          <div class="feature-tags">
+            <span>Confirmación automática</span>
+            <span>Recordatorio 24h</span>
+            <span>Agenda diaria</span>
+          </div>
+        </article>
+
+        <article class="feature-card feature-card-sm feature-card-teal">
+          <div class="feature-icon feature-icon-teal">🦷</div>
+          <h3>Onboarding Clínico</h3>
+          <p>
+            Registra antecedentes médicos, datos clave del paciente y carga imágenes clínicas desde la primera consulta.
+          </p>
+        </article>
+
+        <article class="feature-card feature-card-sm feature-card-warm">
+          <div class="feature-icon feature-icon-orange">💳</div>
+          <h3>Control de Pago por Cita</h3>
+          <p>
+            Captura método de pago y monto por atención para lograr trazabilidad financiera y operativa por paciente.
+          </p>
+        </article>
+
+        <article class="feature-card feature-card-lg feature-card-soft">
+          <div class="feature-icon feature-icon-magenta">📋</div>
+          <h3>Historial Evolutivo y Consentimiento</h3>
+          <p>
+            Documenta evolución por visita, plan de tratamiento y consentimiento informado con envío configurable
+            por SMS/email, manteniendo continuidad clínica real.
+          </p>
+          <img class="feature-photo" src="./public/images/dental-consultation.jpg" alt="Consulta odontológica con paciente" />
+        </article>
+
+        <article class="cta-block landing-wide">
+          <h3>¿Listo para transformar la experiencia de tu clínica?</h3>
+          <p>Inicia con CliniSense y gestiona tu operación médica con un estándar digital moderno.</p>
+          <button id="heroStartBtn" type="button">Comenzar ahora</button>
+        </article>
+
+        <article id="authDock" class="panel auth-panel hidden landing-wide">
+          <div class="auth-tabs">
+            <button id="tabLogin" type="button" class="auth-tab active">Login</button>
+            <button id="tabRegister" type="button" class="auth-tab">Registro</button>
+            <button id="tabForgot" type="button" class="auth-tab">Olvidé contraseña</button>
+          </div>
+
+          <form id="loginForm" class="form-grid auth-form">
+            <input name="email" type="email" placeholder="Email" required />
+            <input name="password" type="password" placeholder="Contraseña" required />
+            <button type="submit">Iniciar sesión</button>
+          </form>
+
+          <form id="registerForm" class="form-grid auth-form hidden">
+            <input name="name" placeholder="Nombre completo" required />
+            <input name="email" type="email" placeholder="Email" required />
+            <input name="password" type="password" placeholder="Contraseña (mínimo 8)" required />
+            <button type="submit">Crear cuenta</button>
+          </form>
+
+          <form id="forgotForm" class="form-grid auth-form hidden">
+            <input name="email" type="email" placeholder="Email" required />
+            <button type="submit">Enviar token de recuperación</button>
+          </form>
+
+          <form id="resetForm" class="form-grid auth-form hidden">
+            <input name="token" placeholder="Token de recuperación" required />
+            <input name="newPassword" type="password" placeholder="Nueva contraseña" required />
+            <button type="submit">Actualizar contraseña</button>
+          </form>
+        </article>
+
+        <footer class="landing-footer landing-wide">
+          <div class="brand-foot"><img class="brand-logo" src="./public/images/logo.png" alt="Logo CliniSense" /> <span class="brand-name"><span>Clini</span>Sense</span></div>
+          <small>© 2026 CliniSense. Todos los derechos reservados.</small>
+        </footer>
+      </section>
+
+      <section id="workspaceSection" class="grid app-shell hidden">
+        <section class="panel status-card-inline">
+          <p>Canal de notificación</p>
+          <div class="flags">
+            <label><input id="smsFlag" type="checkbox" checked /> SMS</label>
+            <label><input id="emailFlag" type="checkbox" checked /> Email</label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Onboarding paciente</h2>
+          <form id="patientForm" class="form-grid">
+            <input name="doctorId" placeholder="Doctor ID" required />
+            <input name="specialty" placeholder="Especialidad (odontology)" value="odontology" />
+            <input name="firstName" placeholder="Nombre" required />
+            <input name="lastName" placeholder="Apellido" required />
+            <input name="documentId" placeholder="Cédula" />
+            <input name="phone" placeholder="Teléfono" />
+            <input name="email" placeholder="Email" type="email" />
+            <input name="birthDate" placeholder="Fecha nacimiento (YYYY-MM-DD)" />
+            <textarea name="medicalNotes" placeholder="Antecedentes médicos (texto libre)"></textarea>
+            <button type="submit">Registrar paciente</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Control de citas</h2>
+          <form id="appointmentForm" class="form-grid">
+            <input name="doctorId" placeholder="Doctor ID" required />
+            <input name="patientId" placeholder="Paciente ID" required />
+            <input name="startAt" type="datetime-local" required />
+            <input name="endAt" type="datetime-local" required />
+            <input name="treatmentPlan" placeholder="Plan de tratamiento" />
+            <input name="paymentAmount" type="number" step="0.01" placeholder="Monto" />
+            <input name="paymentMethod" placeholder="Método de pago" />
+            <button type="submit">Agendar cita</button>
+          </form>
+        </section>
+
+        <section class="panel panel-wide">
+          <h2>Consentimiento informado</h2>
+          <form id="consentForm" class="form-grid">
+            <input name="doctorId" placeholder="Doctor ID" required />
+            <input name="patientId" placeholder="Paciente ID" required />
+            <input name="title" placeholder="Título del consentimiento" required />
+            <select name="deliveryMethod">
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+            </select>
+            <textarea name="content" placeholder="Texto del consentimiento" required></textarea>
+            <button type="submit">Enviar consentimiento</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="panel panel-wide">
+        <div class="panel-head">
+          <h2>Actividad</h2>
+          <button id="clearLog" type="button" class="ghost">Limpiar</button>
+        </div>
+        <pre id="log"></pre>
+      </section>
+    </main>
+
+    <script src="./src/app.js" type="module"></script>
+  </body>
+</html>

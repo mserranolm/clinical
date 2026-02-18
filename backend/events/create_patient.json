@@ -1,0 +1,19 @@
+{
+  "doctorId": "doc_001",
+  "specialty": "odontology",
+  "firstName": "Ana",
+  "lastName": "Pérez",
+  "documentId": "V12345678",
+  "phone": "+584120000000",
+  "email": "ana@example.com",
+  "birthDate": "1990-08-12",
+  "medicalBackgrounds": [
+    {
+      "type": "alergia",
+      "description": "Alergia a penicilina"
+    }
+  ],
+  "imageKeys": [
+    "patients/doc_001/ana-perez/ingreso-1.jpg"
+  ]
+}

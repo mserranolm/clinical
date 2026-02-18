@@ -1,0 +1,123 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"clinical-backend/internal/domain"
+	"clinical-backend/internal/notifications"
+	"clinical-backend/internal/store"
+)
+
+type AppointmentService struct {
+	repo     store.AppointmentRepository
+	notifier notifications.Notifier
+}
+
+func NewAppointmentService(repo store.AppointmentRepository, notifier notifications.Notifier) *AppointmentService {
+	return &AppointmentService{repo: repo, notifier: notifier}
+}
+
+type CreateAppointmentInput struct {
+	DoctorID      string  `json:"doctorId"`
+	PatientID     string  `json:"patientId"`
+	StartAt       string  `json:"startAt"`
+	EndAt         string  `json:"endAt"`
+	TreatmentPlan string  `json:"treatmentPlan"`
+	PaymentAmount float64 `json:"paymentAmount"`
+	PaymentMethod string  `json:"paymentMethod"`
+}
+
+func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInput) (domain.Appointment, error) {
+	if in.DoctorID == "" || in.PatientID == "" || in.StartAt == "" || in.EndAt == "" {
+		return domain.Appointment{}, fmt.Errorf("doctorId, patientId, startAt and endAt are required")
+	}
+	startAt, err := time.Parse(time.RFC3339, in.StartAt)
+	if err != nil {
+		return domain.Appointment{}, fmt.Errorf("invalid startAt")
+	}
+	endAt, err := time.Parse(time.RFC3339, in.EndAt)
+	if err != nil {
+		return domain.Appointment{}, fmt.Errorf("invalid endAt")
+	}
+	appt := domain.Appointment{
+		ID:            buildID("apt"),
+		DoctorID:      in.DoctorID,
+		PatientID:     in.PatientID,
+		StartAt:       startAt.UTC(),
+		EndAt:         endAt.UTC(),
+		Status:        "scheduled",
+		TreatmentPlan: in.TreatmentPlan,
+		PaymentAmount: in.PaymentAmount,
+		PaymentMethod: in.PaymentMethod,
+	}
+	return s.repo.Create(ctx, appt)
+}
+
+func (s *AppointmentService) ListByDoctorAndDate(ctx context.Context, doctorID, date string) ([]domain.Appointment, error) {
+	if doctorID == "" {
+		return nil, fmt.Errorf("doctorId required")
+	}
+	day := time.Now().UTC()
+	if date != "" {
+		parsed, err := time.Parse("2006-01-02", date)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date format use YYYY-MM-DD")
+		}
+		day = parsed
+	}
+	return s.repo.ListByDoctorAndDay(ctx, doctorID, day)
+}
+
+func (s *AppointmentService) Confirm(ctx context.Context, appointmentID string) (domain.Appointment, error) {
+	item, err := s.repo.GetByID(ctx, appointmentID)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	now := time.Now().UTC()
+	item.Status = "confirmed"
+	item.PatientConfirmedAt = &now
+	return s.repo.Update(ctx, item)
+}
+
+func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appointmentID, evolutionNotes string, paymentAmount float64, paymentMethod string) (domain.Appointment, error) {
+	item, err := s.repo.GetByID(ctx, appointmentID)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	now := time.Now().UTC()
+	item.Status = "completed"
+	item.DoctorDailyClosedAt = &now
+	item.EvolutionNotes = evolutionNotes
+	if paymentAmount > 0 {
+		item.PaymentAmount = paymentAmount
+	}
+	if paymentMethod != "" {
+		item.PaymentMethod = paymentMethod
+	}
+	return s.repo.Update(ctx, item)
+}
+
+func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID, channel string) error {
+	item, err := s.repo.GetByID(ctx, appointmentID)
+	if err != nil {
+		return err
+	}
+	if time.Until(item.StartAt).Hours() > 24.1 || time.Until(item.StartAt).Hours() < 23.9 {
+		return fmt.Errorf("appointment is not in 24h window")
+	}
+	msg := fmt.Sprintf("Recordatorio de cita médica el %s. Responde para confirmar.", item.StartAt.Format(time.RFC1123))
+	if err := s.notifier.SendAppointmentReminder(ctx, item.PatientID, channel, msg); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	item.ReminderSentAt = &now
+	_, err = s.repo.Update(ctx, item)
+	return err
+}
+
+func (s *AppointmentService) SendDoctorCloseDayReminder(ctx context.Context, doctorID, channel string) error {
+	message := "Recuerda cerrar tu agenda al final del día y registrar evolución/pago de cada cita."
+	return s.notifier.SendDoctorDailySummary(ctx, doctorID, channel, message)
+}
