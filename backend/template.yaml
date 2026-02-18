@@ -7,8 +7,8 @@ Globals:
     Runtime: provided.al2023
     Architectures:
       - arm64
-    Timeout: 15
-    MemorySize: 256
+    Timeout: 30
+    MemorySize: 512
     Environment:
       Variables:
         ENVIRONMENT: prod
@@ -17,6 +17,7 @@ Globals:
         CONSENT_TABLE: !Ref ConsentsTable
         SEND_SMS: "true"
         SEND_EMAIL: "true"
+        USE_DYNAMODB: "true"
 
 Resources:
   ClinicalApiFunction:
@@ -24,6 +25,21 @@ Resources:
     Properties:
       CodeUri: .
       Handler: bootstrap
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PatientsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConsentsTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:CreateTable
+              - dynamodb:DescribeTable
+              - dynamodb:ListTables
+              - dynamodb:TagResource
+            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
       Events:
         Api:
           Type: HttpApi
@@ -36,6 +52,13 @@ Resources:
     Properties:
       CodeUri: .
       Handler: bootstrap
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PatientsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConsentsTable
       Events:
         Every15Minutes:
           Type: Schedule
@@ -48,6 +71,13 @@ Resources:
     Properties:
       CodeUri: .
       Handler: bootstrap
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PatientsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConsentsTable
       Events:
         DailyClose:
           Type: Schedule

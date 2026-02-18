@@ -1,0 +1,448 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Clinical Backend - CI/CD Pipeline with CodePipeline and CodeBuild'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: clinical-backend
+    Description: Name of the project
+    
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, production]
+    Description: Environment name
+    
+  GitHubOwner:
+    Type: String
+    Default: ""
+    Description: GitHub repository owner (leave empty for CodeCommit)
+    
+  GitHubRepo:
+    Type: String
+    Default: ""
+    Description: GitHub repository name (leave empty for CodeCommit)
+    
+  GitHubToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: GitHub personal access token (leave empty for CodeCommit)
+    
+  CodeCommitRepo:
+    Type: String
+    Default: clinical-backend
+    Description: CodeCommit repository name
+    
+  BranchName:
+    Type: String
+    Default: main
+    Description: Git branch to watch
+    
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email for pipeline notifications (optional)
+
+Conditions:
+  UseGitHub: !Not [!Equals [!Ref GitHubOwner, ""]]
+  UseNotifications: !Not [!Equals [!Ref NotificationEmail, ""]]
+  IsProduction: !Equals [!Ref Environment, "production"]
+
+Resources:
+  # S3 Bucket for Pipeline Artifacts
+  ArtifactStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-pipeline-artifacts-${Environment}-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Bucket for SAM Deployments
+  SAMArtifactStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-sam-artifacts-${AWS::Region}-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CodeBuild Service Role
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-codebuild-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-*"
+              
+              # S3 Access
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource:
+                  - !GetAtt ArtifactStore.Arn
+                  - !GetAtt SAMArtifactStore.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !Sub "${ArtifactStore.Arn}/*"
+                  - !Sub "${SAMArtifactStore.Arn}/*"
+              
+              # CloudFormation (for SAM deployments)
+              - Effect: Allow
+                Action:
+                  - cloudformation:*
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}-*/*"
+              
+              # IAM (for SAM deployments)
+              - Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:PutRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:PassRole
+                  - iam:TagRole
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-*"
+              
+              # Lambda
+              - Effect: Allow
+                Action:
+                  - lambda:*
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-*"
+              
+              # API Gateway
+              - Effect: Allow
+                Action:
+                  - apigateway:*
+                Resource: "*"
+              
+              # DynamoDB
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}-*"
+              
+              # EventBridge
+              - Effect: Allow
+                Action:
+                  - events:*
+                Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-*"
+              
+              # SSM Parameter Store (for secrets)
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                  - ssm:GetParametersByPath
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/*"
+
+  # CodeBuild Project
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${ProjectName}-build-${Environment}"
+      Description: !Sub "Build project for ${ProjectName}"
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: PROJECT_NAME
+            Value: !Ref ProjectName
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: backend/buildspec.yml
+      TimeoutInMinutes: 60
+      Cache:
+        Type: S3
+        Location: !Sub "${ArtifactStore}/cache"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CodePipeline Service Role
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-pipeline-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # S3 Access
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !GetAtt ArtifactStore.Arn
+                  - !Sub "${ArtifactStore.Arn}/*"
+              
+              # CodeBuild
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: !GetAtt CodeBuildProject.Arn
+              
+              # CodeCommit (if used)
+              - Effect: Allow
+                Action:
+                  - codecommit:CancelUploadArchive
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:GetRepository
+                  - codecommit:ListBranches
+                  - codecommit:ListRepositories
+                  - codecommit:PutRepository
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+                Resource: !Sub "arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepo}"
+              
+              # SNS (for notifications)
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !If [UseNotifications, !Ref PipelineNotificationTopic, !Ref "AWS::NoValue"]
+
+  # SNS Topic for Pipeline Notifications
+  PipelineNotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: UseNotifications
+    Properties:
+      TopicName: !Sub "${ProjectName}-pipeline-notifications-${Environment}"
+      DisplayName: !Sub "${ProjectName} Pipeline Notifications"
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmail
+
+  # CodePipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub "${ProjectName}-pipeline-${Environment}"
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStore
+      Stages:
+        # Source Stage
+        - Name: Source
+          Actions:
+            - !If
+              - UseGitHub
+              - Name: SourceAction
+                ActionTypeId:
+                  Category: Source
+                  Owner: ThirdParty
+                  Provider: GitHub
+                  Version: '1'
+                Configuration:
+                  Owner: !Ref GitHubOwner
+                  Repo: !Ref GitHubRepo
+                  Branch: !Ref BranchName
+                  OAuthToken: !Ref GitHubToken
+                  PollForSourceChanges: false
+                OutputArtifacts:
+                  - Name: SourceOutput
+              - Name: SourceAction
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeCommit
+                  Version: '1'
+                Configuration:
+                  RepositoryName: !Ref CodeCommitRepo
+                  BranchName: !Ref BranchName
+                  PollForSourceChanges: false
+                OutputArtifacts:
+                  - Name: SourceOutput
+
+        # Build Stage
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Event Rule for GitHub webhooks (if using GitHub)
+  GitHubWebhookEventRule:
+    Type: AWS::Events::Rule
+    Condition: UseGitHub
+    Properties:
+      Name: !Sub "${ProjectName}-github-webhook-${Environment}"
+      Description: "Trigger pipeline on GitHub push"
+      EventPattern:
+        source:
+          - aws.codepipeline
+        detail-type:
+          - CodePipeline Pipeline Execution State Change
+        detail:
+          pipeline:
+            - !Ref Pipeline
+      State: ENABLED
+      Targets:
+        - Arn: !If [UseNotifications, !Ref PipelineNotificationTopic, !Ref "AWS::NoValue"]
+          Id: "NotificationTarget"
+
+  # CloudWatch Event Rule for CodeCommit changes
+  CodeCommitEventRule:
+    Type: AWS::Events::Rule
+    Condition: !Not [!Condition UseGitHub]
+    Properties:
+      Name: !Sub "${ProjectName}-codecommit-rule-${Environment}"
+      Description: "Trigger pipeline on CodeCommit push"
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - CodeCommit Repository State Change
+        resources:
+          - !Sub "arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepo}"
+        detail:
+          referenceType:
+            - branch
+          referenceName:
+            - !Ref BranchName
+      State: ENABLED
+      Targets:
+        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}"
+          Id: "CodePipelineTarget"
+          RoleArn: !GetAtt CodePipelineEventRole.Arn
+
+  # IAM Role for CodeCommit Event Rule
+  CodePipelineEventRole:
+    Type: AWS::IAM::Role
+    Condition: !Not [!Condition UseGitHub]
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelineEventPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codepipeline:StartPipelineExecution
+                Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}"
+
+Outputs:
+  PipelineName:
+    Description: Name of the CodePipeline
+    Value: !Ref Pipeline
+    Export:
+      Name: !Sub "${ProjectName}-pipeline-name-${Environment}"
+
+  PipelineUrl:
+    Description: URL of the CodePipeline
+    Value: !Sub "https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${Pipeline}/view"
+
+  ArtifactStoreBucket:
+    Description: S3 bucket for pipeline artifacts
+    Value: !Ref ArtifactStore
+    Export:
+      Name: !Sub "${ProjectName}-artifacts-bucket-${Environment}"
+
+  SAMArtifactBucket:
+    Description: S3 bucket for SAM artifacts  
+    Value: !Ref SAMArtifactStore
+    Export:
+      Name: !Sub "${ProjectName}-sam-bucket-${Environment}"
+
+  CodeBuildProject:
+    Description: Name of the CodeBuild project
+    Value: !Ref CodeBuildProject
+    Export:
+      Name: !Sub "${ProjectName}-codebuild-${Environment}"

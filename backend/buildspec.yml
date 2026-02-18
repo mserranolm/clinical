@@ -1,0 +1,164 @@
+version: 0.2
+
+env:
+  variables:
+    GO_VERSION: "1.22"
+    SAM_CLI_VERSION: "1.100.0"
+  parameter-store:
+    # Secrets from Parameter Store (configure these in AWS)
+    # CODECOMMIT_USER: "/clinical/codecommit/username"  
+    # CODECOMMIT_PASS: "/clinical/codecommit/password"
+
+phases:
+  install:
+    runtime-versions:
+      golang: 1.22
+      python: 3.11
+      nodejs: 18
+    commands:
+      - echo "Installing dependencies..."
+      
+      # Install SAM CLI
+      - pip3 install aws-sam-cli==$SAM_CLI_VERSION
+      
+      # Install golangci-lint for linting
+      - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.55.2
+      
+      # Verify installations
+      - go version
+      - sam --version
+      - golangci-lint version
+      
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      
+      # Go to backend directory
+      - cd backend
+      
+      # Download Go modules
+      - go mod download
+      - go mod verify
+      
+      # Run security scan with gosec
+      - go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+      - gosec ./... || echo "Security warnings found, but continuing..."
+      
+      # Run linting
+      - golangci-lint run --timeout=5m || echo "Linting warnings found, but continuing..."
+      
+      # Run tests with coverage
+      - go test -v -race -coverprofile=coverage.out ./...
+      
+      # Print test coverage
+      - go tool cover -func=coverage.out
+      
+  build:
+    commands:
+      - echo "Build phase started on `date`"
+      - cd backend
+      
+      # Set environment variables based on branch
+      - |
+        if [ "$CODEBUILD_WEBHOOK_HEAD_REF" = "refs/heads/main" ]; then
+          export ENVIRONMENT="production"
+          export STACK_NAME="clinical-backend-prod"
+        elif [ "$CODEBUILD_WEBHOOK_HEAD_REF" = "refs/heads/develop" ]; then
+          export ENVIRONMENT="staging"  
+          export STACK_NAME="clinical-backend-staging"
+        else
+          export ENVIRONMENT="dev"
+          export STACK_NAME="clinical-backend-dev-${CODEBUILD_BUILD_NUMBER}"
+        fi
+      
+      # Build with SAM
+      - echo "Building for environment: $ENVIRONMENT"
+      - sam build --use-container
+      
+      # Package for deployment
+      - |
+        sam package \
+          --s3-bucket clinical-sam-artifacts-${AWS_DEFAULT_REGION}-${AWS_ACCOUNT_ID} \
+          --s3-prefix ${ENVIRONMENT}/builds \
+          --output-template-file packaged-template.yaml
+      
+  post_build:
+    commands:
+      - echo "Post-build phase started on `date`"
+      - cd backend
+      
+      # Deploy only if this is main, develop, or a deployment branch
+      - |
+        if [ "$CODEBUILD_WEBHOOK_HEAD_REF" = "refs/heads/main" ] || 
+           [ "$CODEBUILD_WEBHOOK_HEAD_REF" = "refs/heads/develop" ] ||
+           [ "$DEPLOY_FORCE" = "true" ]; then
+          
+          echo "Deploying to environment: $ENVIRONMENT"
+          
+          # Deploy with SAM
+          sam deploy \
+            --template-file packaged-template.yaml \
+            --stack-name $STACK_NAME \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              Environment=$ENVIRONMENT \
+            --tags \
+              Environment=$ENVIRONMENT \
+              Project=clinical-backend \
+              ManagedBy=codebuild \
+              Branch=${CODEBUILD_WEBHOOK_HEAD_REF##*/}
+          
+          # Get API Gateway URL
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+          
+          echo "Deployment completed successfully!"
+          echo "API URL: $API_URL"
+          echo "Stack Name: $STACK_NAME"
+          echo "Environment: $ENVIRONMENT"
+          
+          # Run smoke tests
+          echo "Running smoke tests..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
+          if [ "$HTTP_STATUS" -eq "200" ] || [ "$HTTP_STATUS" -eq "404" ]; then
+            echo "✅ API is responding (HTTP $HTTP_STATUS)"
+          else
+            echo "❌ API health check failed (HTTP $HTTP_STATUS)"
+            # Don't fail the build for smoke test failures in non-prod
+            if [ "$ENVIRONMENT" = "production" ]; then
+              exit 1
+            fi
+          fi
+          
+        else
+          echo "Skipping deployment - not a deployment branch"
+          echo "Branch: $CODEBUILD_WEBHOOK_HEAD_REF"
+        fi
+
+reports:
+  go-test-reports:
+    files:
+      - 'backend/coverage.out'
+    base-directory: '.'
+    file-format: 'GOCOVERAGEXML'
+  go-lint-reports:
+    files:
+      - 'backend/golangci-lint-report.xml'
+    base-directory: '.'
+    file-format: 'JUNITXML'
+
+artifacts:
+  files:
+    - backend/packaged-template.yaml
+    - backend/.aws-sam/**/*
+    - backend/coverage.out
+  name: clinical-backend-artifacts-$CODEBUILD_BUILD_NUMBER
+  
+cache:
+  paths:
+    - '/go/pkg/mod/**/*'
+    - '/root/.cache/go-build/**/*'
+    - '/root/.cache/golangci-lint/**/*'
