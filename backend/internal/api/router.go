@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"clinical-backend/internal/service"
 
@@ -16,57 +18,110 @@ type Router struct {
 	patients     *service.PatientService
 	consents     *service.ConsentService
 	auth         *service.AuthService
+	odontogram   *OdontogramHandler
 }
 
-func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService) *Router {
-	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth}
+func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler) *Router {
+	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram}
+}
+
+// logResponse logs the response details and returns the response
+func (r *Router) logResponse(endpoint string, startTime time.Time, resp events.APIGatewayV2HTTPResponse, err error) (events.APIGatewayV2HTTPResponse, error) {
+	duration := time.Since(startTime)
+
+	if err != nil {
+		log.Printf("[ERROR] %s - Duration: %v, Error: %v", endpoint, duration, err)
+		return events.APIGatewayV2HTTPResponse{StatusCode: 500, Body: `{"message": "Internal server error"}`}, nil
+	}
+
+	log.Printf("[RESPONSE] %s - Status: %d, Duration: %v, Body: %s", endpoint, resp.StatusCode, duration, resp.Body)
+	return resp, err
 }
 
 func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	startTime := time.Now()
 	method := strings.ToUpper(req.RequestContext.HTTP.Method)
-	path := req.RawPath
+	path := req.RequestContext.HTTP.Path
+	if path == "" {
+		path = req.RawPath
+	}
+	endpoint := fmt.Sprintf("%s %s", method, path)
+
+	// Log request details with debugging
+	log.Printf("[REQUEST] %s - Body: %s", endpoint, req.Body)
+	log.Printf("[DEBUG] RawPath: '%s', HTTP.Path: '%s', Method: '%s'", req.RawPath, req.RequestContext.HTTP.Path, req.RequestContext.HTTP.Method)
+	log.Printf("[DEBUG] Route Key: '%s'", req.RouteKey)
+
+	var resp events.APIGatewayV2HTTPResponse
+	var err error
 
 	if method == "OPTIONS" {
-		return response(204, map[string]string{"status": "ok"})
+		resp, err = response(204, map[string]string{"status": "ok"})
+	} else {
+		switch {
+		case method == "GET" && path == "/health":
+			resp, err = response(200, map[string]string{"status": "ok", "message": "Clinical API is running", "version": "1.0.1", "updated": "2026-02-18"})
+		case method == "POST" && path == "/auth/register":
+			resp, err = r.register(ctx, req)
+		case method == "POST" && path == "/auth/login":
+			resp, err = r.login(ctx, req)
+		case method == "POST" && path == "/auth/forgot-password":
+			resp, err = r.forgotPassword(ctx, req)
+		case method == "POST" && path == "/auth/reset-password":
+			resp, err = r.resetPassword(ctx, req)
+		case method == "POST" && path == "/patients/onboard":
+			resp, err = r.onboardPatient(ctx, req)
+		case method == "GET" && strings.HasPrefix(path, "/patients/"):
+			resp, err = r.getPatient(ctx, strings.TrimPrefix(path, "/patients/"))
+		case method == "POST" && path == "/appointments":
+			resp, err = r.createAppointment(ctx, req)
+		case method == "GET" && path == "/appointments":
+			resp, err = r.listAppointments(ctx, req)
+		case method == "POST" && strings.HasSuffix(path, "/confirm") && strings.HasPrefix(path, "/appointments/"):
+			id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/confirm")
+			resp, err = r.confirmAppointment(ctx, id)
+		case method == "POST" && strings.HasSuffix(path, "/close-day") && strings.HasPrefix(path, "/appointments/"):
+			date := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/close-day")
+			resp, err = r.closeAppointmentDay(ctx, date, req)
+		case method == "POST" && path == "/consents":
+			resp, err = r.createConsent(ctx, req)
+		case method == "GET" && strings.HasPrefix(path, "/consents/verify/"):
+			token := strings.TrimPrefix(path, "/consents/verify/")
+			resp, err = r.acceptConsent(ctx, token)
+		case method == "POST" && strings.HasPrefix(path, "/odontograms"):
+			resp, err = r.odontogram.CreateOdontogram(ctx, req)
+		case method == "GET" && strings.HasPrefix(path, "/odontograms/patient/"):
+			// Extract patientId from path and add to PathParameters
+			patientId := strings.TrimPrefix(path, "/odontograms/patient/")
+			if req.PathParameters == nil {
+				req.PathParameters = make(map[string]string)
+			}
+			req.PathParameters["patientId"] = patientId
+			resp, err = r.odontogram.GetOdontogramByPatient(ctx, req)
+		case method == "PUT" && strings.HasPrefix(path, "/odontograms"):
+			resp, err = r.odontogram.UpdateToothCondition(ctx, req)
+		case method == "DELETE" && strings.HasPrefix(path, "/odontograms"):
+			resp, err = response(501, map[string]string{"error": "not_implemented", "message": "Delete odontogram not yet implemented"})
+		case method == "POST" && strings.Contains(path, "/treatment-plans"):
+			resp, err = r.odontogram.CreateTreatmentPlan(ctx, req)
+		case method == "GET" && strings.Contains(path, "/treatment-plans"):
+			resp, err = r.odontogram.GetTreatmentPlan(ctx, req)
+		case method == "PUT" && strings.Contains(path, "/treatment-plans"):
+			resp, err = r.odontogram.UpdateTreatmentPlan(ctx, req)
+		default:
+			resp, err = response(404, map[string]string{"error": "endpoint_not_found", "message": "The requested endpoint was not found"})
+		}
 	}
 
-	switch {
-	case method == "POST" && path == "/auth/register":
-		return r.register(ctx, req)
-	case method == "POST" && path == "/auth/login":
-		return r.login(ctx, req)
-	case method == "POST" && path == "/auth/forgot-password":
-		return r.forgotPassword(ctx, req)
-	case method == "POST" && path == "/auth/reset-password":
-		return r.resetPassword(ctx, req)
-	case method == "POST" && path == "/patients/onboard":
-		return r.onboardPatient(ctx, req)
-	case method == "GET" && strings.HasPrefix(path, "/patients/"):
-		return r.getPatient(ctx, strings.TrimPrefix(path, "/patients/"))
-	case method == "POST" && path == "/appointments":
-		return r.createAppointment(ctx, req)
-	case method == "GET" && path == "/appointments":
-		return r.listAppointments(ctx, req)
-	case method == "POST" && strings.HasSuffix(path, "/confirm") && strings.HasPrefix(path, "/appointments/"):
-		id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/confirm")
-		return r.confirmAppointment(ctx, id)
-	case method == "POST" && strings.HasSuffix(path, "/close-day") && strings.HasPrefix(path, "/appointments/"):
-		id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/close-day")
-		return r.closeAppointmentDay(ctx, id, req)
-	case method == "POST" && strings.HasSuffix(path, "/send-reminder") && strings.HasPrefix(path, "/appointments/"):
-		id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/send-reminder")
-		return r.sendAppointmentReminder(ctx, id, req)
-	case method == "POST" && path == "/consents":
-		return r.createConsent(ctx, req)
-	case method == "POST" && strings.HasSuffix(path, "/accept") && strings.HasPrefix(path, "/consents/"):
-		id := strings.TrimSuffix(strings.TrimPrefix(path, "/consents/"), "/accept")
-		return r.acceptConsent(ctx, id)
-	case method == "POST" && strings.HasSuffix(path, "/end-day-reminder") && strings.HasPrefix(path, "/doctors/"):
-		id := strings.TrimSuffix(strings.TrimPrefix(path, "/doctors/"), "/end-day-reminder")
-		return r.sendDoctorEndDayReminder(ctx, id, req)
-	default:
-		return response(404, map[string]string{"error": "not_found"})
+	// Log response
+	duration := time.Since(startTime)
+	if err != nil {
+		log.Printf("[ERROR] %s - Duration: %v, Error: %v", endpoint, duration, err)
+		return events.APIGatewayV2HTTPResponse{StatusCode: 500, Body: `{"message": "Internal server error"}`}, nil
 	}
+
+	log.Printf("[RESPONSE] %s - Status: %d, Duration: %v, Body: %s", endpoint, resp.StatusCode, duration, resp.Body)
+	return resp, nil
 }
 
 func (r *Router) onboardPatient(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

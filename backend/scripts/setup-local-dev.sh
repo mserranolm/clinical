@@ -63,20 +63,21 @@ ENVIRONMENT=dev
 LOCAL_HTTP=true
 LOCAL_HTTP_PORT=3000
 
-# DynamoDB Configuration (usar 'true' para testing con DynamoDB real)
-USE_DYNAMODB=false
-APPOINTMENT_TABLE=clinical-appointments-dev
-PATIENT_TABLE=clinical-patients-dev
-CONSENT_TABLE=clinical-consents-dev
+# DynamoDB Configuration - CONECTA A AWS REAL para debugging
+USE_DYNAMODB=true
+APPOINTMENT_TABLE=clinical-appointments
+PATIENT_TABLE=clinical-patients
+CONSENT_TABLE=clinical-consents
 
-# AWS Profile para desarrollo (configurar después de SSO)
-# AWS_PROFILE=your-sso-profile
+# AWS Profile para desarrollo con SSO
+AWS_PROFILE=aski
 
 # Notificaciones (deshabilitadas por defecto en desarrollo)
 SEND_SMS=false
 SEND_EMAIL=false
 
-# Para usar DynamoDB Local (opcional)
+# Para desarrollo local rápido sin AWS (solo para casos específicos)
+# USE_DYNAMODB=false
 # AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000
 EOF
     log_success "Archivo $ENV_FILE creado"
@@ -128,12 +129,14 @@ esac
 
 # Instalar dependencias Go
 log_info "Instalando dependencias Go..."
+cd ..  # Ir al directorio backend/ principal
 go mod tidy
 go mod download
 log_success "Dependencias instaladas"
 
 # Construir el proyecto
 log_info "Compilando proyecto..."
+# Ya estamos en el directorio backend/ desde el paso anterior
 if go build -o bin/api ./cmd/api; then
     log_success "Proyecto compilado exitosamente"
 else

@@ -1,0 +1,350 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Clinical Frontend CI/CD Pipeline - Deploys to CloudFront only when frontend/ changes'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: clinical-frontend
+    Description: Name of the frontend project
+    
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [dev, staging, production]
+    Description: Environment name
+    
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner (e.g., mserranolm)
+    
+  GitHubRepo:
+    Type: String
+    Default: clinical
+    Description: GitHub repository name
+    
+  CodeConnectionArn:
+    Type: String
+    Default: "arn:aws:codeconnections:us-east-1:975738006503:connection/02b6f662-39a5-410a-892b-c5cde98708fc"
+    Description: AWS CodeConnections ARN for GitHub integration
+    
+  BranchName:
+    Type: String
+    Default: main
+    Description: Git branch to watch for changes
+
+  DomainName:
+    Type: String
+    Default: ""
+    Description: Custom domain name (optional, e.g., clinical.yourdomain.com)
+
+Resources:
+  # S3 Bucket for Frontend Hosting
+  FrontendS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-hosting-${AWS::AccountId}-${AWS::Region}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, HEAD]
+            AllowedOrigins: ['*']
+            MaxAge: 3600
+
+  # S3 Bucket Policy for Public Access
+  FrontendS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendS3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendS3Bucket}/*"
+
+  # CloudFront Origin Access Identity
+  FrontendCloudFrontOAI:
+    Type: AWS::CloudFront::OriginAccessIdentity
+    Properties:
+      OriginAccessIdentityConfig:
+        Comment: !Sub "OAI for ${ProjectName}"
+
+  # CloudFront Distribution
+  FrontendCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "Clinical Frontend Distribution - ${Environment}"
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub "${ProjectName}-S3-origin"
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled for SPA
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        Enabled: true
+        HttpVersion: http2
+        Origins:
+          - DomainName: !GetAtt FrontendS3Bucket.RegionalDomainName
+            Id: !Sub "${ProjectName}-S3-origin"
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${FrontendCloudFrontOAI}"
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
+  # S3 Bucket for Pipeline Artifacts
+  FrontendArtifactStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-pipeline-artifacts-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  # CodeBuild Service Role
+  FrontendCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-codebuild-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildFrontendPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-*"
+              
+              # S3 Access for artifacts
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource: 
+                  - !Sub "${FrontendArtifactStore}/*"
+                  - !GetAtt FrontendArtifactStore.Arn
+              
+              # S3 Access for hosting bucket
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub "${FrontendS3Bucket}/*"
+                  - !GetAtt FrontendS3Bucket.Arn
+              
+              # CloudFront Access
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                  - cloudfront:ListInvalidations
+                Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendCloudFrontDistribution}"
+
+  # CodeBuild Project for Frontend
+  FrontendCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${ProjectName}-build"
+      Description: Build and deploy Clinical Frontend to CloudFront
+      ServiceRole: !GetAtt FrontendCodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        EnvironmentVariables:
+          - Name: S3_BUCKET
+            Value: !Ref FrontendS3Bucket
+          - Name: CLOUDFRONT_DISTRIBUTION_ID
+            Value: !Ref FrontendCloudFrontDistribution
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 18
+            pre_build:
+              commands:
+                - echo Logging into build environment...
+                - cd frontend
+                - echo "Current directory structure:"
+                - ls -la
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo "No build process needed for vanilla JS/HTML/CSS"
+                - echo "Files ready for deployment:"
+                - find . -name "*.html" -o -name "*.js" -o -name "*.css" | head -20
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Uploading to S3 bucket $S3_BUCKET...
+                - aws s3 sync . s3://$S3_BUCKET --delete --cache-control "public, max-age=86400"
+                - aws s3 cp index.html s3://$S3_BUCKET/index.html --cache-control "public, max-age=300"
+                - echo Creating CloudFront invalidation...
+                - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
+                - echo Deployment completed successfully!
+          artifacts:
+            files:
+              - '**/*'
+            base-directory: frontend
+
+  # CodePipeline Service Role
+  FrontendCodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-pipeline-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelineFrontendPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !Sub "${FrontendArtifactStore}/*"
+                  - !GetAtt FrontendArtifactStore.Arn
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: !GetAtt FrontendCodeBuildProject.Arn
+
+  # CodePipeline
+  FrontendPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub "${ProjectName}-pipeline"
+      RoleArn: !GetAtt FrontendCodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref FrontendArtifactStore
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref CodeConnectionArn
+                FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
+                BranchName: !Ref BranchName
+                OutputArtifactFormat: CODE_ZIP
+              OutputArtifacts:
+                - Name: SourceOutput
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref FrontendCodeBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+
+# CodeConnections automatically handles webhook setup, no manual webhook needed
+
+Outputs:
+  WebsiteURL:
+    Description: URL of the Clinical Frontend website
+    Value: !Sub "https://${FrontendCloudFrontDistribution.DomainName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-website-url"
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref FrontendCloudFrontDistribution
+    Export:
+      Name: !Sub "${AWS::StackName}-cloudfront-id"
+
+  S3BucketName:
+    Description: S3 bucket name for hosting
+    Value: !Ref FrontendS3Bucket
+    Export:
+      Name: !Sub "${AWS::StackName}-s3-bucket"
+
+  FrontendPipelineName:
+    Description: Name of the Frontend CodePipeline
+    Value: !Ref FrontendPipeline
+    Export:
+      Name: !Sub "${AWS::StackName}-frontend-pipeline"
+
+  FrontendPipelineUrl:
+    Description: URL of the Frontend CodePipeline
+    Value: !Sub "https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${FrontendPipeline}/view"
+
+  FrontendArtifactBucket:
+    Description: S3 bucket for frontend pipeline artifacts
+    Value: !Ref FrontendArtifactStore
+    Export:
+      Name: !Sub "${AWS::StackName}-frontend-artifacts"

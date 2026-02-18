@@ -52,19 +52,44 @@ type AuthRepository interface {
 	MarkResetTokenUsed(ctx context.Context, token string) error
 }
 
+// Odontogram repository interface
+type OdontogramRepository interface {
+	Create(ctx context.Context, odontogram domain.Odontogram) (domain.Odontogram, error)
+	GetByPatientID(ctx context.Context, patientID string) (domain.Odontogram, error)
+	GetByID(ctx context.Context, id string) (domain.Odontogram, error)
+	Update(ctx context.Context, odontogram domain.Odontogram) (domain.Odontogram, error)
+	AddTreatment(ctx context.Context, odontogramID string, treatment domain.ToothTreatment) error
+	UpdateToothCondition(ctx context.Context, odontogramID string, toothNumber domain.ToothNumber, surfaces []domain.ToothSurfaceCondition) error
+	GetTreatmentHistory(ctx context.Context, patientID string, limit int) ([]domain.ToothTreatment, error)
+}
+
+// Treatment plan repository interface
+type TreatmentPlanRepository interface {
+	Create(ctx context.Context, plan domain.TreatmentPlan) (domain.TreatmentPlan, error)
+	GetByID(ctx context.Context, id string) (domain.TreatmentPlan, error)
+	GetByPatientID(ctx context.Context, patientID string) ([]domain.TreatmentPlan, error)
+	Update(ctx context.Context, plan domain.TreatmentPlan) (domain.TreatmentPlan, error)
+	Delete(ctx context.Context, id string) error
+	UpdateTreatmentStatus(ctx context.Context, planID, treatmentIndex string, status domain.PlannedTreatmentStatus, completedTreatmentID *string) error
+}
+
 type InMemoryRepositories struct {
-	Patients     PatientRepository
-	Appointments AppointmentRepository
-	Consents     ConsentRepository
-	Users        AuthRepository
+	Patients       PatientRepository
+	Appointments   AppointmentRepository
+	Consents       ConsentRepository
+	Users          AuthRepository
+	Odontograms    OdontogramRepository
+	TreatmentPlans TreatmentPlanRepository
 }
 
 func NewInMemoryRepositories() *InMemoryRepositories {
 	return &InMemoryRepositories{
-		Patients:     &memoryPatientRepo{items: map[string]domain.Patient{}},
-		Appointments: &memoryAppointmentRepo{items: map[string]domain.Appointment{}},
-		Consents:     &memoryConsentRepo{items: map[string]domain.Consent{}},
-		Users:        &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, resetTokens: map[string]PasswordResetToken{}},
+		Patients:       &memoryPatientRepo{items: map[string]domain.Patient{}},
+		Appointments:   &memoryAppointmentRepo{items: map[string]domain.Appointment{}},
+		Consents:       &memoryConsentRepo{items: map[string]domain.Consent{}},
+		Users:          &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, resetTokens: map[string]PasswordResetToken{}},
+		Odontograms:    &memoryOdontogramRepo{items: map[string]domain.Odontogram{}, byPatient: map[string]string{}},
+		TreatmentPlans: &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
 	}
 }
 
@@ -246,4 +271,252 @@ func (r *memoryAuthRepo) MarkResetTokenUsed(_ context.Context, token string) err
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// In-memory odontogram repository
+type memoryOdontogramRepo struct {
+	mu        sync.RWMutex
+	items     map[string]domain.Odontogram
+	byPatient map[string]string // patientID -> odontogramID
+}
+
+func (r *memoryOdontogramRepo) Create(_ context.Context, odontogram domain.Odontogram) (domain.Odontogram, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	odontogram.CreatedAt = time.Now()
+	odontogram.UpdatedAt = time.Now()
+
+	r.items[odontogram.ID] = odontogram
+	r.byPatient[odontogram.PatientID] = odontogram.ID
+
+	return odontogram, nil
+}
+
+func (r *memoryOdontogramRepo) GetByPatientID(_ context.Context, patientID string) (domain.Odontogram, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	odontogramID, ok := r.byPatient[patientID]
+	if !ok {
+		return domain.Odontogram{}, fmt.Errorf("odontogram not found for patient")
+	}
+
+	item, ok := r.items[odontogramID]
+	if !ok {
+		return domain.Odontogram{}, fmt.Errorf("odontogram not found")
+	}
+
+	return item, nil
+}
+
+func (r *memoryOdontogramRepo) GetByID(_ context.Context, id string) (domain.Odontogram, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	item, ok := r.items[id]
+	if !ok {
+		return domain.Odontogram{}, fmt.Errorf("odontogram not found")
+	}
+
+	return item, nil
+}
+
+func (r *memoryOdontogramRepo) Update(_ context.Context, odontogram domain.Odontogram) (domain.Odontogram, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.items[odontogram.ID]; !ok {
+		return domain.Odontogram{}, fmt.Errorf("odontogram not found")
+	}
+
+	odontogram.UpdatedAt = time.Now()
+	r.items[odontogram.ID] = odontogram
+
+	return odontogram, nil
+}
+
+func (r *memoryOdontogramRepo) AddTreatment(_ context.Context, odontogramID string, treatment domain.ToothTreatment) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	odontogram, ok := r.items[odontogramID]
+	if !ok {
+		return fmt.Errorf("odontogram not found")
+	}
+
+	treatment.CreatedAt = time.Now()
+	treatment.CompletedAt = time.Now()
+
+	odontogram.TreatmentHistory = append(odontogram.TreatmentHistory, treatment)
+	odontogram.UpdatedAt = time.Now()
+
+	r.items[odontogramID] = odontogram
+
+	return nil
+}
+
+func (r *memoryOdontogramRepo) UpdateToothCondition(_ context.Context, odontogramID string, toothNumber domain.ToothNumber, surfaces []domain.ToothSurfaceCondition) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	odontogram, ok := r.items[odontogramID]
+	if !ok {
+		return fmt.Errorf("odontogram not found")
+	}
+
+	// Find and update tooth
+	for i, tooth := range odontogram.Teeth {
+		if tooth.ToothNumber == toothNumber {
+			tooth.Surfaces = surfaces
+			tooth.LastUpdated = time.Now()
+			odontogram.Teeth[i] = tooth
+			break
+		}
+	}
+
+	odontogram.UpdatedAt = time.Now()
+	r.items[odontogramID] = odontogram
+
+	return nil
+}
+
+func (r *memoryOdontogramRepo) GetTreatmentHistory(_ context.Context, patientID string, limit int) ([]domain.ToothTreatment, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	odontogramID, ok := r.byPatient[patientID]
+	if !ok {
+		return []domain.ToothTreatment{}, nil
+	}
+
+	odontogram, ok := r.items[odontogramID]
+	if !ok {
+		return []domain.ToothTreatment{}, nil
+	}
+
+	treatments := odontogram.TreatmentHistory
+	if limit > 0 && len(treatments) > limit {
+		treatments = treatments[len(treatments)-limit:]
+	}
+
+	return treatments, nil
+}
+
+// In-memory treatment plan repository
+type memoryTreatmentPlanRepo struct {
+	mu        sync.RWMutex
+	items     map[string]domain.TreatmentPlan
+	byPatient map[string][]string // patientID -> []planID
+}
+
+func (r *memoryTreatmentPlanRepo) Create(_ context.Context, plan domain.TreatmentPlan) (domain.TreatmentPlan, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	plan.CreatedAt = time.Now()
+	plan.UpdatedAt = time.Now()
+
+	r.items[plan.ID] = plan
+
+	if r.byPatient[plan.PatientID] == nil {
+		r.byPatient[plan.PatientID] = []string{}
+	}
+	r.byPatient[plan.PatientID] = append(r.byPatient[plan.PatientID], plan.ID)
+
+	return plan, nil
+}
+
+func (r *memoryTreatmentPlanRepo) GetByID(_ context.Context, id string) (domain.TreatmentPlan, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	item, ok := r.items[id]
+	if !ok {
+		return domain.TreatmentPlan{}, fmt.Errorf("treatment plan not found")
+	}
+
+	return item, nil
+}
+
+func (r *memoryTreatmentPlanRepo) GetByPatientID(_ context.Context, patientID string) ([]domain.TreatmentPlan, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	planIDs, ok := r.byPatient[patientID]
+	if !ok {
+		return []domain.TreatmentPlan{}, nil
+	}
+
+	var plans []domain.TreatmentPlan
+	for _, planID := range planIDs {
+		if plan, exists := r.items[planID]; exists {
+			plans = append(plans, plan)
+		}
+	}
+
+	return plans, nil
+}
+
+func (r *memoryTreatmentPlanRepo) Update(_ context.Context, plan domain.TreatmentPlan) (domain.TreatmentPlan, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.items[plan.ID]; !ok {
+		return domain.TreatmentPlan{}, fmt.Errorf("treatment plan not found")
+	}
+
+	plan.UpdatedAt = time.Now()
+	r.items[plan.ID] = plan
+
+	return plan, nil
+}
+
+func (r *memoryTreatmentPlanRepo) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	plan, ok := r.items[id]
+	if !ok {
+		return fmt.Errorf("treatment plan not found")
+	}
+
+	delete(r.items, id)
+
+	// Remove from patient index
+	patientPlans := r.byPatient[plan.PatientID]
+	for i, planID := range patientPlans {
+		if planID == id {
+			r.byPatient[plan.PatientID] = append(patientPlans[:i], patientPlans[i+1:]...)
+			break
+		}
+	}
+
+	return nil
+}
+
+func (r *memoryTreatmentPlanRepo) UpdateTreatmentStatus(_ context.Context, planID, treatmentIndex string, status domain.PlannedTreatmentStatus, completedTreatmentID *string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	plan, ok := r.items[planID]
+	if !ok {
+		return fmt.Errorf("treatment plan not found")
+	}
+
+	// Parse treatment index (assuming it's a string representation of array index)
+	for i := range plan.Treatments {
+		if fmt.Sprintf("%d", i) == treatmentIndex {
+			plan.Treatments[i].Status = status
+			if completedTreatmentID != nil {
+				plan.Treatments[i].CompletedTreatmentID = completedTreatmentID
+			}
+			break
+		}
+	}
+
+	plan.UpdatedAt = time.Now()
+	r.items[planID] = plan
+
+	return nil
 }

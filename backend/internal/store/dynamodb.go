@@ -18,21 +18,26 @@ import (
 
 // DynamoDBConfig holds DynamoDB configuration
 type DynamoDBConfig struct {
-	PatientTableName     string
-	AppointmentTableName string
-	ConsentTableName     string
-	UseLocalProfile      bool
-	ProfileName          string
+	PatientTableName       string
+	AppointmentTableName   string
+	ConsentTableName       string
+	OdontogramTableName    string
+	TreatmentPlanTableName string
+	UserTableName          string
+	UseLocalProfile        bool
+	ProfileName            string
 }
 
 // DynamoDBRepositories provides all DynamoDB repositories
 type DynamoDBRepositories struct {
-	client       *dynamodb.Client
-	config       DynamoDBConfig
-	Patients     PatientRepository
-	Appointments AppointmentRepository
-	Consents     ConsentRepository
-	Users        AuthRepository
+	client         *dynamodb.Client
+	config         DynamoDBConfig
+	Patients       PatientRepository
+	Appointments   AppointmentRepository
+	Consents       ConsentRepository
+	Users          AuthRepository
+	Odontograms    OdontogramRepository
+	TreatmentPlans TreatmentPlanRepository
 }
 
 // NewDynamoDBRepositories creates new DynamoDB repositories with table auto-creation
@@ -71,13 +76,82 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 		log.Printf("Warning: Could not ensure tables exist: %v", err)
 	}
 
-	// Initialize repositories
-	repos.Patients = &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName}
-	repos.Appointments = &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName}
-	repos.Consents = &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName}
-	repos.Users = &dynamoAuthRepo{client: client, tableName: cfg.PatientTableName} // Reuse patient table for users
+	// Initialize all tables
+	tables := []struct {
+		name string
+		repo interface{}
+	}{
+		{cfg.PatientTableName, &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName}},
+		{cfg.AppointmentTableName, &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName}},
+		{cfg.ConsentTableName, &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName}},
+		{cfg.UserTableName, &dynamoAuthRepo{client: client, tableName: cfg.UserTableName}},
+		{cfg.OdontogramTableName, &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName}},
+		{cfg.TreatmentPlanTableName, &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName}},
+	}
 
-	return repos, nil
+	for _, table := range tables {
+		if err := createTableIfNotExists(ctx, client, table.name); err != nil {
+			return nil, fmt.Errorf("failed to create table %s: %w", table.name, err)
+		}
+	}
+
+	return &DynamoDBRepositories{
+		client:         client,
+		config:         cfg,
+		Patients:       &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName},
+		Appointments:   &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName},
+		Consents:       &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName},
+		Users:          &dynamoAuthRepo{client: client, tableName: cfg.UserTableName},
+		Odontograms:    &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName},
+		TreatmentPlans: &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName},
+	}, nil
+}
+
+func createTableIfNotExists(ctx context.Context, client *dynamodb.Client, tableName string) error {
+	_, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	})
+
+	if err != nil {
+		if strings.Contains(err.Error(), "ResourceNotFoundException") ||
+			strings.Contains(err.Error(), "Requested resource not found") {
+			// Create table
+			_, err := client.CreateTable(ctx, &dynamodb.CreateTableInput{
+				TableName: aws.String(tableName),
+				KeySchema: []types.KeySchemaElement{
+					{
+						AttributeName: aws.String("PK"),
+						KeyType:       types.KeyTypeHash,
+					},
+					{
+						AttributeName: aws.String("SK"),
+						KeyType:       types.KeyTypeRange,
+					},
+				},
+				AttributeDefinitions: []types.AttributeDefinition{
+					{
+						AttributeName: aws.String("PK"),
+						AttributeType: types.ScalarAttributeTypeS,
+					},
+					{
+						AttributeName: aws.String("SK"),
+						AttributeType: types.ScalarAttributeTypeS,
+					},
+				},
+				BillingMode: types.BillingModePayPerRequest,
+				Tags: []types.Tag{
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("clinical-backend"),
+					},
+				},
+			})
+			return err
+		}
+		return err
+	}
+
+	return nil
 }
 
 // ensureTablesExist creates DynamoDB tables if they don't exist
@@ -89,6 +163,8 @@ func (r *DynamoDBRepositories) ensureTablesExist(ctx context.Context) error {
 		{r.config.PatientTableName, r.createPatientTable},
 		{r.config.AppointmentTableName, r.createAppointmentTable},
 		{r.config.ConsentTableName, r.createConsentTable},
+		{r.config.OdontogramTableName, r.createOdontogramTable},
+		{r.config.TreatmentPlanTableName, r.createTreatmentPlanTable},
 	}
 
 	for _, table := range tables {
@@ -127,6 +203,53 @@ func (r *DynamoDBRepositories) tableExists(ctx context.Context, tableName string
 	}
 
 	return true, nil
+}
+
+// Create table methods for odontogram and treatment plans
+func (r *DynamoDBRepositories) createOdontogramTable(ctx context.Context, tableName string) error {
+	return r.createGenericTable(ctx, tableName)
+}
+
+func (r *DynamoDBRepositories) createTreatmentPlanTable(ctx context.Context, tableName string) error {
+	return r.createGenericTable(ctx, tableName)
+}
+
+func (r *DynamoDBRepositories) createGenericTable(ctx context.Context, tableName string) error {
+	_, err := r.client.CreateTable(ctx, &dynamodb.CreateTableInput{
+		TableName: aws.String(tableName),
+		KeySchema: []types.KeySchemaElement{
+			{
+				AttributeName: aws.String("PK"),
+				KeyType:       types.KeyTypeHash,
+			},
+			{
+				AttributeName: aws.String("SK"),
+				KeyType:       types.KeyTypeRange,
+			},
+		},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{
+				AttributeName: aws.String("PK"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("SK"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+		},
+		BillingMode: types.BillingModePayPerRequest,
+		Tags: []types.Tag{
+			{
+				Key:   aws.String("Environment"),
+				Value: aws.String("clinical-backend"),
+			},
+			{
+				Key:   aws.String("Service"),
+				Value: aws.String("odontogram"),
+			},
+		},
+	})
+	return err
 }
 
 func (r *DynamoDBRepositories) createPatientTable(ctx context.Context, tableName string) error {
@@ -369,10 +492,10 @@ func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.
 }
 
 func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error) {
-	// Create GSI query for doctor appointments by date
+	// Use Scan with FilterExpression since we don't have a GSI for doctor+date
 	dayStr := day.Format("2006-01-02")
 
-	result, err := r.client.Query(ctx, &dynamodb.QueryInput{
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),
 		FilterExpression: aws.String("DoctorID = :doctorID AND begins_with(StartAt, :dayStr)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{

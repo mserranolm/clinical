@@ -1,0 +1,286 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Clinical Backend CI/CD Pipeline - Deploys only when backend/ changes'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: clinical-backend
+    Description: Name of the backend project
+    
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [dev, staging, production]
+    Description: Environment name
+    
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner (e.g., mserranolm)
+    
+  GitHubRepo:
+    Type: String
+    Default: clinical
+    Description: GitHub repository name
+    
+  CodeConnectionArn:
+    Type: String
+    Default: "arn:aws:codeconnections:us-east-1:975738006503:connection/02b6f662-39a5-410a-892b-c5cde98708fc"
+    Description: AWS CodeConnections ARN for GitHub integration
+    
+  BranchName:
+    Type: String
+    Default: main
+    Description: Git branch to watch for changes
+
+Resources:
+  # S3 Bucket for Pipeline Artifacts
+  BackendArtifactStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-pipeline-artifacts-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  # CodeBuild Service Role
+  BackendCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-codebuild-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildBackendPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-*"
+              
+              # S3 Access
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource: 
+                  - !Sub "${BackendArtifactStore.Arn}/*"
+                  - !GetAtt BackendArtifactStore.Arn
+              
+              # CloudFormation permissions for SAM deploy
+              - Effect: Allow
+                Action:
+                  - cloudformation:*
+                Resource: 
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}*/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/sam-*/*"
+              
+              # IAM permissions for Lambda roles
+              - Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:PutRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PassRole
+                  - iam:GetRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}*"
+              
+              # Lambda permissions
+              - Effect: Allow
+                Action:
+                  - lambda:*
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}*"
+              
+              # API Gateway permissions
+              - Effect: Allow
+                Action:
+                  - apigateway:*
+                Resource: "*"
+              
+              # DynamoDB permissions
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/clinical-*"
+              
+              # EventBridge permissions
+              - Effect: Allow
+                Action:
+                  - events:*
+                Resource: "*"
+              
+              # S3 for SAM deployments
+              - Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:ListBucket
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: 
+                  - !Sub "arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*"
+                  - !Sub "arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*/*"
+
+  # CodeBuild Project for Backend
+  BackendCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${ProjectName}-build"
+      Description: Build and deploy Clinical Backend
+      ServiceRole: !GetAtt BackendCodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        EnvironmentVariables:
+          - Name: STACK_NAME
+            Value: !Ref ProjectName
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                golang: 1.22
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - cd backend
+                - go version
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo Building the Go application...
+                - sam build
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Deploying to AWS...
+                - sam deploy --stack-name $STACK_NAME --region $AWS_DEFAULT_REGION --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset --no-progressbar
+          artifacts:
+            files:
+              - '**/*'
+            base-directory: backend
+
+  # CodePipeline Service Role
+  BackendCodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-pipeline-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelineBackendPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  - !Sub "${BackendArtifactStore.Arn}/*"
+                  - !GetAtt BackendArtifactStore.Arn
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: !GetAtt BackendCodeBuildProject.Arn
+
+  # CodePipeline
+  BackendPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub "${ProjectName}-pipeline"
+      RoleArn: !GetAtt BackendCodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref BackendArtifactStore
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref CodeConnectionArn
+                FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
+                BranchName: !Ref BranchName
+                OutputArtifactFormat: CODE_ZIP
+              OutputArtifacts:
+                - Name: SourceOutput
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref BackendCodeBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+
+# CodeConnections automatically handles webhook setup, no manual webhook needed
+
+Outputs:
+  BackendPipelineName:
+    Description: Name of the Backend CodePipeline
+    Value: !Ref BackendPipeline
+    Export:
+      Name: !Sub "${AWS::StackName}-backend-pipeline"
+
+  BackendPipelineUrl:
+    Description: URL of the Backend CodePipeline
+    Value: !Sub "https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${BackendPipeline}/view"
+
+  BackendArtifactBucket:
+    Description: S3 bucket for backend pipeline artifacts
+    Value: !Ref BackendArtifactStore
+    Export:
+      Name: !Sub "${AWS::StackName}-backend-artifacts"
