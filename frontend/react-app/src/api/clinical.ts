@@ -57,8 +57,20 @@ export const clinicalApi = {
       token
     }),
 
+  listPatients: (doctorId: string, token?: string) =>
+    request<{ items: Array<{ id: string; firstName: string; lastName: string; email?: string; phone?: string; documentId?: string; doctorId: string }>; total: number }>(
+      `${endpointCatalog.listPatients}?doctorId=${encodeURIComponent(doctorId)}`,
+      { method: "GET", token }
+    ),
+
+  searchPatients: (query: string, doctorId: string, token?: string) =>
+    request<{ items: Array<{ id: string; firstName: string; lastName: string; email?: string; phone?: string; documentId?: string; doctorId: string }>; total: number }>(
+      `${endpointCatalog.searchPatients}?q=${encodeURIComponent(query)}&doctorId=${encodeURIComponent(doctorId)}`,
+      { method: "GET", token }
+    ),
+
   getPatient: (patientId: string, token?: string) =>
-    request<{ id: string; firstName: string; lastName: string; email?: string; phone?: string; doctorId: string }>(
+    request<{ id: string; firstName: string; lastName: string; email?: string; phone?: string; doctorId: string; documentId?: string }>(
       endpointCatalog.getPatient(patientId),
       {
         method: "GET",

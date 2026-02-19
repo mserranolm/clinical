@@ -63,3 +63,17 @@ func (s *PatientService) GetByID(ctx context.Context, id string) (domain.Patient
 	}
 	return s.repo.GetByID(ctx, id)
 }
+
+func (s *PatientService) ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error) {
+	if doctorID == "" {
+		return nil, fmt.Errorf("doctorId is required")
+	}
+	return s.repo.ListByDoctor(ctx, doctorID)
+}
+
+func (s *PatientService) Search(ctx context.Context, doctorID, query string) ([]domain.Patient, error) {
+	if query == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+	return s.repo.SearchByQuery(ctx, doctorID, query)
+}

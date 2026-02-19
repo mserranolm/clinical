@@ -10,6 +10,8 @@ export const endpointCatalog = {
   forgotPassword: "/auth/forgot-password",
   resetPassword: "/auth/reset-password",
   patientOnboard: "/patients/onboard",
+  listPatients: "/patients",
+  searchPatients: "/patients/search",
   getPatient: (patientId: string) => `/patients/${patientId}`,
   createAppointment: "/appointments",
   listAppointments: "/appointments",

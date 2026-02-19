@@ -1,9 +1,8 @@
 import { FormEvent, useState } from "react";
 import { clinicalApi } from "../api/clinical";
-import { SectionResult, type ActionState } from "../components/ui/SectionResult";
+import { notify } from "../lib/notify";
 
 export function PlansPage({ token, doctorId }: { token: string; doctorId: string }) {
-  const [state, setState] = useState<ActionState>({ status: "idle", title: "" });
   const [planId, setPlanId] = useState<string>("");
   const [patientId, setPatientId] = useState<string>("");
   const [rows, setRows] = useState<Array<{ id: string; title: string; status?: string; patientId: string }>>([]);
@@ -11,9 +10,8 @@ export function PlansPage({ token, doctorId }: { token: string; doctorId: string
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    setState({ status: "loading", title: "Generando propuesta..." });
-    try {
-      const result = await clinicalApi.createTreatmentPlan(
+    const form = e.currentTarget;
+    const promise = clinicalApi.createTreatmentPlan(
         {
           doctorId: String(fd.get("doctorId") || doctorId),
           patientId: String(fd.get("patientId") || ""),
@@ -21,44 +19,39 @@ export function PlansPage({ token, doctorId }: { token: string; doctorId: string
           title: String(fd.get("title") || ""),
           description: String(fd.get("description") || "")
         },
-        token
-      );
-      setState({ status: "success", title: "Plan de tratamiento propuesto", payload: result });
-      setRows((prev) => [
-        { id: result.id, title: fd.get("title") as string, status: result.status, patientId: result.patientId },
-        ...prev
-      ]);
-      e.currentTarget.reset();
-    } catch (error) {
-      setState({ status: "error", title: "Fallo en generación", payload: { error: String(error) } });
-    }
+      token
+    );
+    notify.promise(promise, {
+      loading: "Generando propuesta...",
+      success: (result) => { setRows((prev) => [{ id: result.id, title: fd.get("title") as string, status: result.status, patientId: result.patientId }, ...prev]); form.reset(); return "Plan de tratamiento creado"; },
+      successDesc: String(fd.get("title") || ""),
+      error: "Fallo en generación",
+      errorDesc: (err) => err instanceof Error ? err.message : "Intenta de nuevo.",
+    });
   }
 
   async function onGetById() {
     if (!planId.trim()) return;
-    setState({ status: "loading", title: "Recuperando plan..." });
-    try {
-      const result = await clinicalApi.getTreatmentPlan(planId.trim(), token);
-      setRows((prev) => [
-        { id: result.id, title: result.title, status: result.status, patientId: result.patientId },
-        ...prev.filter((p) => p.id !== result.id)
-      ]);
-      setState({ status: "success", title: "Plan recuperado", payload: result });
-    } catch (error) {
-      setState({ status: "error", title: "No se encontró el plan", payload: { error: String(error) } });
-    }
+    const promise = clinicalApi.getTreatmentPlan(planId.trim(), token);
+    notify.promise(promise, {
+      loading: "Recuperando plan...",
+      success: (result) => { setRows((prev) => [{ id: result.id, title: result.title, status: result.status, patientId: result.patientId }, ...prev.filter((p) => p.id !== result.id)]); return "Plan recuperado"; },
+      successDesc: (result) => result.title,
+      error: "Plan no encontrado",
+      errorDesc: (err) => err instanceof Error ? err.message : "Verifica el ID.",
+    });
   }
 
   async function onGetByPatient() {
     if (!patientId.trim()) return;
-    setState({ status: "loading", title: "Consultando historial..." });
-    try {
-      const result = await clinicalApi.getTreatmentPlansByPatient(patientId.trim(), token);
-      setRows(result.treatmentPlans.map((p) => ({ id: p.id, title: p.title, status: p.status, patientId: p.patientId })));
-      setState({ status: "success", title: "Historial cargado", payload: { total: result.treatmentPlans.length } });
-    } catch (error) {
-      setState({ status: "error", title: "No hay planes para este paciente", payload: { error: String(error) } });
-    }
+    const promise = clinicalApi.getTreatmentPlansByPatient(patientId.trim(), token);
+    notify.promise(promise, {
+      loading: "Consultando historial...",
+      success: (result) => { setRows(result.treatmentPlans.map((p) => ({ id: p.id, title: p.title, status: p.status, patientId: p.patientId }))); return "Historial cargado"; },
+      successDesc: (result) => `${result.treatmentPlans.length} planes encontrados.`,
+      error: "Sin planes para este paciente",
+      errorDesc: (err) => err instanceof Error ? err.message : "Intenta de nuevo.",
+    });
   }
 
   return (
@@ -111,7 +104,6 @@ export function PlansPage({ token, doctorId }: { token: string; doctorId: string
               </div>
             </div>
           </div>
-          <SectionResult state={state} />
         </article>
       </div>
 

@@ -1,45 +1,44 @@
 import { FormEvent, useState } from "react";
 import { clinicalApi } from "../api/clinical";
-import { SectionResult, type ActionState } from "../components/ui/SectionResult";
+import { notify } from "../lib/notify";
 
 export function ConsentsPage({ token, doctorId }: { token: string; doctorId: string }) {
-  const [state, setState] = useState<ActionState>({ status: "idle", title: "" });
   const [verifyId, setVerifyId] = useState<string>("");
   const [rows, setRows] = useState<Array<{ id: string; status: string; title?: string }>>([]);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    setState({ status: "loading", title: "Generando documento legal..." });
-    try {
-      const result = await clinicalApi.createConsent(
-        {
+    const form = e.currentTarget;
+    const promise = clinicalApi.createConsent(
+      {
           doctorId: String(fd.get("doctorId") || doctorId),
           patientId: String(fd.get("patientId") || ""),
           title: String(fd.get("title") || ""),
           content: String(fd.get("content") || ""),
           deliveryMethod: String(fd.get("deliveryMethod") || "email") as "email" | "sms"
-        },
-        token
-      );
-      setState({ status: "success", title: "Documento enviado para firma", payload: result });
-      setRows((prev) => [{ id: result.id, status: result.status, title: result.title }, ...prev]);
-      e.currentTarget.reset();
-    } catch (error) {
-      setState({ status: "error", title: "Fallo en generación", payload: { error: String(error) } });
-    }
+      },
+      token
+    );
+    notify.promise(promise, {
+      loading: "Generando documento legal...",
+      success: (result) => { setRows((prev) => [{ id: result.id, status: result.status, title: result.title }, ...prev]); form.reset(); return "Documento enviado para firma"; },
+      successDesc: (result) => result.title,
+      error: "Fallo en generación",
+      errorDesc: (err) => err instanceof Error ? err.message : "Intenta de nuevo.",
+    });
   }
 
   async function onVerify() {
     if (!verifyId.trim()) return;
-    setState({ status: "loading", title: "Verificando integridad..." });
-    try {
-      const result = await clinicalApi.verifyConsent(verifyId.trim());
-      setRows((prev) => [{ id: result.id, status: result.status }, ...prev.filter((r) => r.id !== result.id)]);
-      setState({ status: "success", title: "Documento validado", payload: result });
-    } catch (error) {
-      setState({ status: "error", title: "Fallo en verificación", payload: { error: String(error) } });
-    }
+    const promise = clinicalApi.verifyConsent(verifyId.trim());
+    notify.promise(promise, {
+      loading: "Verificando integridad...",
+      success: (result) => { setRows((prev) => [{ id: result.id, status: result.status }, ...prev.filter((r) => r.id !== result.id)]); return "Documento validado"; },
+      successDesc: (result) => `Estado: ${result.status}`,
+      error: "Fallo en verificación",
+      errorDesc: (err) => err instanceof Error ? err.message : "Intenta de nuevo.",
+    });
   }
 
   return (
@@ -88,7 +87,6 @@ export function ConsentsPage({ token, doctorId }: { token: string; doctorId: str
               </div>
             </div>
           </div>
-          <SectionResult state={state} />
         </article>
       </div>
 

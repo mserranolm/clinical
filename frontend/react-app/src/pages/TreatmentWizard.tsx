@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { clinicalApi } from "../api/clinical";
-import { SectionResult, type ActionState } from "../components/ui/SectionResult";
+import { notify } from "../lib/notify";
 import { MedicalHistoryForm } from "../modules/treatment/components/MedicalHistoryForm";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
 import { ProceduresTable } from "../modules/treatment/components/ProceduresTable";
@@ -13,36 +13,31 @@ export function TreatmentWizard({ token }: { token: string; doctorId: string }) 
   const [patient, setPatient] = useState<any>(null);
   const [odontogramData, setOdontogramData] = useState<any>(null);
   const [toothStates, setToothStates] = useState<Record<number, Record<string, string>>>({});
-  const [state, setState] = useState<ActionState>({ status: "idle", title: "" });
+  const [searching, setSearching] = useState(false);
 
   async function handleSearch() {
     if (!cedula.trim()) return;
-    setState({ status: "loading", title: "Buscando expediente..." });
-    
-    try {
-      // Step 1: Find patient
-      const patientResult = await clinicalApi.getPatient(cedula, token);
+    setSearching(true);
+
+    const promise = clinicalApi.getPatient(cedula, token).then(async (patientResult) => {
       setPatient(patientResult);
-      
-      // Step 2: Try to find existing odontogram
       try {
         const odnResult = await clinicalApi.getOdontogramByPatient(patientResult.id, token);
         setOdontogramData(odnResult);
-        // Map odontogram data to local state if needed
-      } catch (odnErr) {
-        console.log("No existing odontogram found, will start fresh.");
+      } catch {
         setOdontogramData(null);
       }
-
       setStep(2);
-      setState({ status: "success", title: "Expediente localizado con éxito" });
-    } catch (error) {
-      setState({ 
-        status: "error", 
-        title: "Búsqueda fallida", 
-        payload: { message: "No se encontró un paciente con la cédula proporcionada." } 
-      });
-    }
+      return patientResult;
+    });
+
+    notify.promise(promise, {
+      loading: "Buscando expediente...",
+      success: (_p: any) => "Expediente localizado",
+      successDesc: (p: any) => `${p.firstName} ${p.lastName}`,
+      error: "Paciente no encontrado",
+      errorDesc: (err) => err instanceof Error ? err.message : "Verifica la cédula e intenta de nuevo.",
+    }).finally(() => setSearching(false));
   }
 
   const handleToothSurfaceClick = (toothNum: number, surface: string) => {
@@ -99,11 +94,12 @@ export function TreatmentWizard({ token }: { token: string; doctorId: string }) 
                   autoFocus
                   className="elite-input"
                 />
-                <button onClick={handleSearch} className="primary-btn">Localizar Expediente</button>
+                <button onClick={handleSearch} className="primary-btn" disabled={searching}>
+                  {searching ? <><span className="auth-spinner" />Buscando...</> : "Localizar Expediente"}
+                </button>
               </div>
             </div>
           </div>
-          <SectionResult state={state} />
         </article>
       )}
 

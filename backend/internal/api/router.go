@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"clinical-backend/internal/domain"
 	"clinical-backend/internal/service"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -71,6 +72,10 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			resp, err = r.resetPassword(ctx, req)
 		case method == "POST" && path == "/patients/onboard":
 			resp, err = r.onboardPatient(ctx, req)
+		case method == "GET" && path == "/patients":
+			resp, err = r.listPatients(ctx, req)
+		case method == "GET" && path == "/patients/search":
+			resp, err = r.searchPatients(ctx, req)
 		case method == "GET" && strings.HasPrefix(path, "/patients/"):
 			resp, err = r.getPatient(ctx, strings.TrimPrefix(path, "/patients/"))
 		case method == "POST" && path == "/appointments":
@@ -189,6 +194,34 @@ func (r *Router) getPatient(ctx context.Context, id string) (events.APIGatewayV2
 		return response(404, map[string]string{"error": err.Error()})
 	}
 	return response(200, patient)
+}
+
+func (r *Router) listPatients(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	doctorID := req.QueryStringParameters["doctorId"]
+	patients, err := r.patients.ListByDoctor(ctx, doctorID)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	if patients == nil {
+		patients = []domain.Patient{}
+	}
+	return response(200, map[string]any{"items": patients, "total": len(patients)})
+}
+
+func (r *Router) searchPatients(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	q := req.QueryStringParameters["q"]
+	doctorID := req.QueryStringParameters["doctorId"]
+	if q == "" {
+		return response(400, map[string]string{"error": "query parameter 'q' is required"})
+	}
+	patients, err := r.patients.Search(ctx, doctorID, q)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	if patients == nil {
+		patients = []domain.Patient{}
+	}
+	return response(200, map[string]any{"items": patients, "total": len(patients)})
 }
 
 func (r *Router) createAppointment(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

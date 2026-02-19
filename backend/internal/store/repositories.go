@@ -13,6 +13,8 @@ import (
 type PatientRepository interface {
 	Create(ctx context.Context, patient domain.Patient) (domain.Patient, error)
 	GetByID(ctx context.Context, id string) (domain.Patient, error)
+	ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error)
+	SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error)
 }
 
 type AppointmentRepository interface {
@@ -113,6 +115,40 @@ func (r *memoryPatientRepo) GetByID(_ context.Context, id string) (domain.Patien
 		return domain.Patient{}, fmt.Errorf("patient not found")
 	}
 	return item, nil
+}
+
+func (r *memoryPatientRepo) ListByDoctor(_ context.Context, doctorID string) ([]domain.Patient, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var results []domain.Patient
+	for _, p := range r.items {
+		if doctorID == "" || p.DoctorID == doctorID {
+			results = append(results, p)
+		}
+	}
+	return results, nil
+}
+
+func (r *memoryPatientRepo) SearchByQuery(_ context.Context, doctorID, query string) ([]domain.Patient, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	q := strings.ToLower(strings.TrimSpace(query))
+	var results []domain.Patient
+	for _, p := range r.items {
+		if doctorID != "" && p.DoctorID != doctorID {
+			continue
+		}
+		if q == "" ||
+			strings.Contains(strings.ToLower(p.FirstName), q) ||
+			strings.Contains(strings.ToLower(p.LastName), q) ||
+			strings.Contains(strings.ToLower(p.FirstName+" "+p.LastName), q) ||
+			strings.Contains(strings.ToLower(p.DocumentID), q) ||
+			strings.Contains(strings.ToLower(p.Email), q) ||
+			strings.Contains(strings.ReplaceAll(p.Phone, " ", ""), strings.ReplaceAll(q, " ", "")) {
+			results = append(results, p)
+		}
+	}
+	return results, nil
 }
 
 type memoryAppointmentRepo struct {

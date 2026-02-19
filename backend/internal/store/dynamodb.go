@@ -424,6 +424,72 @@ func (r *dynamoPatientRepo) GetByID(ctx context.Context, id string) (domain.Pati
 	return patient, nil
 }
 
+func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error) {
+	input := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("begins_with(PK, :prefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":prefix": &types.AttributeValueMemberS{Value: "PATIENT#"},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("scan patients: %w", err)
+	}
+
+	var patients []domain.Patient
+	for _, item := range result.Items {
+		var p domain.Patient
+		if err := attributevalue.UnmarshalMap(item, &p); err != nil {
+			continue
+		}
+		if doctorID != "" && p.DoctorID != doctorID {
+			continue
+		}
+		patients = append(patients, p)
+	}
+	return patients, nil
+}
+
+func (r *dynamoPatientRepo) SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error) {
+	q := strings.ToLower(strings.TrimSpace(query))
+
+	input := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("begins_with(PK, :prefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":prefix": &types.AttributeValueMemberS{Value: "PATIENT#"},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("scan patients: %w", err)
+	}
+
+	var patients []domain.Patient
+	for _, item := range result.Items {
+		var p domain.Patient
+		if err := attributevalue.UnmarshalMap(item, &p); err != nil {
+			continue
+		}
+		if doctorID != "" && p.DoctorID != doctorID {
+			continue
+		}
+		if q == "" ||
+			strings.Contains(strings.ToLower(p.FirstName), q) ||
+			strings.Contains(strings.ToLower(p.LastName), q) ||
+			strings.Contains(strings.ToLower(p.FirstName+" "+p.LastName), q) ||
+			strings.Contains(strings.ToLower(p.DocumentID), q) ||
+			strings.Contains(strings.ToLower(p.Email), q) ||
+			strings.Contains(strings.ReplaceAll(p.Phone, " ", ""), strings.ReplaceAll(q, " ", "")) {
+			patients = append(patients, p)
+		}
+	}
+	return patients, nil
+}
+
 // Appointment repository implementation
 type dynamoAppointmentRepo struct {
 	client    *dynamodb.Client
