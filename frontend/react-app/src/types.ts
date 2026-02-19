@@ -12,6 +12,7 @@ export type AuthSession = {
   name?: string;
   email?: string;
   role?: string;
+  orgName?: string;
 };
 
 export type RegisterInput = {

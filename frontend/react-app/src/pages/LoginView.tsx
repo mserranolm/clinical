@@ -19,13 +19,21 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
         email: String(fd.get("email") || ""),
         password: String(fd.get("password") || "")
       });
+      let orgName: string | undefined;
+      try {
+        const profile = await clinicalApi.getUserProfile(result.accessToken);
+        orgName = profile.orgName;
+      } catch {
+        // non-critical
+      }
       onSuccess({
         token: result.accessToken,
         userId: result.userId,
         orgId: result.orgId,
         name: result.name,
         email: result.email,
-        role: result.role
+        role: result.role,
+        orgName
       });
       navigate("/dashboard");
     } catch (err) {

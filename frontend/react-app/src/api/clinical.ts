@@ -205,10 +205,10 @@ export const clinicalApi = {
 
   // Platform admin endpoints
   listOrgs: (token: string) =>
-    request<{ items: Array<{ id: string; name: string; createdAt: string }> }>("/platform/orgs", { token }),
+    request<{ items: Array<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number }; createdAt: string }> }>("/platform/orgs", { token }),
 
-  createOrg: (name: string, token: string) =>
-    request<{ id: string; name: string; createdAt: string }>("/platform/orgs", { method: "POST", body: { name }, token }),
+  createOrg: (data: { name: string; businessName?: string; taxId?: string; address?: string; email?: string; phone?: string }, token: string) =>
+    request<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number }; createdAt: string }>("/platform/orgs", { method: "POST", body: data, token }),
 
   createOrgAdmin: (orgId: string, data: { name: string; email: string; password: string }, token: string) =>
     request<{ userId: string; email: string; role: string }>(`/platform/orgs/${orgId}/admins`, { method: "POST", body: data, token }),
@@ -233,4 +233,22 @@ export const clinicalApi = {
     request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string }>(
       "/auth/accept-invitation", { method: "POST", body: { token: invToken, ...data } }
     ),
+
+  getUserProfile: (token: string) =>
+    request<{ id: string; orgId: string; name: string; email: string; role: string; status: string; orgName: string; orgLimits: { maxDoctors: number; maxAssistants: number; maxPatients: number } }>(
+      "/users/me", { token }
+    ),
+
+  getOrg: (orgId: string, token: string) =>
+    request<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number }; createdAt: string }>(
+      `/platform/orgs/${orgId}`, { token }
+    ),
+
+  updateOrg: (orgId: string, data: Record<string, unknown>, token: string) =>
+    request<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number } }>(
+      `/platform/orgs/${orgId}`, { method: "PUT", body: data, token }
+    ),
+
+  deleteOrg: (orgId: string, token: string) =>
+    request<{ status: string }>(`/platform/orgs/${orgId}`, { method: "DELETE", token }),
 };

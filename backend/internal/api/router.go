@@ -188,6 +188,27 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.listOrganizations(actx)
 			}
+		case method == "GET" && strings.HasPrefix(path, "/platform/orgs/") && !strings.Contains(path[len("/platform/orgs/"):], "/"):
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimPrefix(path, "/platform/orgs/")
+				resp, err = r.getOrganization(actx, orgID)
+			}
+		case method == "PUT" && strings.HasPrefix(path, "/platform/orgs/") && !strings.Contains(path[len("/platform/orgs/"):], "/"):
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimPrefix(path, "/platform/orgs/")
+				resp, err = r.updateOrganization(actx, orgID, req)
+			}
+		case method == "DELETE" && strings.HasPrefix(path, "/platform/orgs/") && !strings.Contains(path[len("/platform/orgs/"):], "/"):
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimPrefix(path, "/platform/orgs/")
+				resp, err = r.deleteOrganization(actx, orgID)
+			}
 		case method == "POST" && strings.HasPrefix(path, "/platform/orgs/") && strings.HasSuffix(path, "/admins"):
 			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
 				resp, err = deny, nil
@@ -219,6 +240,12 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/orgs/"), "/invitations")
 				resp, err = r.inviteUser(actx, orgID, req)
+			}
+		case method == "GET" && path == "/users/me":
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.getUserProfile(actx)
 			}
 		case method == "POST" && path == "/auth/accept-invitation":
 			resp, err = r.acceptInvitation(ctx, req)
@@ -484,6 +511,42 @@ func (r *Router) acceptInvitation(ctx context.Context, req events.APIGatewayV2HT
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, out)
+}
+
+func (r *Router) getOrganization(ctx context.Context, orgID string) (events.APIGatewayV2HTTPResponse, error) {
+	org, err := r.auth.GetOrganization(ctx, orgID)
+	if err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, org)
+}
+
+func (r *Router) updateOrganization(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.UpdateOrganizationInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	org, err := r.auth.UpdateOrganization(ctx, orgID, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, org)
+}
+
+func (r *Router) deleteOrganization(ctx context.Context, orgID string) (events.APIGatewayV2HTTPResponse, error) {
+	if err := r.auth.DeleteOrganization(ctx, orgID); err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"status": "deleted"})
+}
+
+func (r *Router) getUserProfile(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {
+	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
+	profile, err := r.auth.GetUserProfile(ctx, auth.User.ID)
+	if err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, profile)
 }
 
 func (r *Router) createOrganization(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

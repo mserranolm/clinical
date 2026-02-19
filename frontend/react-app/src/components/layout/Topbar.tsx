@@ -46,7 +46,11 @@ export function Topbar({ session, title }: { session: AuthSession; onLogout: () 
         <div className="user-badge">
           <div className="user-meta">
             <strong>{session.name || "Médico"}</strong>
-            <span>{session.email}</span>
+            <span style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              {session.orgName && <span style={{ color: "#6366f1", fontWeight: 600 }}>{session.orgName}</span>}
+              {session.orgName && <span style={{ color: "#d1d5db" }}>·</span>}
+              <span style={{ background: "#f3f4f6", color: "#374151", padding: "1px 6px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase" }}>{session.role}</span>
+            </span>
           </div>
           <div className="user-avatar">{initials}</div>
         </div>

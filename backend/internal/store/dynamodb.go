@@ -942,14 +942,95 @@ func (r *dynamoAuthRepo) ListUsersByOrg(ctx context.Context, orgID string) ([]Au
 	return items, nil
 }
 
-func (r *dynamoAuthRepo) CreateOrganization(ctx context.Context, org Organization) (Organization, error) {
-	item := map[string]types.AttributeValue{
-		"PK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", org.ID)},
-		"SK":        &types.AttributeValueMemberS{Value: "ORG"},
-		"ID":        &types.AttributeValueMemberS{Value: org.ID},
-		"Name":      &types.AttributeValueMemberS{Value: org.Name},
-		"CreatedAt": &types.AttributeValueMemberS{Value: org.CreatedAt.Format(time.RFC3339)},
+func orgToItem(org Organization) map[string]types.AttributeValue {
+	if org.Status == "" {
+		org.Status = "active"
 	}
+	if org.PaymentStatus == "" {
+		org.PaymentStatus = "current"
+	}
+	if org.Limits.MaxDoctors == 0 {
+		org.Limits.MaxDoctors = 5
+	}
+	if org.Limits.MaxAssistants == 0 {
+		org.Limits.MaxAssistants = 2
+	}
+	if org.Limits.MaxPatients == 0 {
+		org.Limits.MaxPatients = 20
+	}
+	item := map[string]types.AttributeValue{
+		"PK":            &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", org.ID)},
+		"SK":            &types.AttributeValueMemberS{Value: "ORG"},
+		"ID":            &types.AttributeValueMemberS{Value: org.ID},
+		"Name":          &types.AttributeValueMemberS{Value: org.Name},
+		"BusinessName":  &types.AttributeValueMemberS{Value: org.BusinessName},
+		"TaxID":         &types.AttributeValueMemberS{Value: org.TaxID},
+		"Address":       &types.AttributeValueMemberS{Value: org.Address},
+		"Email":         &types.AttributeValueMemberS{Value: org.Email},
+		"Phone":         &types.AttributeValueMemberS{Value: org.Phone},
+		"Status":        &types.AttributeValueMemberS{Value: org.Status},
+		"PaymentStatus": &types.AttributeValueMemberS{Value: org.PaymentStatus},
+		"MaxDoctors":    &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.Limits.MaxDoctors)},
+		"MaxAssistants": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.Limits.MaxAssistants)},
+		"MaxPatients":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.Limits.MaxPatients)},
+		"CreatedAt":     &types.AttributeValueMemberS{Value: org.CreatedAt.Format(time.RFC3339)},
+	}
+	if org.UpdatedAt != nil {
+		item["UpdatedAt"] = &types.AttributeValueMemberS{Value: org.UpdatedAt.Format(time.RFC3339)}
+	}
+	return item
+}
+
+func itemToOrg(item map[string]types.AttributeValue) Organization {
+	var org Organization
+	if v, ok := item["ID"]; ok {
+		org.ID = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["Name"]; ok {
+		org.Name = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["BusinessName"]; ok {
+		org.BusinessName = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["TaxID"]; ok {
+		org.TaxID = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["Address"]; ok {
+		org.Address = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["Email"]; ok {
+		org.Email = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["Phone"]; ok {
+		org.Phone = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["Status"]; ok {
+		org.Status = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["PaymentStatus"]; ok {
+		org.PaymentStatus = v.(*types.AttributeValueMemberS).Value
+	}
+	if v, ok := item["MaxDoctors"]; ok {
+		fmt.Sscanf(v.(*types.AttributeValueMemberN).Value, "%d", &org.Limits.MaxDoctors)
+	}
+	if v, ok := item["MaxAssistants"]; ok {
+		fmt.Sscanf(v.(*types.AttributeValueMemberN).Value, "%d", &org.Limits.MaxAssistants)
+	}
+	if v, ok := item["MaxPatients"]; ok {
+		fmt.Sscanf(v.(*types.AttributeValueMemberN).Value, "%d", &org.Limits.MaxPatients)
+	}
+	if v, ok := item["CreatedAt"]; ok {
+		org.CreatedAt, _ = time.Parse(time.RFC3339, v.(*types.AttributeValueMemberS).Value)
+	}
+	if v, ok := item["UpdatedAt"]; ok {
+		t, _ := time.Parse(time.RFC3339, v.(*types.AttributeValueMemberS).Value)
+		org.UpdatedAt = &t
+	}
+	return org
+}
+
+func (r *dynamoAuthRepo) CreateOrganization(ctx context.Context, org Organization) (Organization, error) {
+	item := orgToItem(org)
 	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName:           aws.String(r.tableName),
 		Item:                item,
@@ -959,6 +1040,31 @@ func (r *dynamoAuthRepo) CreateOrganization(ctx context.Context, org Organizatio
 		return Organization{}, err
 	}
 	return org, nil
+}
+
+func (r *dynamoAuthRepo) UpdateOrganization(ctx context.Context, org Organization) (Organization, error) {
+	now := time.Now()
+	org.UpdatedAt = &now
+	item := orgToItem(org)
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+	if err != nil {
+		return Organization{}, err
+	}
+	return org, nil
+}
+
+func (r *dynamoAuthRepo) DeleteOrganization(ctx context.Context, orgID string) error {
+	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			"SK": &types.AttributeValueMemberS{Value: "ORG"},
+		},
+	})
+	return err
 }
 
 func (r *dynamoAuthRepo) GetOrganization(ctx context.Context, orgID string) (Organization, error) {
@@ -975,11 +1081,7 @@ func (r *dynamoAuthRepo) GetOrganization(ctx context.Context, orgID string) (Org
 	if out.Item == nil {
 		return Organization{}, fmt.Errorf("organization not found")
 	}
-	var org Organization
-	if err := attributevalue.UnmarshalMap(out.Item, &org); err != nil {
-		return Organization{}, err
-	}
-	return org, nil
+	return itemToOrg(out.Item), nil
 }
 
 func (r *dynamoAuthRepo) ListOrganizations(ctx context.Context) ([]Organization, error) {
@@ -996,10 +1098,7 @@ func (r *dynamoAuthRepo) ListOrganizations(ctx context.Context) ([]Organization,
 	}
 	orgs := make([]Organization, 0, len(out.Items))
 	for _, item := range out.Items {
-		var org Organization
-		if err := attributevalue.UnmarshalMap(item, &org); err == nil {
-			orgs = append(orgs, org)
-		}
+		orgs = append(orgs, itemToOrg(item))
 	}
 	return orgs, nil
 }

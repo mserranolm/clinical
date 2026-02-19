@@ -215,13 +215,58 @@ type BootstrapPlatformAdminOutput struct {
 }
 
 type CreateOrganizationInput struct {
-	Name string `json:"name"`
+	Name         string `json:"name"`
+	BusinessName string `json:"businessName"`
+	TaxID        string `json:"taxId"`
+	Address      string `json:"address"`
+	Email        string `json:"email"`
+	Phone        string `json:"phone"`
+}
+
+type UpdateOrganizationInput struct {
+	Name          string `json:"name"`
+	BusinessName  string `json:"businessName"`
+	TaxID         string `json:"taxId"`
+	Address       string `json:"address"`
+	Email         string `json:"email"`
+	Phone         string `json:"phone"`
+	Status        string `json:"status"`
+	PaymentStatus string `json:"paymentStatus"`
+	MaxDoctors    int    `json:"maxDoctors"`
+	MaxAssistants int    `json:"maxAssistants"`
+	MaxPatients   int    `json:"maxPatients"`
+}
+
+type OrgLimitsDTO struct {
+	MaxDoctors    int `json:"maxDoctors"`
+	MaxAssistants int `json:"maxAssistants"`
+	MaxPatients   int `json:"maxPatients"`
 }
 
 type OrganizationDTO struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	BusinessName  string       `json:"businessName"`
+	TaxID         string       `json:"taxId"`
+	Address       string       `json:"address"`
+	Email         string       `json:"email"`
+	Phone         string       `json:"phone"`
+	Status        string       `json:"status"`
+	PaymentStatus string       `json:"paymentStatus"`
+	Limits        OrgLimitsDTO `json:"limits"`
+	CreatedAt     time.Time    `json:"createdAt"`
+	UpdatedAt     *time.Time   `json:"updatedAt,omitempty"`
+}
+
+type UserProfileDTO struct {
+	ID        string       `json:"id"`
+	OrgID     string       `json:"orgId"`
+	Name      string       `json:"name"`
+	Email     string       `json:"email"`
+	Role      string       `json:"role"`
+	Status    string       `json:"status"`
+	OrgName   string       `json:"orgName"`
+	OrgLimits OrgLimitsDTO `json:"orgLimits"`
 }
 
 type CreateOrgAdminInput struct {
@@ -282,21 +327,112 @@ func (s *AuthService) BootstrapPlatformAdmin(ctx context.Context, in BootstrapPl
 	return BootstrapPlatformAdminOutput{UserID: created.ID, Email: created.Email, Role: created.Role}, nil
 }
 
+func orgToDTO(org store.Organization) OrganizationDTO {
+	return OrganizationDTO{
+		ID:            org.ID,
+		Name:          org.Name,
+		BusinessName:  org.BusinessName,
+		TaxID:         org.TaxID,
+		Address:       org.Address,
+		Email:         org.Email,
+		Phone:         org.Phone,
+		Status:        org.Status,
+		PaymentStatus: org.PaymentStatus,
+		Limits:        OrgLimitsDTO{MaxDoctors: org.Limits.MaxDoctors, MaxAssistants: org.Limits.MaxAssistants, MaxPatients: org.Limits.MaxPatients},
+		CreatedAt:     org.CreatedAt,
+		UpdatedAt:     org.UpdatedAt,
+	}
+}
+
 func (s *AuthService) CreateOrganization(ctx context.Context, in CreateOrganizationInput) (OrganizationDTO, error) {
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return OrganizationDTO{}, fmt.Errorf("name is required")
 	}
 	org := store.Organization{
-		ID:        buildID("org"),
-		Name:      name,
-		CreatedAt: time.Now().UTC(),
+		ID:            buildID("org"),
+		Name:          name,
+		BusinessName:  strings.TrimSpace(in.BusinessName),
+		TaxID:         strings.TrimSpace(in.TaxID),
+		Address:       strings.TrimSpace(in.Address),
+		Email:         strings.ToLower(strings.TrimSpace(in.Email)),
+		Phone:         strings.TrimSpace(in.Phone),
+		Status:        "active",
+		PaymentStatus: "current",
+		Limits:        store.OrgLimits{MaxDoctors: 5, MaxAssistants: 2, MaxPatients: 20},
+		CreatedAt:     time.Now().UTC(),
 	}
 	created, err := s.repo.CreateOrganization(ctx, org)
 	if err != nil {
 		return OrganizationDTO{}, err
 	}
-	return OrganizationDTO{ID: created.ID, Name: created.Name, CreatedAt: created.CreatedAt}, nil
+	return orgToDTO(created), nil
+}
+
+func (s *AuthService) GetOrganization(ctx context.Context, orgID string) (OrganizationDTO, error) {
+	org, err := s.repo.GetOrganization(ctx, orgID)
+	if err != nil {
+		return OrganizationDTO{}, err
+	}
+	return orgToDTO(org), nil
+}
+
+func (s *AuthService) UpdateOrganization(ctx context.Context, orgID string, in UpdateOrganizationInput) (OrganizationDTO, error) {
+	org, err := s.repo.GetOrganization(ctx, orgID)
+	if err != nil {
+		return OrganizationDTO{}, fmt.Errorf("organization not found")
+	}
+	if v := strings.TrimSpace(in.Name); v != "" {
+		org.Name = v
+	}
+	if v := strings.TrimSpace(in.BusinessName); v != "" {
+		org.BusinessName = v
+	}
+	if v := strings.TrimSpace(in.TaxID); v != "" {
+		org.TaxID = v
+	}
+	if v := strings.TrimSpace(in.Address); v != "" {
+		org.Address = v
+	}
+	if v := strings.TrimSpace(in.Email); v != "" {
+		org.Email = strings.ToLower(v)
+	}
+	if v := strings.TrimSpace(in.Phone); v != "" {
+		org.Phone = v
+	}
+	if in.Status != "" {
+		if in.Status != "active" && in.Status != "inactive" {
+			return OrganizationDTO{}, fmt.Errorf("status must be active or inactive")
+		}
+		org.Status = in.Status
+	}
+	if in.PaymentStatus != "" {
+		if in.PaymentStatus != "current" && in.PaymentStatus != "overdue" && in.PaymentStatus != "suspended" {
+			return OrganizationDTO{}, fmt.Errorf("paymentStatus must be current, overdue or suspended")
+		}
+		org.PaymentStatus = in.PaymentStatus
+	}
+	if in.MaxDoctors > 0 {
+		org.Limits.MaxDoctors = in.MaxDoctors
+	}
+	if in.MaxAssistants > 0 {
+		org.Limits.MaxAssistants = in.MaxAssistants
+	}
+	if in.MaxPatients > 0 {
+		org.Limits.MaxPatients = in.MaxPatients
+	}
+	updated, err := s.repo.UpdateOrganization(ctx, org)
+	if err != nil {
+		return OrganizationDTO{}, err
+	}
+	return orgToDTO(updated), nil
+}
+
+func (s *AuthService) DeleteOrganization(ctx context.Context, orgID string) error {
+	if _, err := s.repo.GetOrganization(ctx, orgID); err != nil {
+		return fmt.Errorf("organization not found")
+	}
+	return s.repo.DeleteOrganization(ctx, orgID)
 }
 
 func (s *AuthService) ListOrganizations(ctx context.Context) ([]OrganizationDTO, error) {
@@ -306,9 +442,33 @@ func (s *AuthService) ListOrganizations(ctx context.Context) ([]OrganizationDTO,
 	}
 	result := make([]OrganizationDTO, 0, len(items))
 	for _, org := range items {
-		result = append(result, OrganizationDTO{ID: org.ID, Name: org.Name, CreatedAt: org.CreatedAt})
+		result = append(result, orgToDTO(org))
 	}
 	return result, nil
+}
+
+func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (UserProfileDTO, error) {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return UserProfileDTO{}, fmt.Errorf("user not found")
+	}
+	profile := UserProfileDTO{
+		ID:     user.ID,
+		OrgID:  user.OrgID,
+		Name:   user.Name,
+		Email:  user.Email,
+		Role:   user.Role,
+		Status: user.Status,
+	}
+	if org, err := s.repo.GetOrganization(ctx, user.OrgID); err == nil {
+		profile.OrgName = org.Name
+		profile.OrgLimits = OrgLimitsDTO{
+			MaxDoctors:    org.Limits.MaxDoctors,
+			MaxAssistants: org.Limits.MaxAssistants,
+			MaxPatients:   org.Limits.MaxPatients,
+		}
+	}
+	return profile, nil
 }
 
 func (s *AuthService) CreateOrgAdmin(ctx context.Context, in CreateOrgAdminInput) (store.AuthUser, error) {
@@ -335,13 +495,6 @@ func (s *AuthService) CreateOrgAdmin(ctx context.Context, in CreateOrgAdminInput
 		CreatedAt:    time.Now().UTC(),
 	}
 	return s.repo.CreateUser(ctx, user)
-}
-
-var roleLimits = map[string]int{
-	"admin":     2,
-	"doctor":    5,
-	"assistant": 2,
-	"patient":   -1, // unlimited
 }
 
 type UserDTO struct {
@@ -436,8 +589,23 @@ func (s *AuthService) UpdateOrgUser(ctx context.Context, in UpdateOrgUserInput) 
 }
 
 func (s *AuthService) checkRoleLimit(ctx context.Context, orgID, role string) error {
-	limit, ok := roleLimits[role]
-	if !ok || limit < 0 {
+	org, err := s.repo.GetOrganization(ctx, orgID)
+	if err != nil {
+		return nil // no org found, skip limit check
+	}
+	var limit int
+	switch role {
+	case "doctor":
+		limit = org.Limits.MaxDoctors
+		if limit == 0 {
+			limit = 5
+		}
+	case "assistant":
+		limit = org.Limits.MaxAssistants
+		if limit == 0 {
+			limit = 2
+		}
+	default:
 		return nil
 	}
 	users, err := s.repo.ListUsersByOrg(ctx, orgID)

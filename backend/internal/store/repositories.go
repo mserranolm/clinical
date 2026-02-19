@@ -62,10 +62,25 @@ type UserInvitation struct {
 	Used      bool
 }
 
+type OrgLimits struct {
+	MaxDoctors    int `json:"maxDoctors"`
+	MaxAssistants int `json:"maxAssistants"`
+	MaxPatients   int `json:"maxPatients"`
+}
+
 type Organization struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	BusinessName  string     `json:"businessName"`
+	TaxID         string     `json:"taxId"`
+	Address       string     `json:"address"`
+	Email         string     `json:"email"`
+	Phone         string     `json:"phone"`
+	Status        string     `json:"status"`
+	PaymentStatus string     `json:"paymentStatus"`
+	Limits        OrgLimits  `json:"limits"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     *time.Time `json:"updatedAt,omitempty"`
 }
 
 type PasswordResetToken struct {
@@ -84,6 +99,8 @@ type AuthRepository interface {
 	ListUsersByOrg(ctx context.Context, orgID string) ([]AuthUser, error)
 	CreateOrganization(ctx context.Context, org Organization) (Organization, error)
 	GetOrganization(ctx context.Context, orgID string) (Organization, error)
+	UpdateOrganization(ctx context.Context, org Organization) (Organization, error)
+	DeleteOrganization(ctx context.Context, orgID string) error
 	ListOrganizations(ctx context.Context) ([]Organization, error)
 
 	CreateSession(ctx context.Context, session AuthSession) (AuthSession, error)
@@ -402,8 +419,45 @@ func (r *memoryAuthRepo) CreateOrganization(_ context.Context, org Organization)
 	if _, exists := r.orgs[org.ID]; exists {
 		return Organization{}, fmt.Errorf("organization already exists")
 	}
+	if org.Status == "" {
+		org.Status = "active"
+	}
+	if org.PaymentStatus == "" {
+		org.PaymentStatus = "current"
+	}
+	if org.Limits.MaxDoctors == 0 {
+		org.Limits.MaxDoctors = 5
+	}
+	if org.Limits.MaxAssistants == 0 {
+		org.Limits.MaxAssistants = 2
+	}
+	if org.Limits.MaxPatients == 0 {
+		org.Limits.MaxPatients = 20
+	}
 	r.orgs[org.ID] = org
 	return org, nil
+}
+
+func (r *memoryAuthRepo) UpdateOrganization(_ context.Context, org Organization) (Organization, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.orgs[org.ID]; !ok {
+		return Organization{}, fmt.Errorf("organization not found")
+	}
+	now := time.Now()
+	org.UpdatedAt = &now
+	r.orgs[org.ID] = org
+	return org, nil
+}
+
+func (r *memoryAuthRepo) DeleteOrganization(_ context.Context, orgID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.orgs[orgID]; !ok {
+		return fmt.Errorf("organization not found")
+	}
+	delete(r.orgs, orgID)
+	return nil
 }
 
 func (r *memoryAuthRepo) GetOrganization(_ context.Context, orgID string) (Organization, error) {
