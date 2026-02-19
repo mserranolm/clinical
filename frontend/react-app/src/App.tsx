@@ -13,7 +13,16 @@ import { Landing } from "./pages/Landing";
 import { LoginView } from "./pages/LoginView";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 
-const initialSession = getSession();
+function loadValidSession(): AuthSession | null {
+  const s = getSession();
+  if (!s || !s.token || !s.role) {
+    clearSession();
+    return null;
+  }
+  return s;
+}
+
+const initialSession = loadValidSession();
 
 export function App() {
   const [session, setSession] = useState<AuthSession | null>(initialSession);
