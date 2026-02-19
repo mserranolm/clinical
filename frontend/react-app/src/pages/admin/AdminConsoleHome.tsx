@@ -35,6 +35,7 @@ const PAYMENT_TEXT: Record<string, string> = { current: "#065f46", overdue: "#92
 
 export function AdminConsoleHome({ session }: { session: AuthSession }) {
   const [orgs, setOrgs] = useState<Org[]>([]);
+  const [orgAdmins, setOrgAdmins] = useState<Record<string, { name: string; email: string }>>({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Org | null>(null);
@@ -50,7 +51,18 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
     setLoading(true);
     try {
       const res = await clinicalApi.listOrgs(token);
-      setOrgs(res.items ?? []);
+      const items = res.items ?? [];
+      setOrgs(items);
+      // Load admins for each org in parallel
+      const adminsMap: Record<string, { name: string; email: string }> = {};
+      await Promise.all(items.map(async (org) => {
+        try {
+          const users = await clinicalApi.listOrgUsers(org.id, token);
+          const admin = (users.items ?? []).find(u => u.role === "admin" && u.status === "active");
+          if (admin) adminsMap[org.id] = { name: admin.name, email: admin.email };
+        } catch { /* non-critical */ }
+      }));
+      setOrgAdmins(adminsMap);
     } catch (e) {
       notify.error("Error cargando organizaciones", e instanceof Error ? e.message : "");
     } finally {
@@ -331,6 +343,17 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                     {org.email && <span>✉️ {org.email}</span>}
                     {org.phone && <span>📞 {org.phone}</span>}
                   </div>
+                  {orgAdmins[org.id] ? (
+                    <div style={{ marginTop: "0.4rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ background: "#ede9fe", color: "#5b21b6", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>ADMIN</span>
+                      <span style={{ fontSize: "0.8rem", color: "#374151", fontWeight: 600 }}>{orgAdmins[org.id].name}</span>
+                      <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>{orgAdmins[org.id].email}</span>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: "0.4rem" }}>
+                      <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>Sin admin asignado</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                   <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.75rem", textAlign: "center" }}>
