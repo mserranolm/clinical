@@ -86,6 +86,9 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (RegisterO
 
 	user := store.AuthUser{
 		ID:           buildID("usr"),
+		OrgID:        "default",
+		Role:         "admin",
+		Status:       "active",
 		Name:         strings.TrimSpace(in.Name),
 		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
 		PasswordHash: hashPassword(in.Password),
