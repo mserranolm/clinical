@@ -753,31 +753,34 @@ func (r *dynamoAuthRepo) CreateUser(ctx context.Context, user AuthUser) (AuthUse
 		"CreatedAt": &types.AttributeValueMemberS{Value: user.CreatedAt.Format(time.RFC3339)},
 	}
 
-	// Use transaction to ensure both items are created atomically
-	_, err := r.client.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
-		TransactItems: []types.TransactWriteItem{
-			{
-				Put: &types.Put{
-					TableName:           aws.String(r.tableName),
-					Item:                item,
-					ConditionExpression: aws.String("attribute_not_exists(PK)"),
-				},
-			},
-			{
-				Put: &types.Put{
-					TableName:           aws.String(r.tableName),
-					Item:                emailItem,
-					ConditionExpression: aws.String("attribute_not_exists(PK)"),
-				},
-			},
-			{
-				Put: &types.Put{
-					TableName:           aws.String(r.tableName),
-					Item:                orgItem,
-					ConditionExpression: aws.String("attribute_not_exists(PK)"),
-				},
+	// Build transaction items - always write user + email index
+	transactItems := []types.TransactWriteItem{
+		{
+			Put: &types.Put{
+				TableName:           aws.String(r.tableName),
+				Item:                item,
+				ConditionExpression: aws.String("attribute_not_exists(PK)"),
 			},
 		},
+		{
+			Put: &types.Put{
+				TableName:           aws.String(r.tableName),
+				Item:                emailItem,
+				ConditionExpression: aws.String("attribute_not_exists(PK)"),
+			},
+		},
+	}
+	// Only write org index entry when user has an org
+	if strings.TrimSpace(user.OrgID) != "" {
+		transactItems = append(transactItems, types.TransactWriteItem{
+			Put: &types.Put{
+				TableName: aws.String(r.tableName),
+				Item:      orgItem,
+			},
+		})
+	}
+	_, err := r.client.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
+		TransactItems: transactItems,
 	})
 
 	user.Email = strings.ToLower(strings.TrimSpace(user.Email))

@@ -35,11 +35,11 @@ func hasPermission(role string, p permission) bool {
 	case permPlatformManage:
 		return r == "platform_admin"
 	case permUsersManage:
-		return r == "admin"
+		return r == "admin" || r == "platform_admin"
 	case permPatientsManage:
-		return r == "admin" || r == "doctor"
+		return r == "admin" || r == "doctor" || r == "assistant"
 	case permAppointmentsManage:
-		return r == "admin" || r == "assistant"
+		return r == "admin" || r == "doctor" || r == "assistant"
 	case permTreatmentsManage:
 		return r == "admin" || r == "doctor"
 	default:
