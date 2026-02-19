@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 
@@ -95,48 +96,41 @@ func main() {
 	}
 
 	// Lambda handler that detects event type and routes accordingly
-	lambda.Start(func(ctx context.Context, event interface{}) (interface{}, error) {
-		log.Printf("Lambda invoked with event type: %T", event)
-
-		switch e := event.(type) {
-		case events.APIGatewayV2HTTPRequest:
-			// API Gateway HTTP request - ClinicalApiFunction
-			log.Printf("Processing API Gateway HTTP request: %s %s", e.RequestContext.HTTP.Method, e.RequestContext.HTTP.Path)
-			resp, err := router.Handle(ctx, e)
-			if err != nil {
-				log.Printf("API request failed: %v", err)
-				return events.APIGatewayV2HTTPResponse{StatusCode: 500, Body: `{"error":"internal_error"}`}, nil
+	lambda.Start(func(ctx context.Context, event json.RawMessage) (interface{}, error) {
+		var apiReq events.APIGatewayV2HTTPRequest
+		if err := json.Unmarshal(event, &apiReq); err == nil {
+			if apiReq.RequestContext.HTTP.Method != "" || apiReq.Version != "" {
+				log.Printf("Processing API Gateway HTTP request: %s %s", apiReq.RequestContext.HTTP.Method, apiReq.RequestContext.HTTP.Path)
+				resp, routeErr := router.Handle(ctx, apiReq)
+				if routeErr != nil {
+					log.Printf("API request failed: %v", routeErr)
+					return events.APIGatewayV2HTTPResponse{StatusCode: 500, Body: `{"error":"internal_error"}`}, nil
+				}
+				return resp, nil
 			}
-			return resp, nil
+		}
 
-		case events.CloudWatchEvent:
-			// EventBridge scheduled event - Reminder24hFunction or EndOfDayFunction
-			log.Printf("Processing EventBridge event: %s", e.Source)
+		var cwEvent events.CloudWatchEvent
+		if err := json.Unmarshal(event, &cwEvent); err == nil {
+			if cwEvent.DetailType == "Scheduled Event" {
+				log.Printf("Processing EventBridge event: %s", cwEvent.Source)
 
-			if e.DetailType == "Scheduled Event" {
-				// Determine function type from environment variable
 				functionName := os.Getenv("AWS_LAMBDA_FUNCTION_NAME")
 				log.Printf("Function name: %s", functionName)
 
-				// Check if this is the reminder function
 				if functionName != "" && (functionName == "clinical-backend-Reminder24hFunction" ||
 					len(functionName) > 19 && functionName[len(functionName)-19:] == "Reminder24hFunction") {
-					// Process 24h reminders
 					log.Printf("Processing 24h reminders")
 					return handleReminder24h(ctx, repos.Appointments, repos.Patients, notifier)
-				} else {
-					// Process end of day
-					log.Printf("Processing end of day")
-					return handleEndOfDay(ctx, repos.Appointments, repos.Patients, notifier)
 				}
+
+				log.Printf("Processing end of day")
+				return handleEndOfDay(ctx, repos.Appointments, repos.Patients, notifier)
 			}
-
-			return map[string]string{"status": "unknown_scheduled_event"}, nil
-
-		default:
-			log.Printf("Unknown event type: %T", event)
-			return map[string]string{"error": "unsupported_event_type"}, nil
 		}
+
+		log.Printf("Unknown event payload: %s", string(event))
+		return map[string]string{"error": "unsupported_event_type"}, nil
 	})
 }
 

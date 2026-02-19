@@ -21,7 +21,8 @@ export const endpointCatalog = {
   getOdontogramByPatient: (patientId: string) => `/odontograms/patient/${patientId}`,
   updateOdontogram: "/odontograms",
   createTreatmentPlan: "/treatment-plans",
-  getTreatmentPlan: "/treatment-plans",
+  getTreatmentPlan: (planId: string) => `/treatment-plans/${planId}`,
+  getTreatmentPlansByPatient: (patientId: string) => `/treatment-plans/patient/${patientId}`,
   updateTreatmentPlan: "/treatment-plans"
 };
 

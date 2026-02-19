@@ -181,14 +181,18 @@ button.ghost {
   gap: 8px;
 }
 
-.sidebar nav button {
+.sidebar nav a {
   background: transparent;
   color: #cbd5e1;
   text-align: left;
   border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-decoration: none;
+  font-weight: 600;
 }
 
-.sidebar nav button.active {
+.sidebar nav a.active {
   background: linear-gradient(120deg, #0ea5e9 0%, #22c55e 100%);
   color: #032024;
 }
@@ -269,6 +273,35 @@ button.ghost {
 .bar-col > div {
   background: linear-gradient(180deg, #38bdf8, #22c55e);
   border-radius: 8px 8px 4px 4px;
+}
+
+.table-wrap {
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+th,
+td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  text-align: left;
+}
+
+th {
+  color: #93c5fd;
+  font-weight: 700;
+  background: rgba(2, 6, 23, 0.45);
+}
+
+td {
+  color: #dbeafe;
 }
 
 .bar-col small {

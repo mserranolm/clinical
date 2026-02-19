@@ -49,15 +49,32 @@ npm run preview
    - Planes de tratamiento
    - Service Tester (módulo de pruebas)
 
+## Rutas reales (React Router)
+
+- `/` landing pública
+- `/login` autenticación
+- `/dashboard` resumen + KPIs
+- `/dashboard/pacientes`
+- `/dashboard/citas`
+- `/dashboard/consentimientos`
+- `/dashboard/odontograma`
+- `/dashboard/planes`
+- `/dashboard/testing`
+
 ## Cobertura funcional conectada al backend
 
 - Auth: register, login, forgot, reset
 - Pacientes: onboarding
-- Citas: crear
-- Consentimientos: crear
-- Odontograma: crear
-- Planes de tratamiento: crear
+- Citas: crear, listar por fecha/doctor y confirmar
+- Consentimientos: crear y verificar
+- Odontograma: crear y consultar por paciente
+- Planes de tratamiento: crear, consultar por ID y listar por paciente
 - Health check y logging en módulo Service Tester
+
+## KPIs y tablas/listados
+
+- Dashboard principal consume datos reales de `GET /appointments` para KPIs diarios.
+- Se muestran tablas operativas en dashboard, pacientes, citas, consentimientos, odontograma y planes.
 
 ## Nota
 
