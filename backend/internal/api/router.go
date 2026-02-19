@@ -31,11 +31,14 @@ const (
 
 func hasPermission(role string, p permission) bool {
 	r := strings.ToLower(strings.TrimSpace(role))
+	if r == "platform_admin" {
+		return true // platform_admin has access to everything
+	}
 	switch p {
 	case permPlatformManage:
-		return r == "platform_admin"
+		return false // only platform_admin, handled above
 	case permUsersManage:
-		return r == "admin" || r == "platform_admin"
+		return r == "admin"
 	case permPatientsManage:
 		return r == "admin" || r == "doctor" || r == "assistant"
 	case permAppointmentsManage:
