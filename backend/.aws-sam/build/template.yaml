@@ -23,9 +23,13 @@ Globals:
           Ref: TreatmentPlansTable
         USER_TABLE:
           Ref: UsersTable
+        PLATFORM_ADMIN_EMAIL: mserranolm@gmail.com
+        BOOTSTRAP_SECRET: ''
         SEND_SMS: 'true'
         SEND_EMAIL: 'true'
         USE_DYNAMODB: 'true'
+        CLINIC_TZ: America/Caracas
+        SES_SENDER_EMAIL: no-reply@vozlyai.aski-tech.net
 Resources:
   ClinicalRestApi:
     Type: AWS::Serverless::Api
@@ -96,6 +100,12 @@ Resources:
       - Statement:
         - Effect: Allow
           Action:
+          - ses:SendEmail
+          - ses:SendRawEmail
+          Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
+      - Statement:
+        - Effect: Allow
+          Action:
           - dynamodb:CreateTable
           - dynamodb:DescribeTable
           - dynamodb:ListTables
@@ -129,6 +139,12 @@ Resources:
       - DynamoDBCrudPolicy:
           TableName:
             Ref: ConsentsTable
+      - Statement:
+        - Effect: Allow
+          Action:
+          - ses:SendEmail
+          - ses:SendRawEmail
+          Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
       Events:
         Every15Minutes:
           Type: Schedule
@@ -152,6 +168,12 @@ Resources:
       - DynamoDBCrudPolicy:
           TableName:
             Ref: ConsentsTable
+      - Statement:
+        - Effect: Allow
+          Action:
+          - ses:SendEmail
+          - ses:SendRawEmail
+          Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
       Events:
         DailyClose:
           Type: Schedule

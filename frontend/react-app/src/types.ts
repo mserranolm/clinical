@@ -8,8 +8,10 @@ export type ApiError = {
 export type AuthSession = {
   token: string;
   userId: string;
+  orgId?: string;
   name?: string;
   email?: string;
+  role?: string;
 };
 
 export type RegisterInput = {

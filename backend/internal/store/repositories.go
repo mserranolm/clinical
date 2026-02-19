@@ -61,6 +61,12 @@ type UserInvitation struct {
 	Used      bool
 }
 
+type Organization struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+}
+
 type PasswordResetToken struct {
 	Token     string
 	UserID    string
@@ -75,6 +81,9 @@ type AuthRepository interface {
 	UpdateUserPassword(ctx context.Context, userID, passwordHash string) error
 	UpdateUser(ctx context.Context, user AuthUser) (AuthUser, error)
 	ListUsersByOrg(ctx context.Context, orgID string) ([]AuthUser, error)
+	CreateOrganization(ctx context.Context, org Organization) (Organization, error)
+	GetOrganization(ctx context.Context, orgID string) (Organization, error)
+	ListOrganizations(ctx context.Context) ([]Organization, error)
 
 	CreateSession(ctx context.Context, session AuthSession) (AuthSession, error)
 	GetSession(ctx context.Context, token string) (AuthSession, error)
@@ -124,7 +133,7 @@ func NewInMemoryRepositories() *InMemoryRepositories {
 		Patients:       &memoryPatientRepo{items: map[string]domain.Patient{}},
 		Appointments:   &memoryAppointmentRepo{items: map[string]domain.Appointment{}},
 		Consents:       &memoryConsentRepo{items: map[string]domain.Consent{}},
-		Users:          &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, usersByOrg: map[string]map[string]struct{}{}, sessions: map[string]AuthSession{}, invitations: map[string]UserInvitation{}, resetTokens: map[string]PasswordResetToken{}},
+		Users:          &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, usersByOrg: map[string]map[string]struct{}{}, sessions: map[string]AuthSession{}, invitations: map[string]UserInvitation{}, resetTokens: map[string]PasswordResetToken{}, orgs: map[string]Organization{}},
 		Odontograms:    &memoryOdontogramRepo{items: map[string]domain.Odontogram{}, byPatient: map[string]string{}},
 		TreatmentPlans: &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
 	}
@@ -296,6 +305,7 @@ type memoryAuthRepo struct {
 	sessions    map[string]AuthSession
 	invitations map[string]UserInvitation
 	resetTokens map[string]PasswordResetToken
+	orgs        map[string]Organization
 }
 
 func (r *memoryAuthRepo) CreateUser(_ context.Context, user AuthUser) (AuthUser, error) {
@@ -370,6 +380,39 @@ func (r *memoryAuthRepo) ListUsersByOrg(_ context.Context, orgID string) ([]Auth
 		res = append(res, r.usersByID[id])
 	}
 	return res, nil
+}
+
+func (r *memoryAuthRepo) CreateOrganization(_ context.Context, org Organization) (Organization, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.orgs == nil {
+		r.orgs = map[string]Organization{}
+	}
+	if _, exists := r.orgs[org.ID]; exists {
+		return Organization{}, fmt.Errorf("organization already exists")
+	}
+	r.orgs[org.ID] = org
+	return org, nil
+}
+
+func (r *memoryAuthRepo) GetOrganization(_ context.Context, orgID string) (Organization, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	org, ok := r.orgs[orgID]
+	if !ok {
+		return Organization{}, fmt.Errorf("organization not found")
+	}
+	return org, nil
+}
+
+func (r *memoryAuthRepo) ListOrganizations(_ context.Context) ([]Organization, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	items := make([]Organization, 0, len(r.orgs))
+	for _, org := range r.orgs {
+		items = append(items, org)
+	}
+	return items, nil
 }
 
 func (r *memoryAuthRepo) CreateSession(_ context.Context, session AuthSession) (AuthSession, error) {

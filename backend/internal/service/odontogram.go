@@ -13,9 +13,9 @@ import (
 
 // OdontogramService provides business logic for dental charts
 type OdontogramService struct {
-	repo         store.OdontogramRepository
-	patientRepo  store.PatientRepository
-	planRepo     store.TreatmentPlanRepository
+	repo        store.OdontogramRepository
+	patientRepo store.PatientRepository
+	planRepo    store.TreatmentPlanRepository
 }
 
 // NewOdontogramService creates a new odontogram service
@@ -99,14 +99,14 @@ func (s *OdontogramService) GetTreatmentHistory(ctx context.Context, patientID s
 // GenerateInitialAssessment creates an initial dental assessment
 func (s *OdontogramService) GenerateInitialAssessment(ctx context.Context, odontogramID string, findings map[domain.ToothNumber][]domain.ToothSurfaceCondition, doctorID string) error {
 	now := time.Now()
-	
+
 	for toothNumber, surfaces := range findings {
 		// Add metadata to each surface condition
 		for i := range surfaces {
 			surfaces[i].LastModified = now
 			surfaces[i].ModifiedBy = doctorID
 		}
-		
+
 		err := s.repo.UpdateToothCondition(ctx, odontogramID, toothNumber, surfaces)
 		if err != nil {
 			return fmt.Errorf("failed to update tooth %d: %w", toothNumber, err)
@@ -139,7 +139,7 @@ func (s *OdontogramService) initializeAllTeeth() []domain.ToothInfo {
 		// Upper right (Quadrant 1)
 		domain.Tooth11, domain.Tooth12, domain.Tooth13, domain.Tooth14,
 		domain.Tooth15, domain.Tooth16, domain.Tooth17, domain.Tooth18,
-		// Upper left (Quadrant 2)  
+		// Upper left (Quadrant 2)
 		domain.Tooth21, domain.Tooth22, domain.Tooth23, domain.Tooth24,
 		domain.Tooth25, domain.Tooth26, domain.Tooth27, domain.Tooth28,
 		// Lower left (Quadrant 3)
@@ -203,9 +203,9 @@ func (s *OdontogramService) initializeAllTeeth() []domain.ToothInfo {
 
 // Treatment Plan Service
 type TreatmentPlanService struct {
-	planRepo        store.TreatmentPlanRepository
-	odontogramRepo  store.OdontogramRepository
-	patientRepo     store.PatientRepository
+	planRepo       store.TreatmentPlanRepository
+	odontogramRepo store.OdontogramRepository
+	patientRepo    store.PatientRepository
 }
 
 // NewTreatmentPlanService creates a new treatment plan service
@@ -238,7 +238,7 @@ func (s *TreatmentPlanService) CreateTreatmentPlan(ctx context.Context, plan dom
 	plan.ID = uuid.New().String()
 	plan.CreatedAt = time.Now()
 	plan.UpdatedAt = time.Now()
-	
+
 	if plan.Status == "" {
 		plan.Status = domain.PlanStatusDraft
 	}
@@ -250,7 +250,7 @@ func (s *TreatmentPlanService) CreateTreatmentPlan(ctx context.Context, plan dom
 	for i, treatment := range plan.Treatments {
 		totalCost += treatment.EstimatedCost
 		totalTime += treatment.EstimatedTime
-		
+
 		// Initialize status if not set
 		if treatment.Status == "" {
 			plan.Treatments[i].Status = domain.PlannedStatusPending
@@ -303,10 +303,10 @@ func (s *TreatmentPlanService) MarkTreatmentCompleted(ctx context.Context, planI
 	}
 
 	return s.planRepo.UpdateTreatmentStatus(
-		ctx, 
-		planID, 
-		fmt.Sprintf("%d", treatmentIndex), 
-		domain.PlannedStatusCompleted, 
+		ctx,
+		planID,
+		fmt.Sprintf("%d", treatmentIndex),
+		domain.PlannedStatusCompleted,
 		&completedTreatmentID,
 	)
 }
@@ -320,7 +320,7 @@ func (s *TreatmentPlanService) ApproveTreatmentPlan(ctx context.Context, planID 
 
 	plan.Status = domain.PlanStatusApproved
 	plan.UpdatedAt = time.Now()
-	
+
 	if plan.StartDate == nil {
 		now := time.Now()
 		plan.StartDate = &now
@@ -404,19 +404,19 @@ func (s *TreatmentPlanService) suggestTreatmentForCondition(toothNumber domain.T
 		description = fmt.Sprintf("Obturación diente %d", toothNumber)
 		estimatedCost = 50.00
 		estimatedTime = 45
-		
+
 	case domain.ConditionFracture:
 		treatmentCode = domain.CodeCrown
 		description = fmt.Sprintf("Corona para diente fracturado %d", toothNumber)
 		estimatedCost = 300.00
 		estimatedTime = 90
-		
+
 	case domain.ConditionMissing:
 		treatmentCode = domain.CodeImplant
 		description = fmt.Sprintf("Implante para diente ausente %d", toothNumber)
 		estimatedCost = 1200.00
 		estimatedTime = 120
-		
+
 	default:
 		return nil // No treatment needed
 	}

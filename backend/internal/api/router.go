@@ -158,6 +158,25 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			resp, err = response(200, map[string]string{"status": "ok", "message": "Clinical API is running", "version": "1.0.1", "updated": "2026-02-18"})
 		case method == "POST" && path == "/platform/bootstrap":
 			resp, err = r.platformBootstrap(ctx, req)
+		case method == "POST" && path == "/platform/orgs":
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.createOrganization(actx, req)
+			}
+		case method == "GET" && path == "/platform/orgs":
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.listOrganizations(actx)
+			}
+		case method == "POST" && strings.HasPrefix(path, "/platform/orgs/") && strings.HasSuffix(path, "/admins"):
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/platform/orgs/"), "/admins")
+				resp, err = r.createOrgAdmin(actx, orgID, req)
+			}
 		case method == "POST" && path == "/auth/register":
 			resp, err = r.register(ctx, req)
 		case method == "POST" && path == "/auth/login":
@@ -355,6 +374,43 @@ func (r *Router) platformBootstrap(ctx context.Context, req events.APIGatewayV2H
 		return response(401, map[string]string{"error": err.Error()})
 	}
 	return response(200, out)
+}
+
+func (r *Router) createOrganization(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.CreateOrganizationInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	org, err := r.auth.CreateOrganization(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, org)
+}
+
+func (r *Router) listOrganizations(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {
+	orgs, err := r.auth.ListOrganizations(ctx)
+	if err != nil {
+		return response(500, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{"items": orgs})
+}
+
+func (r *Router) createOrgAdmin(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.CreateOrgAdminInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	in.OrgID = orgID
+	user, err := r.auth.CreateOrgAdmin(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, map[string]string{
+		"userId": user.ID,
+		"email":  user.Email,
+		"role":   user.Role,
+	})
 }
 
 func (r *Router) forgotPassword(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

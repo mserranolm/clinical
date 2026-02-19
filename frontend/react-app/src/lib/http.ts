@@ -7,24 +7,15 @@ type RequestConfig = {
   token?: string;
 };
 
-const isDev = import.meta.env.DEV;
-
-function getEffectiveBase(): string {
-  if (isDev) {
-    return "/api";
-  }
-  return getApiBaseUrl();
-}
-
 export async function request<T>(path: string, config: RequestConfig = {}): Promise<T> {
   const method = config.method ?? "GET";
   const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
-  const base = getEffectiveBase();
+  const base = getApiBaseUrl();
   const res = await fetch(`${base}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      ...(isDev ? {} : apiKey ? { "x-api-key": apiKey } : {}),
+      ...(apiKey ? { "x-api-key": apiKey } : {}),
       ...(config.token ? { Authorization: `Bearer ${config.token}` } : {})
     },
     ...(config.body !== undefined ? { body: JSON.stringify(config.body) } : {})

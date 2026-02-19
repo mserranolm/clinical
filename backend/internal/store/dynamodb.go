@@ -363,11 +363,16 @@ type dynamoPatientRepo struct {
 	tableName string
 }
 
-func (r *dynamoPatientRepo) Create(ctx context.Context, patient domain.Patient) (domain.Patient, error) {
+func orgIDOrDefault(ctx context.Context) string {
 	orgID := OrgIDFromContext(ctx)
 	if strings.TrimSpace(orgID) == "" {
-		return domain.Patient{}, fmt.Errorf("missing orgId")
+		return "default"
 	}
+	return orgID
+}
+
+func (r *dynamoPatientRepo) Create(ctx context.Context, patient domain.Patient) (domain.Patient, error) {
+	orgID := orgIDOrDefault(ctx)
 	item := map[string]types.AttributeValue{
 		"PK":         &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":         &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patient.ID)},
@@ -403,10 +408,7 @@ func (r *dynamoPatientRepo) Create(ctx context.Context, patient domain.Patient) 
 }
 
 func (r *dynamoPatientRepo) GetByID(ctx context.Context, id string) (domain.Patient, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return domain.Patient{}, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
@@ -433,10 +435,7 @@ func (r *dynamoPatientRepo) GetByID(ctx context.Context, id string) (domain.Pati
 }
 
 func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return nil, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	input := &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),
 		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
@@ -466,10 +465,7 @@ func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) (
 }
 
 func (r *dynamoPatientRepo) SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return nil, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	q := strings.ToLower(strings.TrimSpace(query))
 
 	input := &dynamodb.ScanInput{
@@ -514,10 +510,7 @@ func (r *dynamoPatientRepo) Update(ctx context.Context, patient domain.Patient) 
 }
 
 func (r *dynamoPatientRepo) Delete(ctx context.Context, id string) error {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
@@ -535,10 +528,7 @@ type dynamoAppointmentRepo struct {
 }
 
 func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return domain.Appointment{}, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	item := map[string]types.AttributeValue{
 		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", appointment.ID)},
@@ -574,10 +564,7 @@ func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.A
 }
 
 func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.Appointment, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return domain.Appointment{}, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
@@ -604,10 +591,7 @@ func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.
 }
 
 func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return nil, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	// Use Scan with FilterExpression since we don't have a GSI for doctor+date
 	dayStr := day.Format("2006-01-02")
 
@@ -655,10 +639,7 @@ type dynamoConsentRepo struct {
 }
 
 func (r *dynamoConsentRepo) Create(ctx context.Context, consent domain.Consent) (domain.Consent, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return domain.Consent{}, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	item := map[string]types.AttributeValue{
 		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", consent.ID)},
@@ -695,10 +676,7 @@ func (r *dynamoConsentRepo) Update(ctx context.Context, consent domain.Consent) 
 }
 
 func (r *dynamoConsentRepo) GetByID(ctx context.Context, id string) (domain.Consent, error) {
-	orgID := OrgIDFromContext(ctx)
-	if strings.TrimSpace(orgID) == "" {
-		return domain.Consent{}, fmt.Errorf("missing orgId")
-	}
+	orgID := orgIDOrDefault(ctx)
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
@@ -950,6 +928,68 @@ func (r *dynamoAuthRepo) ListUsersByOrg(ctx context.Context, orgID string) ([]Au
 		}
 	}
 	return items, nil
+}
+
+func (r *dynamoAuthRepo) CreateOrganization(ctx context.Context, org Organization) (Organization, error) {
+	item := map[string]types.AttributeValue{
+		"PK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", org.ID)},
+		"SK":        &types.AttributeValueMemberS{Value: "ORG"},
+		"ID":        &types.AttributeValueMemberS{Value: org.ID},
+		"Name":      &types.AttributeValueMemberS{Value: org.Name},
+		"CreatedAt": &types.AttributeValueMemberS{Value: org.CreatedAt.Format(time.RFC3339)},
+	}
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName:           aws.String(r.tableName),
+		Item:                item,
+		ConditionExpression: aws.String("attribute_not_exists(PK)"),
+	})
+	if err != nil {
+		return Organization{}, err
+	}
+	return org, nil
+}
+
+func (r *dynamoAuthRepo) GetOrganization(ctx context.Context, orgID string) (Organization, error) {
+	out, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			"SK": &types.AttributeValueMemberS{Value: "ORG"},
+		},
+	})
+	if err != nil {
+		return Organization{}, err
+	}
+	if out.Item == nil {
+		return Organization{}, fmt.Errorf("organization not found")
+	}
+	var org Organization
+	if err := attributevalue.UnmarshalMap(out.Item, &org); err != nil {
+		return Organization{}, err
+	}
+	return org, nil
+}
+
+func (r *dynamoAuthRepo) ListOrganizations(ctx context.Context) ([]Organization, error) {
+	out, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("begins_with(PK, :prefix) AND SK = :sk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":prefix": &types.AttributeValueMemberS{Value: "ORG#"},
+			":sk":     &types.AttributeValueMemberS{Value: "ORG"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	orgs := make([]Organization, 0, len(out.Items))
+	for _, item := range out.Items {
+		var org Organization
+		if err := attributevalue.UnmarshalMap(item, &org); err == nil {
+			orgs = append(orgs, org)
+		}
+	}
+	return orgs, nil
 }
 
 func (r *dynamoAuthRepo) CreateSession(ctx context.Context, session AuthSession) (AuthSession, error) {

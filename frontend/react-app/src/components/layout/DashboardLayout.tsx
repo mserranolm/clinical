@@ -14,6 +14,7 @@ import { OdontogramPage } from "../../pages/OdontogramPage";
 import { PatientsPage } from "../../pages/PatientsPage";
 import { PlansPage } from "../../pages/PlansPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
+import { UsersAdminPage } from "../../pages/UsersAdminPage";
 
 type DashboardAppointmentRow = {
   id: string;
@@ -94,6 +95,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={session.userId} />} />
             <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={session.userId} />} />
             <Route path="planes" element={<PlansPage token={session.token} doctorId={session.userId} />} />
+            <Route path="usuarios" element={<UsersAdminPage session={session} />} />
             <Route path="testing" element={<ServiceTester session={session} onSessionChange={() => onLogout()} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

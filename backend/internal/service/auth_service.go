@@ -196,6 +196,23 @@ type BootstrapPlatformAdminOutput struct {
 	Role   string `json:"role"`
 }
 
+type CreateOrganizationInput struct {
+	Name string `json:"name"`
+}
+
+type OrganizationDTO struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type CreateOrgAdminInput struct {
+	OrgID    string `json:"orgId"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 func (s *AuthService) BootstrapPlatformAdmin(ctx context.Context, in BootstrapPlatformAdminInput) (BootstrapPlatformAdminOutput, error) {
 	secret := strings.TrimSpace(os.Getenv("BOOTSTRAP_SECRET"))
 	if secret == "" {
@@ -245,6 +262,61 @@ func (s *AuthService) BootstrapPlatformAdmin(ctx context.Context, in BootstrapPl
 		return BootstrapPlatformAdminOutput{}, err
 	}
 	return BootstrapPlatformAdminOutput{UserID: created.ID, Email: created.Email, Role: created.Role}, nil
+}
+
+func (s *AuthService) CreateOrganization(ctx context.Context, in CreateOrganizationInput) (OrganizationDTO, error) {
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		return OrganizationDTO{}, fmt.Errorf("name is required")
+	}
+	org := store.Organization{
+		ID:        buildID("org"),
+		Name:      name,
+		CreatedAt: time.Now().UTC(),
+	}
+	created, err := s.repo.CreateOrganization(ctx, org)
+	if err != nil {
+		return OrganizationDTO{}, err
+	}
+	return OrganizationDTO{ID: created.ID, Name: created.Name, CreatedAt: created.CreatedAt}, nil
+}
+
+func (s *AuthService) ListOrganizations(ctx context.Context) ([]OrganizationDTO, error) {
+	items, err := s.repo.ListOrganizations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]OrganizationDTO, 0, len(items))
+	for _, org := range items {
+		result = append(result, OrganizationDTO{ID: org.ID, Name: org.Name, CreatedAt: org.CreatedAt})
+	}
+	return result, nil
+}
+
+func (s *AuthService) CreateOrgAdmin(ctx context.Context, in CreateOrgAdminInput) (store.AuthUser, error) {
+	if strings.TrimSpace(in.OrgID) == "" {
+		return store.AuthUser{}, fmt.Errorf("orgId is required")
+	}
+	if strings.TrimSpace(in.Email) == "" {
+		return store.AuthUser{}, fmt.Errorf("email is required")
+	}
+	if len(in.Password) < 8 {
+		return store.AuthUser{}, fmt.Errorf("password must have at least 8 characters")
+	}
+	if _, err := s.repo.GetOrganization(ctx, in.OrgID); err != nil {
+		return store.AuthUser{}, fmt.Errorf("organization not found")
+	}
+	user := store.AuthUser{
+		ID:           buildID("usr"),
+		OrgID:        in.OrgID,
+		Name:         strings.TrimSpace(in.Name),
+		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
+		Role:         "admin",
+		Status:       "active",
+		PasswordHash: hashPassword(in.Password),
+		CreatedAt:    time.Now().UTC(),
+	}
+	return s.repo.CreateUser(ctx, user)
 }
 
 func (s *AuthService) ResetPassword(ctx context.Context, in ResetPasswordInput) error {

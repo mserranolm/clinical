@@ -19,7 +19,14 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
         email: String(fd.get("email") || ""),
         password: String(fd.get("password") || "")
       });
-      onSuccess({ token: result.accessToken, userId: result.userId, name: result.name, email: result.email });
+      onSuccess({
+        token: result.accessToken,
+        userId: result.userId,
+        orgId: result.orgId,
+        name: result.name,
+        email: result.email,
+        role: result.role
+      });
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No fue posible iniciar sesión");

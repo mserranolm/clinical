@@ -25,7 +25,7 @@ const (
 func TestSetup(t *testing.T) {
 	// Cargar configuración
 	cfg := config.Load()
-	
+
 	if cfg.IsLocal() {
 		t.Logf("✅ Ejecutando en modo local")
 		t.Logf("📊 Entorno: %s", cfg.Environment)
@@ -67,7 +67,7 @@ func testDynamoDBConnection(t *testing.T, cfg config.Config) {
 	}
 
 	t.Log("✅ Conexión DynamoDB exitosa")
-	
+
 	// Test básico de creación/lectura
 	testPatient := domain.Patient{
 		ID:        "test-" + uuid.New().String()[:8],
@@ -103,12 +103,12 @@ func testDynamoDBConnection(t *testing.T, cfg config.Config) {
 func TestHealthEndpoint(t *testing.T) {
 	// Intentar conectar a la API local
 	client := &http.Client{Timeout: 5 * time.Second}
-	
+
 	// Test endpoints básicos (algunos pueden devolver 404, pero la API debe responder)
 	endpoints := []string{
 		"/health",
 		"/patients",
-		"/appointments", 
+		"/appointments",
 		"/auth/login",
 	}
 
@@ -131,7 +131,7 @@ func TestHealthEndpoint(t *testing.T) {
 // TestPatientRegistration test de registro de paciente completo
 func TestPatientRegistration(t *testing.T) {
 	TestHealthEndpoint(t) // Pre-requisito
-	
+
 	patient := map[string]interface{}{
 		"doctorId":   "doctor-test-" + uuid.New().String()[:8],
 		"specialty":  "odontology",
@@ -150,7 +150,7 @@ func TestPatientRegistration(t *testing.T) {
 	}
 
 	jsonData, _ := json.Marshal(patient)
-	
+
 	resp, err := http.Post(baseURL+"/patients/onboard", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		t.Fatalf("❌ Error en request: %v", err)
@@ -159,10 +159,10 @@ func TestPatientRegistration(t *testing.T) {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		t.Logf("✅ Registro de paciente exitoso (HTTP %d)", resp.StatusCode)
-		
+
 		var response map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&response)
-		
+
 		if patientID, ok := response["id"]; ok {
 			t.Logf("📋 Paciente creado con ID: %s", patientID)
 		}
@@ -174,19 +174,19 @@ func TestPatientRegistration(t *testing.T) {
 // TestAppointmentFlow test de flujo completo de citas
 func TestAppointmentFlow(t *testing.T) {
 	TestHealthEndpoint(t) // Pre-requisito
-	
+
 	// Crear cita
 	appointment := map[string]interface{}{
-		"doctorId":    "doctor-test-" + uuid.New().String()[:8],
-		"patientId":   "patient-test-" + uuid.New().String()[:8],
-		"startAt":     time.Now().Add(24 * time.Hour).Format(time.RFC3339),
-		"endAt":       time.Now().Add(25 * time.Hour).Format(time.RFC3339),
-		"status":      "scheduled",
+		"doctorId":      "doctor-test-" + uuid.New().String()[:8],
+		"patientId":     "patient-test-" + uuid.New().String()[:8],
+		"startAt":       time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+		"endAt":         time.Now().Add(25 * time.Hour).Format(time.RFC3339),
+		"status":        "scheduled",
 		"treatmentPlan": "Limpieza dental",
 	}
 
 	jsonData, _ := json.Marshal(appointment)
-	
+
 	resp, err := http.Post(baseURL+"/appointments", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		t.Fatalf("❌ Error creando cita: %v", err)
@@ -195,10 +195,10 @@ func TestAppointmentFlow(t *testing.T) {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		t.Logf("✅ Cita creada exitosamente (HTTP %d)", resp.StatusCode)
-		
+
 		var response map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&response)
-		
+
 		if appointmentID, ok := response["id"]; ok {
 			t.Logf("📅 Cita creada con ID: %s", appointmentID)
 		}
@@ -215,13 +215,13 @@ func TestMain(m *testing.M) {
 		// Nota: En un entorno real usarías una librería como godotenv
 		// Por simplicidad, asumimos que las variables ya están en el entorno
 	}
-	
+
 	fmt.Println("🧪 Iniciando tests de integración...")
 	fmt.Println("📍 Asegúrate de que el servidor esté corriendo: source .env.local && go run ./cmd/api")
-	
+
 	// Ejecutar tests
 	code := m.Run()
-	
+
 	fmt.Println("✅ Tests completados")
 	os.Exit(code)
 }

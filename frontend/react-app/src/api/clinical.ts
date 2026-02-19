@@ -33,7 +33,7 @@ export const clinicalApi = {
     }),
 
   login: (input: LoginInput) =>
-    request<{ accessToken: string; userId: string; name: string; email: string }>(endpointCatalog.login, {
+    request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string }>(endpointCatalog.login, {
       method: "POST",
       body: input
     }),
