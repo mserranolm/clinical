@@ -22,6 +22,24 @@ type Router struct {
 	odontogram   *OdontogramHandler
 }
 
+func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in struct {
+		Channel string `json:"channel"`
+	}
+	if req.Body != "" {
+		if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+			return response(400, map[string]string{"error": "invalid_json"})
+		}
+	}
+	if in.Channel == "" {
+		in.Channel = "email"
+	}
+	if err := r.appointments.SendReminderAnytime(ctx, id, in.Channel); err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"status": "reminder_resent"})
+}
+
 func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler) *Router {
 	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram}
 }
@@ -94,6 +112,9 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 		case method == "POST" && strings.HasSuffix(path, "/close-day") && strings.HasPrefix(path, "/appointments/"):
 			date := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/close-day")
 			resp, err = r.closeAppointmentDay(ctx, date, req)
+		case method == "POST" && strings.HasSuffix(path, "/resend-confirmation") && strings.HasPrefix(path, "/appointments/"):
+			id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/resend-confirmation")
+			resp, err = r.resendAppointmentConfirmation(ctx, id, req)
 		case method == "POST" && path == "/consents":
 			resp, err = r.createConsent(ctx, req)
 		case method == "GET" && strings.HasPrefix(path, "/consents/verify/"):

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"os"
 
 	"clinical-backend/internal/domain"
 	"clinical-backend/internal/notifications"
@@ -41,6 +42,13 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	if err != nil {
 		return domain.Appointment{}, fmt.Errorf("invalid endAt")
 	}
+	// Resolve clinic timezone for human-friendly messages
+	loc := time.Local
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, lerr := time.LoadLocation(tz); lerr == nil {
+			loc = l
+		}
+	}
 
 	// Validate for overlapping appointments
 	existingAppointments, err := s.repo.ListByDoctorAndDay(ctx, in.DoctorID, startAt)
@@ -50,7 +58,7 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 
 	for _, existing := range existingAppointments {
 		if startAt.Before(existing.EndAt) && endAt.After(existing.StartAt) {
-			return domain.Appointment{}, fmt.Errorf("el horario de %s a %s ya está ocupado", startAt.Format("15:04"), endAt.Format("15:04"))
+			return domain.Appointment{}, fmt.Errorf("el horario de %s a %s ya está ocupado", startAt.In(loc).Format("15:04"), endAt.In(loc).Format("15:04"))
 		}
 	}
 

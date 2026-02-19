@@ -4,8 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"clinical-backend/internal/config"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2"
+	sestypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 )
 
 type Notifier interface {
@@ -17,15 +27,65 @@ type Notifier interface {
 type Router struct {
 	sendSMS   bool
 	sendEmail bool
+	cfg       config.Config
+	ddb       *dynamodb.Client
+	ses       *sesv2.Client
 }
 
 func NewRouter(cfg config.Config) *Router {
-	return &Router{sendSMS: cfg.SendSMS, sendEmail: cfg.SendEmail}
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
+	if err != nil {
+		log.Printf("[notify] warn: failed to load aws cfg: %v", err)
+	}
+	r := &Router{sendSMS: cfg.SendSMS, sendEmail: cfg.SendEmail, cfg: cfg}
+	if err == nil {
+		r.ddb = dynamodb.NewFromConfig(awsCfg)
+		r.ses = sesv2.NewFromConfig(awsCfg)
+	}
+	return r
 }
 
-func (r *Router) SendAppointmentReminder(_ context.Context, patientID, channel, message string) error {
+func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel, message string) error {
 	if !r.allowed(channel) {
 		return fmt.Errorf("channel %s disabled", channel)
+	}
+	if channel == "email" && r.sendEmail && r.ses != nil {
+		to := patientID
+		if !strings.Contains(to, "@") && r.ddb != nil {
+			key := map[string]ddbtypes.AttributeValue{
+				"PK": &ddbtypes.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patientID)},
+				"SK": &ddbtypes.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patientID)},
+			}
+			out, err := r.ddb.GetItem(ctx, &dynamodb.GetItemInput{
+				TableName: aws.String(r.cfg.PatientTable),
+				Key:       key,
+			})
+			if err == nil && out.Item != nil {
+				var row struct{ Email string }
+				if uerr := attributevalue.UnmarshalMap(out.Item, &row); uerr == nil && row.Email != "" {
+					to = row.Email
+				}
+			}
+		}
+		sender := os.Getenv("SES_SENDER_EMAIL")
+		if sender == "" {
+			sender = "no-reply@vozlyai.aski-tech.net"
+		}
+		subject := "Confirmación de cita"
+		_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+			FromEmailAddress: aws.String(sender),
+			Destination:     &sestypes.Destination{ToAddresses: []string{to}},
+			Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+				Subject: &sestypes.Content{Data: aws.String(subject)},
+				Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(message)}},
+			}},
+		})
+		if err != nil {
+			log.Printf("[notify:ses] send failed: %v", err)
+			return err
+		}
+		log.Printf("[notify:ses] email sent to %s", to)
+		return nil
 	}
 	log.Printf("[notify:appointment] patient=%s channel=%s message=%s", patientID, channel, message)
 	return nil

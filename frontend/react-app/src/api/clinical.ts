@@ -113,6 +113,12 @@ export const clinicalApi = {
       token
     }),
 
+  resendAppointmentConfirmation: (appointmentId: string, token?: string) =>
+    request<{ status: string }>(endpointCatalog.resendAppointmentConfirmation(appointmentId), {
+      method: "POST",
+      token
+    }),
+
   closeAppointmentDay: (
     appointmentId: string,
     payload: { evolutionNotes: string; paymentAmount: number; paymentMethod: string },

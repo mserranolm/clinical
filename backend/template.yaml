@@ -21,6 +21,8 @@ Globals:
         SEND_SMS: "true"
         SEND_EMAIL: "true"
         USE_DYNAMODB: "true"
+        CLINIC_TZ: America/Caracas
+        SES_SENDER_EMAIL: no-reply@vozlyai.aski-tech.net
 
 Resources:
 
@@ -90,6 +92,12 @@ Resources:
         - Statement:
           - Effect: Allow
             Action:
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
+        - Statement:
+          - Effect: Allow
+            Action:
               - dynamodb:CreateTable
               - dynamodb:DescribeTable
               - dynamodb:ListTables
@@ -117,6 +125,12 @@ Resources:
             TableName: !Ref PatientsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
       Events:
         Every15Minutes:
           Type: Schedule
@@ -136,6 +150,12 @@ Resources:
             TableName: !Ref PatientsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
       Events:
         DailyClose:
           Type: Schedule

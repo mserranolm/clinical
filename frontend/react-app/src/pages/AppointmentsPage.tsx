@@ -90,6 +90,15 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
     });
   }
 
+  async function onResend(id: string) {
+    const promise = clinicalApi.resendAppointmentConfirmation(id, token);
+    notify.promise(promise, {
+      loading: "Reenviando confirmación...",
+      success: () => "Confirmación reenviada",
+      error: "Error al reenviar",
+    });
+  }
+
   return (
     <section className="page-section">
       <div className="grid-2-cols">
@@ -183,6 +192,10 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
                           <span>Confirmar</span>
                         </button>
                       ) : null}
+                      <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
+                        <span className="icon">✉️</span>
+                        <span>Reenviar</span>
+                      </button>
                       <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
                         <span>Atender</span>
                         <span className="icon">→</span>

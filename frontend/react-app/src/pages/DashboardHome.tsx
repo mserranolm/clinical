@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthSession } from "../types";
+import { clinicalApi } from "../api/clinical";
+import { notify } from "../lib/notify";
 
 type AppointmentRow = {
   id: string;
@@ -11,7 +13,7 @@ type AppointmentRow = {
   paymentAmount?: number;
 };
 
-export function DashboardHome({ rows, loading, error, date, onDateChange }: { 
+export function DashboardHome({ user, rows, loading, error, date, onDateChange }: { 
   user: AuthSession; 
   rows: AppointmentRow[]; 
   loading: boolean;
@@ -45,8 +47,15 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
     navigate(`/dashboard/nuevo-tratamiento?patientId=${encodeURIComponent(row.patientId)}`);
   };
 
-  const goToCreateAppointment = () => {
-    navigate("/dashboard/citas");
+  // Removed duplicate create appointment button from header
+
+  const onResend = (id: string) => {
+    const promise = clinicalApi.resendAppointmentConfirmation(id, user.token);
+    notify.promise(promise, {
+      loading: "Reenviando confirmación...",
+      success: () => "Confirmación reenviada",
+      error: "Error al reenviar",
+    });
   };
 
   return (
@@ -102,9 +111,6 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
             <p>Vista detallada de la agenda seleccionada.</p>
           </div>
           <div className="header-actions">
-            <button type="button" className="mini-btn" onClick={goToCreateAppointment}>
-              Crear cita
-            </button>
             <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
           </div>
         </header>
@@ -132,9 +138,16 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
                     <span className={`badge ${statusClass(row.status)}`}>{isConfirmed(row.status) ? "confirmada" : "no confirmada"}</span>
                   </td>
                   <td>
-                    <button type="button" className="ghost mini-btn" onClick={() => goToTreatment(row)}>
-                      Atender
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
+                        <span>Atender</span>
+                        <span className="icon">→</span>
+                      </button>
+                      <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
+                        <span className="icon">✉️</span>
+                        <span>Reenviar</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
