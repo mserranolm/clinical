@@ -20,6 +20,33 @@ func NewAuthService(repo store.AuthRepository) *AuthService {
 	return &AuthService{repo: repo}
 }
 
+type Authenticated struct {
+	User    store.AuthUser
+	Session store.AuthSession
+}
+
+func (s *AuthService) Authenticate(ctx context.Context, token string) (Authenticated, error) {
+	if strings.TrimSpace(token) == "" {
+		return Authenticated{}, fmt.Errorf("missing token")
+	}
+	session, err := s.repo.GetSession(ctx, token)
+	if err != nil {
+		return Authenticated{}, fmt.Errorf("invalid token")
+	}
+	if time.Now().UTC().After(session.ExpiresAt) {
+		_ = s.repo.DeleteSession(ctx, token)
+		return Authenticated{}, fmt.Errorf("token expired")
+	}
+	user, err := s.repo.GetUserByID(ctx, session.UserID)
+	if err != nil {
+		return Authenticated{}, fmt.Errorf("invalid token")
+	}
+	if strings.ToLower(strings.TrimSpace(user.Status)) == "disabled" {
+		return Authenticated{}, fmt.Errorf("user disabled")
+	}
+	return Authenticated{User: user, Session: session}, nil
+}
+
 type RegisterInput struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
@@ -68,8 +95,10 @@ type LoginInput struct {
 type LoginOutput struct {
 	AccessToken string `json:"accessToken"`
 	UserID      string `json:"userId"`
+	OrgID       string `json:"orgId"`
 	Name        string `json:"name"`
 	Email       string `json:"email"`
+	Role        string `json:"role"`
 }
 
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
@@ -84,15 +113,31 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginOutput, er
 	if user.PasswordHash != hashPassword(in.Password) {
 		return LoginOutput{}, fmt.Errorf("invalid credentials")
 	}
+	if strings.ToLower(strings.TrimSpace(user.Status)) == "disabled" {
+		return LoginOutput{}, fmt.Errorf("user disabled")
+	}
 	token, err := randomToken(24)
+	if err != nil {
+		return LoginOutput{}, err
+	}
+	expiresAt := time.Now().UTC().Add(24 * time.Hour)
+	_, err = s.repo.CreateSession(ctx, store.AuthSession{
+		Token:     token,
+		UserID:    user.ID,
+		OrgID:     user.OrgID,
+		Role:      user.Role,
+		ExpiresAt: expiresAt,
+	})
 	if err != nil {
 		return LoginOutput{}, err
 	}
 	return LoginOutput{
 		AccessToken: token,
 		UserID:      user.ID,
+		OrgID:       user.OrgID,
 		Name:        user.Name,
 		Email:       user.Email,
+		Role:        user.Role,
 	}, nil
 }
 

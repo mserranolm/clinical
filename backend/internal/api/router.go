@@ -14,6 +14,74 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
+type authCtxKey string
+
+const ctxAuthKey authCtxKey = "auth"
+
+type permission string
+
+const (
+	permUsersManage        permission = "users.manage"
+	permPatientsManage     permission = "patients.manage"
+	permAppointmentsManage permission = "appointments.manage"
+	permTreatmentsManage   permission = "treatments.manage"
+)
+
+func hasPermission(role string, p permission) bool {
+	r := strings.ToLower(strings.TrimSpace(role))
+	switch p {
+	case permUsersManage:
+		return r == "admin"
+	case permPatientsManage:
+		return r == "admin" || r == "doctor"
+	case permAppointmentsManage:
+		return r == "admin" || r == "assistant"
+	case permTreatmentsManage:
+		return r == "admin" || r == "doctor"
+	default:
+		return false
+	}
+}
+
+func bearerToken(req events.APIGatewayV2HTTPRequest) string {
+	authz := req.Headers["authorization"]
+	if authz == "" {
+		authz = req.Headers["Authorization"]
+	}
+	authz = strings.TrimSpace(authz)
+	if authz == "" {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(authz), "bearer ") {
+		return strings.TrimSpace(authz[7:])
+	}
+	return authz
+}
+
+func isPublicEndpoint(method, path string) bool {
+	if method == "GET" && path == "/health" {
+		return true
+	}
+	if method == "POST" && strings.HasPrefix(path, "/auth/") {
+		return true
+	}
+	return false
+}
+
+func (r *Router) require(ctx context.Context, req events.APIGatewayV2HTTPRequest, p permission) (context.Context, events.APIGatewayV2HTTPResponse, bool) {
+	token := bearerToken(req)
+	auth, err := r.auth.Authenticate(ctx, token)
+	if err != nil {
+		resp, _ := response(401, map[string]string{"error": err.Error()})
+		return ctx, resp, false
+	}
+	if !hasPermission(auth.User.Role, p) {
+		resp, _ := response(403, map[string]string{"error": "forbidden"})
+		return ctx, resp, false
+	}
+	return context.WithValue(ctx, ctxAuthKey, auth), events.APIGatewayV2HTTPResponse{}, true
+}
+
 type Router struct {
 	appointments *service.AppointmentService
 	patients     *service.PatientService
@@ -89,57 +157,127 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 		case method == "POST" && path == "/auth/reset-password":
 			resp, err = r.resetPassword(ctx, req)
 		case method == "POST" && path == "/patients/onboard":
-			resp, err = r.onboardPatient(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.onboardPatient(actx, req)
+			}
 		case method == "GET" && path == "/patients":
-			resp, err = r.listPatients(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.listPatients(actx, req)
+			}
 		case method == "GET" && path == "/patients/search":
-			resp, err = r.searchPatients(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.searchPatients(actx, req)
+			}
 		case method == "GET" && strings.HasPrefix(path, "/patients/"):
-			resp, err = r.getPatient(ctx, strings.TrimPrefix(path, "/patients/"))
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.getPatient(actx, strings.TrimPrefix(path, "/patients/"))
+			}
 		case method == "PUT" && strings.HasPrefix(path, "/patients/"):
-			id := strings.TrimPrefix(path, "/patients/")
-			resp, err = r.updatePatient(ctx, id, req)
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/patients/")
+				resp, err = r.updatePatient(actx, id, req)
+			}
 		case method == "DELETE" && strings.HasPrefix(path, "/patients/"):
-			id := strings.TrimPrefix(path, "/patients/")
-			resp, err = r.deletePatient(ctx, id)
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/patients/")
+				resp, err = r.deletePatient(actx, id)
+			}
 		case method == "POST" && path == "/appointments":
-			resp, err = r.createAppointment(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.createAppointment(actx, req)
+			}
 		case method == "GET" && path == "/appointments":
-			resp, err = r.listAppointments(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.listAppointments(actx, req)
+			}
 		case method == "POST" && strings.HasSuffix(path, "/confirm") && strings.HasPrefix(path, "/appointments/"):
-			id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/confirm")
-			resp, err = r.confirmAppointment(ctx, id)
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/confirm")
+				resp, err = r.confirmAppointment(actx, id)
+			}
 		case method == "POST" && strings.HasSuffix(path, "/close-day") && strings.HasPrefix(path, "/appointments/"):
-			date := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/close-day")
-			resp, err = r.closeAppointmentDay(ctx, date, req)
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				date := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/close-day")
+				resp, err = r.closeAppointmentDay(actx, date, req)
+			}
 		case method == "POST" && strings.HasSuffix(path, "/resend-confirmation") && strings.HasPrefix(path, "/appointments/"):
-			id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/resend-confirmation")
-			resp, err = r.resendAppointmentConfirmation(ctx, id, req)
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/resend-confirmation")
+				resp, err = r.resendAppointmentConfirmation(actx, id, req)
+			}
 		case method == "POST" && path == "/consents":
-			resp, err = r.createConsent(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.createConsent(actx, req)
+			}
 		case method == "GET" && strings.HasPrefix(path, "/consents/verify/"):
+			// Public verification link
 			token := strings.TrimPrefix(path, "/consents/verify/")
 			resp, err = r.acceptConsent(ctx, token)
 		case method == "POST" && strings.HasPrefix(path, "/odontograms"):
-			resp, err = r.odontogram.CreateOdontogram(ctx, req)
-		case method == "GET" && strings.HasPrefix(path, "/odontograms/patient/"):
-			// Extract patientId from path and add to PathParameters
-			patientId := strings.TrimPrefix(path, "/odontograms/patient/")
-			if req.PathParameters == nil {
-				req.PathParameters = make(map[string]string)
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.odontogram.CreateOdontogram(actx, req)
 			}
-			req.PathParameters["patientId"] = patientId
-			resp, err = r.odontogram.GetOdontogramByPatient(ctx, req)
+		case method == "GET" && strings.HasPrefix(path, "/odontograms/patient/"):
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				patientId := strings.TrimPrefix(path, "/odontograms/patient/")
+				if req.PathParameters == nil {
+					req.PathParameters = make(map[string]string)
+				}
+				req.PathParameters["patientId"] = patientId
+				resp, err = r.odontogram.GetOdontogramByPatient(actx, req)
+			}
 		case method == "PUT" && strings.HasPrefix(path, "/odontograms"):
-			resp, err = r.odontogram.UpdateToothCondition(ctx, req)
-		case method == "DELETE" && strings.HasPrefix(path, "/odontograms"):
-			resp, err = response(501, map[string]string{"error": "not_implemented", "message": "Delete odontogram not yet implemented"})
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.odontogram.UpdateToothCondition(actx, req)
+			}
 		case method == "POST" && strings.Contains(path, "/treatment-plans"):
-			resp, err = r.odontogram.CreateTreatmentPlan(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.odontogram.CreateTreatmentPlan(actx, req)
+			}
 		case method == "GET" && strings.Contains(path, "/treatment-plans"):
-			resp, err = r.odontogram.GetTreatmentPlan(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.odontogram.GetTreatmentPlan(actx, req)
+			}
 		case method == "PUT" && strings.Contains(path, "/treatment-plans"):
-			resp, err = r.odontogram.UpdateTreatmentPlan(ctx, req)
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.odontogram.UpdateTreatmentPlan(actx, req)
+			}
 		default:
 			resp, err = response(404, map[string]string{"error": "endpoint_not_found", "message": "The requested endpoint was not found"})
 		}

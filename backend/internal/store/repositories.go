@@ -34,10 +34,31 @@ type ConsentRepository interface {
 
 type AuthUser struct {
 	ID           string
+	OrgID        string
 	Name         string
 	Email        string
+	Role         string
+	Status       string
 	PasswordHash string
 	CreatedAt    time.Time
+}
+
+type AuthSession struct {
+	Token     string
+	UserID    string
+	OrgID     string
+	Role      string
+	ExpiresAt time.Time
+}
+
+type UserInvitation struct {
+	Token     string
+	OrgID     string
+	Email     string
+	Role      string
+	InvitedBy string
+	ExpiresAt time.Time
+	Used      bool
 }
 
 type PasswordResetToken struct {
@@ -49,8 +70,20 @@ type PasswordResetToken struct {
 
 type AuthRepository interface {
 	CreateUser(ctx context.Context, user AuthUser) (AuthUser, error)
+	GetUserByID(ctx context.Context, userID string) (AuthUser, error)
 	GetUserByEmail(ctx context.Context, email string) (AuthUser, error)
 	UpdateUserPassword(ctx context.Context, userID, passwordHash string) error
+	UpdateUser(ctx context.Context, user AuthUser) (AuthUser, error)
+	ListUsersByOrg(ctx context.Context, orgID string) ([]AuthUser, error)
+
+	CreateSession(ctx context.Context, session AuthSession) (AuthSession, error)
+	GetSession(ctx context.Context, token string) (AuthSession, error)
+	DeleteSession(ctx context.Context, token string) error
+
+	CreateInvitation(ctx context.Context, inv UserInvitation) (UserInvitation, error)
+	GetInvitation(ctx context.Context, token string) (UserInvitation, error)
+	MarkInvitationUsed(ctx context.Context, token string) error
+
 	SaveResetToken(ctx context.Context, token PasswordResetToken) (PasswordResetToken, error)
 	GetResetToken(ctx context.Context, token string) (PasswordResetToken, error)
 	MarkResetTokenUsed(ctx context.Context, token string) error
@@ -91,7 +124,7 @@ func NewInMemoryRepositories() *InMemoryRepositories {
 		Patients:       &memoryPatientRepo{items: map[string]domain.Patient{}},
 		Appointments:   &memoryAppointmentRepo{items: map[string]domain.Appointment{}},
 		Consents:       &memoryConsentRepo{items: map[string]domain.Consent{}},
-		Users:          &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, resetTokens: map[string]PasswordResetToken{}},
+		Users:          &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, usersByOrg: map[string]map[string]struct{}{}, sessions: map[string]AuthSession{}, invitations: map[string]UserInvitation{}, resetTokens: map[string]PasswordResetToken{}},
 		Odontograms:    &memoryOdontogramRepo{items: map[string]domain.Odontogram{}, byPatient: map[string]string{}},
 		TreatmentPlans: &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
 	}
@@ -259,6 +292,9 @@ type memoryAuthRepo struct {
 	mu          sync.RWMutex
 	usersByID   map[string]AuthUser
 	emailIndex  map[string]string
+	usersByOrg  map[string]map[string]struct{}
+	sessions    map[string]AuthSession
+	invitations map[string]UserInvitation
 	resetTokens map[string]PasswordResetToken
 }
 
@@ -270,8 +306,33 @@ func (r *memoryAuthRepo) CreateUser(_ context.Context, user AuthUser) (AuthUser,
 		return AuthUser{}, fmt.Errorf("email already exists")
 	}
 	user.Email = email
+	if user.Role == "" {
+		user.Role = "admin"
+	}
+	if user.Status == "" {
+		user.Status = "active"
+	}
 	r.usersByID[user.ID] = user
 	r.emailIndex[email] = user.ID
+	if user.OrgID != "" {
+		if r.usersByOrg == nil {
+			r.usersByOrg = map[string]map[string]struct{}{}
+		}
+		if _, ok := r.usersByOrg[user.OrgID]; !ok {
+			r.usersByOrg[user.OrgID] = map[string]struct{}{}
+		}
+		r.usersByOrg[user.OrgID][user.ID] = struct{}{}
+	}
+	return user, nil
+}
+
+func (r *memoryAuthRepo) GetUserByID(_ context.Context, userID string) (AuthUser, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	user, ok := r.usersByID[userID]
+	if !ok {
+		return AuthUser{}, fmt.Errorf("user not found")
+	}
 	return user, nil
 }
 
@@ -284,6 +345,101 @@ func (r *memoryAuthRepo) GetUserByEmail(_ context.Context, email string) (AuthUs
 	}
 	user := r.usersByID[userID]
 	return user, nil
+}
+
+func (r *memoryAuthRepo) UpdateUser(_ context.Context, user AuthUser) (AuthUser, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.usersByID[user.ID]; !ok {
+		return AuthUser{}, fmt.Errorf("user not found")
+	}
+	user.Email = normalizeEmail(user.Email)
+	r.usersByID[user.ID] = user
+	return user, nil
+}
+
+func (r *memoryAuthRepo) ListUsersByOrg(_ context.Context, orgID string) ([]AuthUser, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ids, ok := r.usersByOrg[orgID]
+	if !ok {
+		return []AuthUser{}, nil
+	}
+	res := make([]AuthUser, 0, len(ids))
+	for id := range ids {
+		res = append(res, r.usersByID[id])
+	}
+	return res, nil
+}
+
+func (r *memoryAuthRepo) CreateSession(_ context.Context, session AuthSession) (AuthSession, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sessions == nil {
+		r.sessions = map[string]AuthSession{}
+	}
+	r.sessions[session.Token] = session
+	return session, nil
+}
+
+func (r *memoryAuthRepo) GetSession(_ context.Context, token string) (AuthSession, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.sessions == nil {
+		return AuthSession{}, fmt.Errorf("session not found")
+	}
+	s, ok := r.sessions[token]
+	if !ok {
+		return AuthSession{}, fmt.Errorf("session not found")
+	}
+	return s, nil
+}
+
+func (r *memoryAuthRepo) DeleteSession(_ context.Context, token string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sessions != nil {
+		delete(r.sessions, token)
+	}
+	return nil
+}
+
+func (r *memoryAuthRepo) CreateInvitation(_ context.Context, inv UserInvitation) (UserInvitation, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.invitations == nil {
+		r.invitations = map[string]UserInvitation{}
+	}
+	r.invitations[inv.Token] = inv
+	return inv, nil
+}
+
+func (r *memoryAuthRepo) GetInvitation(_ context.Context, token string) (UserInvitation, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.invitations == nil {
+		return UserInvitation{}, fmt.Errorf("invitation not found")
+	}
+	inv, ok := r.invitations[token]
+	if !ok {
+		return UserInvitation{}, fmt.Errorf("invitation not found")
+	}
+	return inv, nil
+}
+
+func (r *memoryAuthRepo) MarkInvitationUsed(_ context.Context, token string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.invitations == nil {
+		return fmt.Errorf("invitation not found")
+	}
+	inv, ok := r.invitations[token]
+	if !ok {
+		return fmt.Errorf("invitation not found")
+	}
+	inv.Used = true
+	r.invitations[token] = inv
+	return nil
 }
 
 func (r *memoryAuthRepo) UpdateUserPassword(_ context.Context, userID, passwordHash string) error {
