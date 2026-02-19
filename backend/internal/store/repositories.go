@@ -15,6 +15,8 @@ type PatientRepository interface {
 	GetByID(ctx context.Context, id string) (domain.Patient, error)
 	ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error)
 	SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error)
+	Update(ctx context.Context, patient domain.Patient) (domain.Patient, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type AppointmentRepository interface {
@@ -149,6 +151,26 @@ func (r *memoryPatientRepo) SearchByQuery(_ context.Context, doctorID, query str
 		}
 	}
 	return results, nil
+}
+
+func (r *memoryPatientRepo) Update(_ context.Context, patient domain.Patient) (domain.Patient, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.items[patient.ID]; !ok {
+		return domain.Patient{}, fmt.Errorf("patient not found")
+	}
+	r.items[patient.ID] = patient
+	return patient, nil
+}
+
+func (r *memoryPatientRepo) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.items[id]; !ok {
+		return fmt.Errorf("patient not found")
+	}
+	delete(r.items, id)
+	return nil
 }
 
 type memoryAppointmentRepo struct {

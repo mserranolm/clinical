@@ -68,7 +68,7 @@ echo ""
 # Deploy the pipeline
 echo -e "${YELLOW}🏗️  Deploying Backend CI/CD Pipeline...${NC}"
 aws cloudformation deploy \
-    --template-file infrastructure/backend-pipeline.yaml \
+    --template-file ../infrastructure/backend-pipeline.yaml \
     --stack-name $STACK_NAME \
     --region $REGION \
     --profile $PROFILE \

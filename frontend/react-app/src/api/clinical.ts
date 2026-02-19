@@ -78,6 +78,19 @@ export const clinicalApi = {
       }
     ),
 
+  updatePatient: (patientId: string, data: Partial<CreatePatientInput>, token?: string) =>
+    request<{ id: string }>(endpointCatalog.updatePatient(patientId), {
+      method: "PUT",
+      body: data,
+      token
+    }),
+
+  deletePatient: (patientId: string, token?: string) =>
+    request<{ status: string }>(endpointCatalog.deletePatient(patientId), {
+      method: "DELETE",
+      token
+    }),
+
   createAppointment: (input: CreateAppointmentInput, token?: string) =>
     request<{ id: string }>(endpointCatalog.createAppointment, {
       method: "POST",

@@ -36,6 +36,10 @@ Resources:
       StageName: prod
       EndpointConfiguration:
         Type: REGIONAL
+      Cors:
+        AllowOrigin: '''*'''
+        AllowHeaders: '''Content-Type,Authorization,x-api-key'''
+        AllowMethods: '''GET,POST,PUT,DELETE,OPTIONS'''
   ClinicalApiKey:
     Type: AWS::ApiGateway::ApiKey
     Properties:

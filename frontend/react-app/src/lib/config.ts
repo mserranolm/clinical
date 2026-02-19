@@ -13,6 +13,8 @@ export const endpointCatalog = {
   listPatients: "/patients",
   searchPatients: "/patients/search",
   getPatient: (patientId: string) => `/patients/${patientId}`,
+  updatePatient: (patientId: string) => `/patients/${patientId}`,
+  deletePatient: (patientId: string) => `/patients/${patientId}`,
   createAppointment: "/appointments",
   listAppointments: "/appointments",
   confirmAppointment: (appointmentId: string) => `/appointments/${appointmentId}/confirm`,

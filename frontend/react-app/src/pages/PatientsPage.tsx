@@ -9,6 +9,7 @@ type PatientRow = {
   email?: string;
   phone?: string;
   documentId?: string;
+  birthDate?: string;
 };
 
 export function PatientsPage({ token, doctorId }: { token: string; doctorId: string }) {
@@ -18,9 +19,16 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingPatient, setEditingPatient] = useState<PatientRow | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingPatient(null);
+    formRef.current?.reset();
+  };
+
+  const loadPatients = () => {
     setLoading(true);
     clinicalApi.listPatients(doctorId, token)
       .then((result) => {
@@ -37,53 +45,61 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
         notify.error("Error al cargar pacientes", "No se pudo obtener la lista del servidor.");
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadPatients();
   }, [doctorId, token]);
 
-  async function onRegister(e: FormEvent<HTMLFormElement>) {
+  async function onSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const firstName = String(fd.get("firstName") || "");
-    const lastName = String(fd.get("lastName") || "");
+    const data = {
+      firstName: String(fd.get("firstName") || ""),
+      lastName: String(fd.get("lastName") || ""),
+      phone: String(fd.get("phone") || ""),
+      email: String(fd.get("email") || ""),
+      birthDate: String(fd.get("birthDate") || ""),
+      documentId: String(fd.get("documentId") || ""),
+    };
 
     setSaving(true);
-    const promise = clinicalApi.onboardPatient(
-      {
-        doctorId,
-        specialty: "odontology",
-        firstName,
-        lastName,
-        phone: String(fd.get("phone") || ""),
-        email: String(fd.get("email") || ""),
-        birthDate: String(fd.get("birthDate") || ""),
-        documentId: String(fd.get("documentId") || ""),
-        medicalBackgrounds: [],
-        imageKeys: []
-      },
-      token
-    );
+
+    const promise = editingPatient
+      ? clinicalApi.updatePatient(editingPatient.id, data, token)
+      : clinicalApi.onboardPatient({ ...data, doctorId, specialty: "odontology", medicalBackgrounds: [], imageKeys: [] }, token);
 
     notify.promise(promise, {
-      loading: "Registrando paciente...",
-      success: (result) => {
-        const newRow: PatientRow = {
-          id: String(result.id),
-          firstName,
-          lastName,
-          email: String(fd.get("email") || "") || undefined,
-          phone: String(fd.get("phone") || "") || undefined,
-          documentId: String(fd.get("documentId") || "") || undefined,
-        };
-        setRows((prev) => [newRow, ...prev]);
+      loading: editingPatient ? "Actualizando paciente..." : "Registrando paciente...",
+      success: () => {
+        loadPatients(); // Recargar la lista
         setShowModal(false);
+        setEditingPatient(null);
         formRef.current?.reset();
-        setSaving(false);
-        return "Paciente registrado";
+        return editingPatient ? "Paciente actualizado" : "Paciente registrado";
       },
-      successDesc: `${firstName} ${lastName} fue agregado al expediente.`,
-      error: "Error al registrar",
-      errorDesc: (err) => err instanceof Error ? err.message : "Intenta nuevamente.",
+      error: editingPatient ? "Error al actualizar" : "Error al registrar",
     }).finally(() => setSaving(false));
   }
+
+  const handleEdit = (patient: PatientRow) => {
+    setEditingPatient(patient);
+    setShowModal(true);
+  };
+
+  const handleDelete = (patient: PatientRow) => {
+    if (window.confirm(`¿Estás seguro de que quieres eliminar a ${patient.firstName} ${patient.lastName}?`)) {
+      const promise = clinicalApi.deletePatient(patient.id, token);
+      notify.promise(promise, {
+        loading: 'Eliminando paciente...',
+        success: () => {
+          loadPatients();
+          return 'Paciente eliminado';
+        },
+        error: 'Error al eliminar',
+      });
+    }
+  };
 
   async function onSearch() {
     if (!query.trim()) return;
@@ -153,6 +169,7 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
                 <th>Email</th>
                 <th>Teléfono</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -181,6 +198,18 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
                   <td>{row.email || <span className="text-muted-sm">—</span>}</td>
                   <td>{row.phone || <span className="text-muted-sm">—</span>}</td>
                   <td><span className="badge status-confirmed">Activo</span></td>
+                  <td>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
+                        <span className="icon">✏️</span>
+                        <span>Editar</span>
+                      </button>
+                      <button type="button" className="action-btn action-btn-delete" onClick={() => handleDelete(row)}>
+                        <span className="icon">🗑️</span>
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!loading && rows.length === 0 && (
@@ -201,55 +230,55 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
 
       {/* Modal de registro */}
       {showModal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
             <div className="modal-header">
               <div>
-                <h3>Registrar Nuevo Paciente</h3>
+                <h3>{editingPatient ? "Editar Paciente" : "Registrar Nuevo Paciente"}</h3>
                 <p>Complete los datos del expediente clínico</p>
               </div>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="modal-close" onClick={closeModal}>✕</button>
             </div>
 
-            <form className="card-form modal-form" onSubmit={onRegister}>
+            <form ref={formRef} className="card-form modal-form" onSubmit={onSave}>
               <div className="row-inputs">
                 <div className="input-group">
                   <label>Nombre(s) <span className="required">*</span></label>
-                  <input name="firstName" placeholder="Juan" required />
+                  <input name="firstName" placeholder="Juan" required defaultValue={editingPatient?.firstName} />
                 </div>
                 <div className="input-group">
                   <label>Apellido(s) <span className="required">*</span></label>
-                  <input name="lastName" placeholder="Pérez" required />
+                  <input name="lastName" placeholder="Pérez" required defaultValue={editingPatient?.lastName} />
                 </div>
               </div>
 
               <div className="input-group">
                 <label>Cédula / Documento de Identidad</label>
-                <input name="documentId" placeholder="V-12345678" />
+                <input name="documentId" placeholder="V-12345678" defaultValue={editingPatient?.documentId} />
               </div>
 
               <div className="row-inputs">
                 <div className="input-group">
                   <label>Email de contacto</label>
-                  <input name="email" type="email" placeholder="paciente@email.com" />
+                  <input name="email" type="email" placeholder="paciente@email.com" defaultValue={editingPatient?.email} />
                 </div>
                 <div className="input-group">
                   <label>Teléfono</label>
-                  <input name="phone" placeholder="+58 414 000 0000" />
+                  <input name="phone" placeholder="+58 414 000 0000" defaultValue={editingPatient?.phone} />
                 </div>
               </div>
 
               <div className="input-group">
                 <label>Fecha de Nacimiento</label>
-                <input name="birthDate" type="date" />
+                <input name="birthDate" type="date" defaultValue={editingPatient?.birthDate} />
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="ghost" onClick={() => setShowModal(false)}>
+                <button type="button" className="ghost" onClick={closeModal}>
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}>
-                  {saving ? <><span className="auth-spinner" />Guardando...</> : "Registrar Paciente"}
+                  {saving ? <><span className="auth-spinner" />Guardando...</> : (editingPatient ? 'Guardar Cambios' : 'Registrar Paciente')}
                 </button>
               </div>
             </form>

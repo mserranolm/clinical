@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AuthSession } from "../../types";
 
 const PAGE_META: Record<string, { title: string; subtitle: string; icon: string }> = {
@@ -13,6 +14,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string; icon: string 
 };
 
 export function Topbar({ session, title }: { session: AuthSession; onLogout: () => void; title: string }) {
+  const navigate = useNavigate();
   const now = useMemo(() => {
     return new Date().toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   }, []);
@@ -34,6 +36,9 @@ export function Topbar({ session, title }: { session: AuthSession; onLogout: () 
       </div>
 
       <div className="topbar-right">
+        <button type="button" className="primary-btn" onClick={() => navigate("/dashboard/citas")}>
+          Crear cita
+        </button>
         <div className="topbar-date">
           <span className="live-dot" />
           <span>{now}</span>

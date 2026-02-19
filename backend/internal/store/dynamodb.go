@@ -490,6 +490,22 @@ func (r *dynamoPatientRepo) SearchByQuery(ctx context.Context, doctorID, query s
 	return patients, nil
 }
 
+func (r *dynamoPatientRepo) Update(ctx context.Context, patient domain.Patient) (domain.Patient, error) {
+	// PutItem will overwrite the existing item, which is what we want for an update.
+	return r.Create(ctx, patient)
+}
+
+func (r *dynamoPatientRepo) Delete(ctx context.Context, id string) error {
+	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", id)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", id)},
+		},
+	})
+	return err
+}
+
 // Appointment repository implementation
 type dynamoAppointmentRepo struct {
 	client    *dynamodb.Client

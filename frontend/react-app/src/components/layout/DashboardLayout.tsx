@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppointmentDTO, clinicalApi } from "../../api/clinical";
+import { clinicalApi } from "../../api/clinical";
 import { AuthSession } from "../../types";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -15,10 +15,19 @@ import { PatientsPage } from "../../pages/PatientsPage";
 import { PlansPage } from "../../pages/PlansPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
 
+type DashboardAppointmentRow = {
+  id: string;
+  patientId: string;
+  patientName?: string;
+  startAt: string;
+  status: string;
+  paymentAmount?: number;
+};
+
 export function DashboardLayout({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const location = useLocation();
   const [appointmentsDate, setAppointmentsDate] = useState(new Date().toISOString().slice(0, 10));
-  const [appointmentRows, setAppointmentRows] = useState<AppointmentDTO[]>([]);
+  const [appointmentRows, setAppointmentRows] = useState<DashboardAppointmentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -45,8 +54,25 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     setLoading(true);
     setError("");
     try {
-      const res = await clinicalApi.listAppointments(session.userId, appointmentsDate, session.token);
-      setAppointmentRows(res.items || []);
+      const [appointmentsRes, patientsRes] = await Promise.all([
+        clinicalApi.listAppointments(session.userId, appointmentsDate, session.token),
+        clinicalApi.listPatients(session.userId, session.token)
+      ]);
+
+      const patientById = new Map(
+        (patientsRes.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
+      );
+
+      const normalizedRows: DashboardAppointmentRow[] = (appointmentsRes.items || []).map((appointment) => ({
+        id: appointment.id,
+        patientId: appointment.patientId,
+        patientName: patientById.get(appointment.patientId),
+        startAt: appointment.startAt,
+        status: appointment.status,
+        paymentAmount: appointment.paymentAmount
+      }));
+
+      setAppointmentRows(normalizedRows);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

@@ -21,6 +21,7 @@ type Patient struct {
 	MedicalBackgrounds []MedicalBackground `json:"medicalBackgrounds"`
 	ImageKeys          []string            `json:"imageKeys"`
 	CreatedAt          time.Time           `json:"createdAt"`
+	UpdatedAt          *time.Time          `json:"updatedAt,omitempty"`
 }
 
 type MedicalBackground struct {

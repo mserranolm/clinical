@@ -78,6 +78,12 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			resp, err = r.searchPatients(ctx, req)
 		case method == "GET" && strings.HasPrefix(path, "/patients/"):
 			resp, err = r.getPatient(ctx, strings.TrimPrefix(path, "/patients/"))
+		case method == "PUT" && strings.HasPrefix(path, "/patients/"):
+			id := strings.TrimPrefix(path, "/patients/")
+			resp, err = r.updatePatient(ctx, id, req)
+		case method == "DELETE" && strings.HasPrefix(path, "/patients/"):
+			id := strings.TrimPrefix(path, "/patients/")
+			resp, err = r.deletePatient(ctx, id)
 		case method == "POST" && path == "/appointments":
 			resp, err = r.createAppointment(ctx, req)
 		case method == "GET" && path == "/appointments":
@@ -222,6 +228,25 @@ func (r *Router) searchPatients(ctx context.Context, req events.APIGatewayV2HTTP
 		patients = []domain.Patient{}
 	}
 	return response(200, map[string]any{"items": patients, "total": len(patients)})
+}
+
+func (r *Router) updatePatient(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.UpdatePatientInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	patient, err := r.patients.Update(ctx, id, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, patient)
+}
+
+func (r *Router) deletePatient(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
+	if err := r.patients.Delete(ctx, id); err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"status": "deleted"})
 }
 
 func (r *Router) createAppointment(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

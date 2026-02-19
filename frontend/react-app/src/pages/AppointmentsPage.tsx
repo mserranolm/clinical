@@ -1,18 +1,23 @@
 import { FormEvent, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
+import { PatientSearch } from "../modules/appointments/components/PatientSearch";
 
 type AppointmentRow = {
   id: string;
   patientId: string;
+  patientName?: string;
   startAt: string;
   status: string;
   paymentAmount?: number;
 };
 
 export function AppointmentsPage({ token, doctorId }: { token: string; doctorId: string }) {
+  const navigate = useNavigate();
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<AppointmentRow[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,9 +27,9 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
     const promise = clinicalApi.createAppointment(
       {
         doctorId,
-        patientId: String(fd.get("patientId") || ""),
-        startAt: new Date(String(fd.get("startAt") || "")).toISOString(),
-        endAt: new Date(String(fd.get("endAt") || "")).toISOString(),
+        patientId: selectedPatient?.id || '',
+        startAt: new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString(),
+        endAt: new Date(new Date(`${fd.get('date')}T${fd.get('time')}`).getTime() + 30 * 60000).toISOString(),
         treatmentPlan: String(fd.get("treatmentPlan") || ""),
         paymentAmount: Number(fd.get("paymentAmount") || 0),
         paymentMethod: String(fd.get("paymentMethod") || "")
@@ -41,16 +46,30 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
     });
   }
 
+  const isConfirmed = (status: string) => status === "confirmed";
+
+  const goToTreatment = (row: AppointmentRow) => {
+    navigate(`/dashboard/nuevo-tratamiento?patientId=${encodeURIComponent(row.patientId)}`);
+  };
+
   function loadAppointments() {
-    const promise = clinicalApi.listAppointments(doctorId, date, token).then((result) => {
-      setRows(result.items.map((item) => ({
+    const promise = Promise.all([
+      clinicalApi.listAppointments(doctorId, date, token),
+      clinicalApi.listPatients(doctorId, token)
+    ]).then(([appointments, patients]) => {
+      const patientById = new Map(
+        (patients.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
+      );
+
+      setRows((appointments.items || []).map((item) => ({
         id: item.id,
         patientId: item.patientId,
+        patientName: patientById.get(item.patientId),
         startAt: item.startAt,
         status: item.status,
         paymentAmount: item.paymentAmount
       })));
-      return result;
+      return appointments;
     });
 
     notify.promise(promise, {
@@ -80,17 +99,34 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
           </header>
           <form className="card-form" onSubmit={onCreate}>
             <div className="input-group">
-              <label>Paciente (ID)</label>
-              <input name="patientId" placeholder="pat_..." required />
+              <label>Paciente</label>
+              <PatientSearch doctorId={doctorId} token={token} onPatientSelect={setSelectedPatient} />
+              <input type="hidden" name="patientId" value={selectedPatient?.id || ''} />
             </div>
             <div className="row-inputs">
               <div className="input-group">
-                <label>Inicio</label>
-                <input name="startAt" type="datetime-local" required />
+                <label>Fecha</label>
+                <input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
               </div>
               <div className="input-group">
-                <label>Fin</label>
-                <input name="endAt" type="datetime-local" required />
+                <label>Hora</label>
+                <select name="time" required>
+                  <option value="">Seleccione una hora</option>
+                  <option value="09:00">09:00 AM</option>
+                  <option value="09:30">09:30 AM</option>
+                  <option value="10:00">10:00 AM</option>
+                  <option value="10:30">10:30 AM</option>
+                  <option value="11:00">11:00 AM</option>
+                  <option value="11:30">11:30 AM</option>
+                  <option value="12:00">12:00 PM</option>
+                  <option value="12:30">12:30 PM</option>
+                  <option value="14:00">02:00 PM</option>
+                  <option value="14:30">02:30 PM</option>
+                  <option value="15:00">03:00 PM</option>
+                  <option value="15:30">03:30 PM</option>
+                  <option value="16:00">04:00 PM</option>
+                  <option value="16:30">04:30 PM</option>
+                </select>
               </div>
             </div>
             <button type="submit">Confirmar Espacio</button>
@@ -130,15 +166,28 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className="mono">{row.id.split("-")[0]}...</td>
-                  <td><strong>{row.patientId}</strong></td>
-                  <td>{new Date(row.startAt).toLocaleTimeString()}</td>
-                  <td><span className={`badge status-${row.status}`}>{row.status}</span></td>
                   <td>
-                    {row.status === "scheduled" && (
-                      <button type="button" className="ghost mini-btn" onClick={() => onConfirm(row.id)}>
-                        Confirmar
+                    <strong>{row.patientName || row.patientId}</strong>
+                  </td>
+                  <td>{new Date(row.startAt).toLocaleTimeString()}</td>
+                  <td>
+                    <span className={`badge ${isConfirmed(row.status) ? "status-confirmed" : "status-unconfirmed"}`}>
+                      {isConfirmed(row.status) ? "confirmada" : "no confirmada"}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {!isConfirmed(row.status) ? (
+                        <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
+                          <span className="icon">✓</span>
+                          <span>Confirmar</span>
+                        </button>
+                      ) : null}
+                      <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
+                        <span>Atender</span>
+                        <span className="icon">→</span>
                       </button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}

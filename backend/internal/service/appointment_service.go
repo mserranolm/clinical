@@ -41,6 +41,19 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	if err != nil {
 		return domain.Appointment{}, fmt.Errorf("invalid endAt")
 	}
+
+	// Validate for overlapping appointments
+	existingAppointments, err := s.repo.ListByDoctorAndDay(ctx, in.DoctorID, startAt)
+	if err != nil {
+		return domain.Appointment{}, fmt.Errorf("could not verify existing appointments: %w", err)
+	}
+
+	for _, existing := range existingAppointments {
+		if startAt.Before(existing.EndAt) && endAt.After(existing.StartAt) {
+			return domain.Appointment{}, fmt.Errorf("el horario de %s a %s ya está ocupado", startAt.Format("15:04"), endAt.Format("15:04"))
+		}
+	}
+
 	appt := domain.Appointment{
 		ID:            buildID("apt"),
 		DoctorID:      in.DoctorID,

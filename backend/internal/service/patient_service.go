@@ -77,3 +77,51 @@ func (s *PatientService) Search(ctx context.Context, doctorID, query string) ([]
 	}
 	return s.repo.SearchByQuery(ctx, doctorID, query)
 }
+
+type UpdatePatientInput struct {
+	FirstName          string                     `json:"firstName"`
+	LastName           string                     `json:"lastName"`
+	DocumentID         string                     `json:"documentId"`
+	Phone              string                     `json:"phone"`
+	Email              string                     `json:"email"`
+	BirthDate          string                     `json:"birthDate"`
+	MedicalBackgrounds []domain.MedicalBackground `json:"medicalBackgrounds"`
+}
+
+func (s *PatientService) Update(ctx context.Context, patientID string, in UpdatePatientInput) (domain.Patient, error) {
+	patient, err := s.repo.GetByID(ctx, patientID)
+	if err != nil {
+		return domain.Patient{}, fmt.Errorf("patient not found: %w", err)
+	}
+
+	if in.FirstName != "" {
+		patient.FirstName = in.FirstName
+	}
+	if in.LastName != "" {
+		patient.LastName = in.LastName
+	}
+	if in.DocumentID != "" {
+		patient.DocumentID = in.DocumentID
+	}
+	if in.Phone != "" {
+		patient.Phone = in.Phone
+	}
+	if in.Email != "" {
+		patient.Email = in.Email
+	}
+	if in.BirthDate != "" {
+		patient.BirthDate = in.BirthDate
+	}
+	if in.MedicalBackgrounds != nil {
+		patient.MedicalBackgrounds = in.MedicalBackgrounds
+	}
+
+	now := time.Now().UTC()
+	patient.UpdatedAt = &now
+
+	return s.repo.Update(ctx, patient)
+}
+
+func (s *PatientService) Delete(ctx context.Context, patientID string) error {
+	return s.repo.Delete(ctx, patientID)
+}

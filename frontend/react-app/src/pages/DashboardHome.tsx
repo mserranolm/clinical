@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AuthSession } from "../types";
 
 type AppointmentRow = {
   id: string;
   patientId: string;
+  patientName?: string;
   startAt: string;
   status: string;
   paymentAmount?: number;
@@ -17,18 +19,35 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
   date: string;
   onDateChange: (date: string) => void;
 }) {
+  const navigate = useNavigate();
+  const [showPatientsBreakdown, setShowPatientsBreakdown] = useState(false);
+
+  const isConfirmed = (status: string) => status === "confirmed";
+  const confirmedRows = useMemo(() => rows.filter((r) => isConfirmed(r.status)), [rows]);
+  const unconfirmedRows = useMemo(() => rows.filter((r) => !isConfirmed(r.status)), [rows]);
+
   const kpis = useMemo(() => {
     const total = rows.length;
-    const confirmed = rows.filter((r) => r.status === "confirmed").length;
-    const completed = rows.filter((r) => r.status === "completed").length;
-    const revenue = rows.reduce((acc, row) => acc + Number(row.paymentAmount || 0), 0);
+    const confirmed = confirmedRows.length;
+    const unconfirmed = unconfirmedRows.length;
     return [
       { label: "Citas del día", value: String(total), trend: loading ? "Actualizando..." : "En vivo" },
-      { label: "Confirmadas", value: String(confirmed), trend: "Pacientes listos" },
-      { label: "Completadas", value: String(completed), trend: "Atención finalizada" },
-      { label: "Ingresos del día", value: `$${revenue.toLocaleString()}`, trend: "Facturación bruta" }
+      { label: "Confirmados", value: String(confirmed), trend: "Ver listado", clickable: true },
+      { label: "No confirmados", value: String(unconfirmed), trend: "Ver listado", clickable: true }
     ];
-  }, [loading, rows]);
+  }, [confirmedRows.length, loading, rows.length, unconfirmedRows.length]);
+
+  const statusClass = (status: string) => (isConfirmed(status) ? "status-confirmed" : "status-unconfirmed");
+
+  const patientLabel = (row: AppointmentRow) => row.patientName || row.patientId;
+
+  const goToTreatment = (row: AppointmentRow) => {
+    navigate(`/dashboard/nuevo-tratamiento?patientId=${encodeURIComponent(row.patientId)}`);
+  };
+
+  const goToCreateAppointment = () => {
+    navigate("/dashboard/citas");
+  };
 
   return (
     <section className="page-section">
@@ -37,10 +56,44 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
           <article key={card.label} className="stat-card elite-card">
             <small>{card.label}</small>
             <h3>{card.value}</h3>
-            <span>{card.trend}</span>
+            {card.clickable ? (
+              <button type="button" className="link-btn" onClick={() => setShowPatientsBreakdown((prev) => !prev)}>
+                {card.trend}
+              </button>
+            ) : (
+              <span>{card.trend}</span>
+            )}
           </article>
         ))}
       </div>
+
+      {showPatientsBreakdown ? (
+        <article className="card elite-card" style={{ marginBottom: 24 }}>
+          <header className="card-header" style={{ marginBottom: 16 }}>
+            <h3>Listado de pacientes por estado</h3>
+          </header>
+          <div className="grid-2-cols">
+            <div>
+              <h4 style={{ marginBottom: 8 }}>Confirmados ({confirmedRows.length})</h4>
+              <ul className="patient-status-list">
+                {confirmedRows.map((row) => (
+                  <li key={`confirmed-${row.id}`}>{patientLabel(row)}</li>
+                ))}
+                {confirmedRows.length === 0 ? <li>Sin pacientes confirmados.</li> : null}
+              </ul>
+            </div>
+            <div>
+              <h4 style={{ marginBottom: 8 }}>No confirmados ({unconfirmedRows.length})</h4>
+              <ul className="patient-status-list">
+                {unconfirmedRows.map((row) => (
+                  <li key={`unconfirmed-${row.id}`}>{patientLabel(row)}</li>
+                ))}
+                {unconfirmedRows.length === 0 ? <li>Sin pacientes pendientes.</li> : null}
+              </ul>
+            </div>
+          </div>
+        </article>
+      ) : null}
 
       <article className="chart-card elite-card">
         <header className="card-header">
@@ -49,6 +102,9 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
             <p>Vista detallada de la agenda seleccionada.</p>
           </div>
           <div className="header-actions">
+            <button type="button" className="mini-btn" onClick={goToCreateAppointment}>
+              Crear cita
+            </button>
             <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
           </div>
         </header>
@@ -63,19 +119,23 @@ export function DashboardHome({ rows, loading, error, date, onDateChange }: {
                 <th>Paciente</th>
                 <th>Horario</th>
                 <th>Estado</th>
-                <th>Honorarios</th>
+                <th>Acción</th>
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, 10).map((row) => (
+              {rows.map((row) => (
                 <tr key={row.id}>
                   <td className="mono">{row.id.split("-")[0]}...</td>
-                  <td><strong>{row.patientId}</strong></td>
+                  <td><strong>{patientLabel(row)}</strong></td>
                   <td>{new Date(row.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                   <td>
-                    <span className={`badge status-${row.status}`}>{row.status}</span>
+                    <span className={`badge ${statusClass(row.status)}`}>{isConfirmed(row.status) ? "confirmada" : "no confirmada"}</span>
                   </td>
-                  <td>${Number(row.paymentAmount || 0).toFixed(2)}</td>
+                  <td>
+                    <button type="button" className="ghost mini-btn" onClick={() => goToTreatment(row)}>
+                      Atender
+                    </button>
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && !loading ? (
