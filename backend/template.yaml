@@ -24,6 +24,23 @@ Globals:
 
 Resources:
 
+  ServerlessHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "http://localhost:5173"
+          - "http://127.0.0.1:5173"
+        AllowHeaders:
+          - "content-type"
+          - "authorization"
+        AllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "OPTIONS"
+
   ClinicalApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -54,6 +71,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref ServerlessHttpApi
             Path: /{proxy+}
             Method: ANY
 

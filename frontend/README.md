@@ -1,32 +1,41 @@
 # Clinical Frontend
 
-Frontend inicial minimalista e intuitivo separado del backend.
+Este directorio mantiene:
 
-## Objetivo
+1. `index.html` y `src/` legacy (MVP vanilla JS)
+2. `react-app/` (nuevo frontend React + TypeScript)
 
-- Registrar onboarding de paciente
-- Crear citas
-- Enviar consentimiento informado
-- Manejar flags de canal SMS/Email a nivel UI
+## Nuevo frontend React
 
-## Uso local
+Ruta: `frontend/react-app`
 
-1. Levanta el backend (SAM local o API desplegada).
-2. Guarda la URL de API en localStorage:
+### Endpoints publicados tomados como base
 
-```js
-localStorage.setItem("clinical_api", "https://tu-api.execute-api.us-east-1.amazonaws.com")
+- `https://cyey5rzsi3.execute-api.us-east-1.amazonaws.com` (ver `API_TESTING_RESULTS.md`)
+
+### Configuración de API
+
+El frontend React permite configurar el backend de 2 formas:
+
+1. `.env` con `VITE_API_BASE_URL`
+2. Runtime desde UI (se guarda en `localStorage` como `clinical_api_base_url`)
+
+### Comandos
+
+```bash
+cd frontend/react-app
+npm install
+npm run dev
 ```
 
-3. Abre `index.html` con Live Server o cualquier servidor estático.
+### Funcionalidades conectadas
 
-## Nota
+- Registro/Login/Forgot/Reset
+- Onboarding paciente
+- Crear cita
+- Crear consentimiento
+- Crear odontograma
+- Crear plan de tratamiento
+- Health check + actividad
 
-Este frontend es base MVP. El siguiente paso recomendado es migrarlo a React/Next.js con autenticación (Cognito) y calendario visual por doctor.
-
-
-## Comando para levantar local
-
-```python3 -m http.server 5173```
-
-http://127.0.0.1:5173
+> Nota: en backend actual, el doctor se registra como usuario y el `userId` se usa como `doctorId`.
