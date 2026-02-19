@@ -25,6 +25,7 @@ Globals:
         USE_DYNAMODB: "true"
         CLINIC_TZ: America/Caracas
         SES_SENDER_EMAIL: no-reply@vozlyai.aski-tech.net
+        FRONTEND_BASE_URL: https://clinisense.netlify.app
 
 Resources:
 

@@ -83,7 +83,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
 
   return (
     <main className="admin-layout">
-      <Sidebar onLogout={onLogout} userName={session.name} />
+      <Sidebar onLogout={onLogout} userName={session.name} role={session.role} />
       <section className="content-area">
         <Topbar session={session} onLogout={onLogout} title={currentLabel} />
         <div className="page-content">

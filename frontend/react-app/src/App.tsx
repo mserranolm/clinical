@@ -11,6 +11,7 @@ import { AdminConsoleLayout } from "./components/layout/AdminConsoleLayout";
 // Page components
 import { Landing } from "./pages/Landing";
 import { LoginView } from "./pages/LoginView";
+import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 
 const initialSession = getSession();
 
@@ -40,8 +41,9 @@ export function App() {
       />
       <Route
         path="/admin/*"
-        element={session && isPlatformAdmin(session) ? <AdminConsoleLayout session={session} /> : <Navigate to="/login" replace />}
+        element={session && isPlatformAdmin(session) ? <AdminConsoleLayout session={session} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
       />
+      <Route path="/accept-invitation" element={<AcceptInvitationPage onSuccess={handleAuthSuccess} />} />
       <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} replace />} />
     </Routes>
   );

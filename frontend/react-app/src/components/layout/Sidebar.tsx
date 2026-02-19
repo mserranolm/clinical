@@ -1,33 +1,17 @@
 import { NavLink } from "react-router-dom";
 
-const NAV_GROUPS = [
-  {
-    label: "Principal",
-    items: [
-      { to: "/dashboard", label: "Panel Principal", icon: "▣", end: true },
-    ]
-  },
-  {
-    label: "Clínica",
-    items: [
-      { to: "/dashboard/nuevo-tratamiento", label: "Nuevo Tratamiento", icon: "+", badge: "", end: false },
-      { to: "/dashboard/pacientes", label: "Pacientes", icon: "⊕", end: false },
-      { to: "/dashboard/citas", label: "Agenda Médica", icon: "◫", end: false },
-      { to: "/dashboard/odontograma", label: "Odontograma", icon: "◎", end: false },
-      { to: "/dashboard/planes", label: "Tratamientos", icon: "≡", end: false },
-    ]
-  },
-  {
-    label: "Administración",
-    items: [
-      { to: "/dashboard/consentimientos", label: "Documentos", icon: "◻", end: false },
-      { to: "/dashboard/testing", label: "Service Tester", icon: "⚙", end: false },
-    ]
-  }
-];
+const ROLE_LABELS: Record<string, string> = {
+  platform_admin: "Super Admin",
+  admin: "Administrador",
+  doctor: "Doctor",
+  assistant: "Asistente",
+  patient: "Paciente",
+};
 
-export function Sidebar({ onLogout, userName }: { onLogout: () => void; userName?: string }) {
+export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; userName?: string; role?: string }) {
   const initials = userName ? userName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "DR";
+  const isPlatformAdmin = role === "platform_admin";
+  const isAdmin = role === "admin" || isPlatformAdmin;
 
   return (
     <aside className="sidebar">
@@ -44,23 +28,65 @@ export function Sidebar({ onLogout, userName }: { onLogout: () => void; userName
 
       {/* Nav groups */}
       <nav className="sidebar-nav">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="nav-group">
-            <span className="nav-group-label">{group.label}</span>
-            {group.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              >
-                <span className="nav-item-icon">{item.icon}</span>
-                <span className="nav-item-label">{item.label}</span>
-                {item.badge && <span className="nav-badge">{item.badge}</span>}
-              </NavLink>
-            ))}
+        <div className="nav-group">
+          <span className="nav-group-label">Principal</span>
+          <NavLink to="/dashboard" end className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">▣</span>
+            <span className="nav-item-label">Panel Principal</span>
+          </NavLink>
+        </div>
+
+        <div className="nav-group">
+          <span className="nav-group-label">Clínica</span>
+          <NavLink to="/dashboard/nuevo-tratamiento" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">+</span>
+            <span className="nav-item-label">Nuevo Tratamiento</span>
+          </NavLink>
+          <NavLink to="/dashboard/pacientes" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">⊕</span>
+            <span className="nav-item-label">Pacientes</span>
+          </NavLink>
+          <NavLink to="/dashboard/citas" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">◫</span>
+            <span className="nav-item-label">Agenda Médica</span>
+          </NavLink>
+          <NavLink to="/dashboard/odontograma" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">◎</span>
+            <span className="nav-item-label">Odontograma</span>
+          </NavLink>
+          <NavLink to="/dashboard/planes" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">≡</span>
+            <span className="nav-item-label">Tratamientos</span>
+          </NavLink>
+        </div>
+
+        <div className="nav-group">
+          <span className="nav-group-label">Administración</span>
+          <NavLink to="/dashboard/consentimientos" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">◻</span>
+            <span className="nav-item-label">Documentos</span>
+          </NavLink>
+          {isAdmin && (
+            <NavLink to="/dashboard/usuarios" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">👥</span>
+              <span className="nav-item-label">Usuarios</span>
+            </NavLink>
+          )}
+          <NavLink to="/dashboard/testing" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <span className="nav-item-icon">⚙</span>
+            <span className="nav-item-label">Service Tester</span>
+          </NavLink>
+        </div>
+
+        {isPlatformAdmin && (
+          <div className="nav-group">
+            <span className="nav-group-label">Plataforma</span>
+            <NavLink to="/admin" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">🛡</span>
+              <span className="nav-item-label">Consola Admin</span>
+            </NavLink>
           </div>
-        ))}
+        )}
       </nav>
 
       {/* Footer */}
@@ -69,7 +95,7 @@ export function Sidebar({ onLogout, userName }: { onLogout: () => void; userName
           <div className="sidebar-user-avatar">{initials}</div>
           <div className="sidebar-user-info">
             <strong>{userName || "Doctor"}</strong>
-            <span>Médico Activo</span>
+            <span>{ROLE_LABELS[role ?? ""] ?? "Médico Activo"}</span>
           </div>
         </div>
         <button className="sidebar-logout" onClick={onLogout}>

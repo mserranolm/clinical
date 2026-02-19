@@ -23,6 +23,7 @@ type Notifier interface {
 	SendAppointmentReminder(ctx context.Context, patientID, channel, message string) error
 	SendConsentRequest(ctx context.Context, patientID, channel, message string) error
 	SendDoctorDailySummary(ctx context.Context, doctorID, channel, message string) error
+	SendInvitation(ctx context.Context, toEmail, inviteURL, role string) error
 }
 
 type Router struct {
@@ -110,6 +111,45 @@ func (r *Router) SendDoctorDailySummary(_ context.Context, doctorID, channel, me
 	}
 	log.Printf("[notify:doctor-summary] doctor=%s channel=%s message=%s", doctorID, channel, message)
 	return nil
+}
+
+func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role string) error {
+	roleLabel := map[string]string{
+		"admin": "Administrador", "doctor": "Doctor",
+		"assistant": "Asistente", "patient": "Paciente",
+	}
+	label := roleLabel[role]
+	if label == "" {
+		label = role
+	}
+	subject := fmt.Sprintf("Invitación a CliniSense como %s", label)
+	body := fmt.Sprintf(
+		"Has sido invitado a unirte a CliniSense como %s.\n\nAccede al siguiente enlace para crear tu cuenta (válido 72 horas):\n\n%s\n\nSi no esperabas esta invitación, ignora este mensaje.",
+		label, inviteURL,
+	)
+	log.Printf("[notify:invitation] to=%s role=%s url=%s", toEmail, role, inviteURL)
+	if !r.sendEmail || r.ses == nil {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = os.Getenv("SES_SENDER_EMAIL")
+	}
+	if sender == "" {
+		sender = "no-reply@vozlyai.aski-tech.net"
+	}
+	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(sender),
+		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
+		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+			Subject: &sestypes.Content{Data: aws.String(subject)},
+			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body)}},
+		}},
+	})
+	if err != nil {
+		log.Printf("[notify:invitation] ses send failed: %v", err)
+	}
+	return err
 }
 
 func (r *Router) allowed(channel string) bool {

@@ -12,6 +12,8 @@ type Config struct {
 	TreatmentPlanTable string
 	PlatformAdminEmail string
 	BootstrapSecret    string
+	FrontendBaseURL    string
+	SESSenderEmail     string
 	SendSMS            bool
 	SendEmail          bool
 	UseInMemory        bool
@@ -39,6 +41,8 @@ func Load() Config {
 		TreatmentPlanTable: getEnv("TREATMENT_PLAN_TABLE", "clinical-treatment-plans"),
 		PlatformAdminEmail: getEnv("PLATFORM_ADMIN_EMAIL", ""),
 		BootstrapSecret:    getEnv("BOOTSTRAP_SECRET", ""),
+		FrontendBaseURL:    getEnv("FRONTEND_BASE_URL", "https://localhost:5173"),
+		SESSenderEmail:     getEnv("SES_SENDER_EMAIL", "no-reply@vozlyai.aski-tech.net"),
 		SendSMS:            getEnv("SEND_SMS", "false") == "true",
 		SendEmail:          getEnv("SEND_EMAIL", "false") == "true",
 		UseInMemory:        useInMemory,

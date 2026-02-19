@@ -10,15 +10,30 @@ import (
 	"strings"
 	"time"
 
+	"clinical-backend/internal/notifications"
 	"clinical-backend/internal/store"
 )
 
 type AuthService struct {
-	repo store.AuthRepository
+	repo            store.AuthRepository
+	notifier        notifications.Notifier
+	frontendBaseURL string
 }
 
-func NewAuthService(repo store.AuthRepository) *AuthService {
-	return &AuthService{repo: repo}
+func NewAuthService(repo store.AuthRepository, opts ...func(*AuthService)) *AuthService {
+	svc := &AuthService{repo: repo}
+	for _, o := range opts {
+		o(svc)
+	}
+	return svc
+}
+
+func WithNotifier(n notifications.Notifier) func(*AuthService) {
+	return func(s *AuthService) { s.notifier = n }
+}
+
+func WithFrontendBaseURL(url string) func(*AuthService) {
+	return func(s *AuthService) { s.frontendBaseURL = url }
 }
 
 type Authenticated struct {
@@ -317,6 +332,220 @@ func (s *AuthService) CreateOrgAdmin(ctx context.Context, in CreateOrgAdminInput
 		CreatedAt:    time.Now().UTC(),
 	}
 	return s.repo.CreateUser(ctx, user)
+}
+
+var roleLimits = map[string]int{
+	"admin":     2,
+	"doctor":    5,
+	"assistant": 2,
+	"patient":   -1, // unlimited
+}
+
+type UserDTO struct {
+	ID        string    `json:"id"`
+	OrgID     string    `json:"orgId"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type UpdateOrgUserInput struct {
+	OrgID  string `json:"orgId"`
+	UserID string `json:"userId"`
+	Role   string `json:"role,omitempty"`
+	Status string `json:"status,omitempty"`
+}
+
+type InviteUserInput struct {
+	OrgID     string `json:"orgId"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	InvitedBy string `json:"invitedBy"`
+}
+
+type InviteUserOutput struct {
+	Token     string    `json:"token"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+type AcceptInvitationInput struct {
+	Token    string `json:"token"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+func (s *AuthService) ListOrgUsers(ctx context.Context, orgID string) ([]UserDTO, error) {
+	if strings.TrimSpace(orgID) == "" {
+		return nil, fmt.Errorf("orgId is required")
+	}
+	users, err := s.repo.ListUsersByOrg(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]UserDTO, 0, len(users))
+	for _, u := range users {
+		result = append(result, UserDTO{
+			ID: u.ID, OrgID: u.OrgID, Name: u.Name,
+			Email: u.Email, Role: u.Role, Status: u.Status, CreatedAt: u.CreatedAt,
+		})
+	}
+	return result, nil
+}
+
+func (s *AuthService) UpdateOrgUser(ctx context.Context, in UpdateOrgUserInput) (UserDTO, error) {
+	user, err := s.repo.GetUserByID(ctx, in.UserID)
+	if err != nil {
+		return UserDTO{}, fmt.Errorf("user not found")
+	}
+	if user.OrgID != in.OrgID {
+		return UserDTO{}, fmt.Errorf("user does not belong to org")
+	}
+	if in.Role != "" {
+		validRoles := map[string]bool{"admin": true, "doctor": true, "assistant": true, "patient": true}
+		if !validRoles[in.Role] {
+			return UserDTO{}, fmt.Errorf("invalid role")
+		}
+		if in.Role != user.Role {
+			if err := s.checkRoleLimit(ctx, in.OrgID, in.Role); err != nil {
+				return UserDTO{}, err
+			}
+		}
+		user.Role = in.Role
+	}
+	if in.Status != "" {
+		if in.Status != "active" && in.Status != "disabled" {
+			return UserDTO{}, fmt.Errorf("invalid status, must be active or disabled")
+		}
+		user.Status = in.Status
+	}
+	updated, err := s.repo.UpdateUser(ctx, user)
+	if err != nil {
+		return UserDTO{}, err
+	}
+	return UserDTO{
+		ID: updated.ID, OrgID: updated.OrgID, Name: updated.Name,
+		Email: updated.Email, Role: updated.Role, Status: updated.Status, CreatedAt: updated.CreatedAt,
+	}, nil
+}
+
+func (s *AuthService) checkRoleLimit(ctx context.Context, orgID, role string) error {
+	limit, ok := roleLimits[role]
+	if !ok || limit < 0 {
+		return nil
+	}
+	users, err := s.repo.ListUsersByOrg(ctx, orgID)
+	if err != nil {
+		return err
+	}
+	count := 0
+	for _, u := range users {
+		if u.Role == role && u.Status != "disabled" {
+			count++
+		}
+	}
+	if count >= limit {
+		return fmt.Errorf("role limit reached: max %d %s(s) per org", limit, role)
+	}
+	return nil
+}
+
+func (s *AuthService) InviteUser(ctx context.Context, in InviteUserInput) (InviteUserOutput, error) {
+	if strings.TrimSpace(in.OrgID) == "" || strings.TrimSpace(in.Email) == "" || strings.TrimSpace(in.Role) == "" {
+		return InviteUserOutput{}, fmt.Errorf("orgId, email and role are required")
+	}
+	validRoles := map[string]bool{"admin": true, "doctor": true, "assistant": true, "patient": true}
+	if !validRoles[in.Role] {
+		return InviteUserOutput{}, fmt.Errorf("invalid role")
+	}
+	if err := s.checkRoleLimit(ctx, in.OrgID, in.Role); err != nil {
+		return InviteUserOutput{}, err
+	}
+	token, err := randomToken(32)
+	if err != nil {
+		return InviteUserOutput{}, err
+	}
+	expiresAt := time.Now().UTC().Add(72 * time.Hour)
+	inv := store.UserInvitation{
+		Token:     token,
+		OrgID:     in.OrgID,
+		Email:     strings.ToLower(strings.TrimSpace(in.Email)),
+		Role:      in.Role,
+		InvitedBy: in.InvitedBy,
+		ExpiresAt: expiresAt,
+		Used:      false,
+	}
+	created, err := s.repo.CreateInvitation(ctx, inv)
+	if err != nil {
+		return InviteUserOutput{}, err
+	}
+	if s.notifier != nil {
+		base := s.frontendBaseURL
+		if base == "" {
+			base = os.Getenv("FRONTEND_BASE_URL")
+		}
+		inviteURL := fmt.Sprintf("%s/accept-invitation?token=%s", strings.TrimRight(base, "/"), created.Token)
+		_ = s.notifier.SendInvitation(ctx, created.Email, inviteURL, created.Role)
+	}
+	return InviteUserOutput{Token: created.Token, Email: created.Email, Role: created.Role, ExpiresAt: created.ExpiresAt}, nil
+}
+
+func (s *AuthService) AcceptInvitation(ctx context.Context, in AcceptInvitationInput) (LoginOutput, error) {
+	if strings.TrimSpace(in.Token) == "" {
+		return LoginOutput{}, fmt.Errorf("token is required")
+	}
+	if len(in.Password) < 8 {
+		return LoginOutput{}, fmt.Errorf("password must have at least 8 characters")
+	}
+	inv, err := s.repo.GetInvitation(ctx, in.Token)
+	if err != nil {
+		return LoginOutput{}, fmt.Errorf("invalid invitation token")
+	}
+	if inv.Used || time.Now().UTC().After(inv.ExpiresAt) {
+		return LoginOutput{}, fmt.Errorf("invitation expired or already used")
+	}
+	user := store.AuthUser{
+		ID:           buildID("usr"),
+		OrgID:        inv.OrgID,
+		Name:         strings.TrimSpace(in.Name),
+		Email:        inv.Email,
+		Role:         inv.Role,
+		Status:       "active",
+		PasswordHash: hashPassword(in.Password),
+		CreatedAt:    time.Now().UTC(),
+	}
+	created, err := s.repo.CreateUser(ctx, user)
+	if err != nil {
+		return LoginOutput{}, err
+	}
+	if err := s.repo.MarkInvitationUsed(ctx, in.Token); err != nil {
+		return LoginOutput{}, err
+	}
+	token, err := randomToken(24)
+	if err != nil {
+		return LoginOutput{}, err
+	}
+	_, err = s.repo.CreateSession(ctx, store.AuthSession{
+		Token:     token,
+		UserID:    created.ID,
+		OrgID:     created.OrgID,
+		Role:      created.Role,
+		ExpiresAt: time.Now().UTC().Add(24 * time.Hour),
+	})
+	if err != nil {
+		return LoginOutput{}, err
+	}
+	return LoginOutput{
+		AccessToken: token,
+		UserID:      created.ID,
+		OrgID:       created.OrgID,
+		Name:        created.Name,
+		Email:       created.Email,
+		Role:        created.Role,
+	}, nil
 }
 
 func (s *AuthService) ResetPassword(ctx context.Context, in ResetPasswordInput) error {

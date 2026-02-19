@@ -177,6 +177,33 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/platform/orgs/"), "/admins")
 				resp, err = r.createOrgAdmin(actx, orgID, req)
 			}
+		case method == "GET" && strings.HasPrefix(path, "/orgs/") && strings.HasSuffix(path, "/users"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/orgs/"), "/users")
+				resp, err = r.listOrgUsers(actx, orgID)
+			}
+		case method == "PATCH" && strings.Contains(path, "/users/") && strings.HasPrefix(path, "/orgs/"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				parts := strings.Split(strings.TrimPrefix(path, "/orgs/"), "/users/")
+				if len(parts) == 2 {
+					resp, err = r.updateOrgUser(actx, parts[0], parts[1], req)
+				} else {
+					resp, err = response(400, map[string]string{"error": "invalid path"})
+				}
+			}
+		case method == "POST" && strings.HasPrefix(path, "/orgs/") && strings.HasSuffix(path, "/invitations"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/orgs/"), "/invitations")
+				resp, err = r.inviteUser(actx, orgID, req)
+			}
+		case method == "POST" && path == "/auth/accept-invitation":
+			resp, err = r.acceptInvitation(ctx, req)
 		case method == "POST" && path == "/auth/register":
 			resp, err = r.register(ctx, req)
 		case method == "POST" && path == "/auth/login":
@@ -372,6 +399,57 @@ func (r *Router) platformBootstrap(ctx context.Context, req events.APIGatewayV2H
 	out, err := r.auth.BootstrapPlatformAdmin(ctx, service.BootstrapPlatformAdminInput(in))
 	if err != nil {
 		return response(401, map[string]string{"error": err.Error()})
+	}
+	return response(200, out)
+}
+
+func (r *Router) listOrgUsers(ctx context.Context, orgID string) (events.APIGatewayV2HTTPResponse, error) {
+	users, err := r.auth.ListOrgUsers(ctx, orgID)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{"items": users})
+}
+
+func (r *Router) updateOrgUser(ctx context.Context, orgID, userID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.UpdateOrgUserInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	in.OrgID = orgID
+	in.UserID = userID
+	user, err := r.auth.UpdateOrgUser(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, user)
+}
+
+func (r *Router) inviteUser(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.InviteUserInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	in.OrgID = orgID
+	auth, _ := ctx.Value(ctxAuthKey).(service.Authenticated)
+	if in.InvitedBy == "" && auth.User.ID != "" {
+		in.InvitedBy = auth.User.ID
+	}
+	out, err := r.auth.InviteUser(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, out)
+}
+
+func (r *Router) acceptInvitation(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.AcceptInvitationInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	out, err := r.auth.AcceptInvitation(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, out)
 }

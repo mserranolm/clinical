@@ -77,7 +77,10 @@ func main() {
 	appointments := service.NewAppointmentService(repos.Appointments, notifier)
 	patients := service.NewPatientService(repos.Patients)
 	consents := service.NewConsentService(repos.Consents, notifier)
-	auth := service.NewAuthService(repos.Users)
+	auth := service.NewAuthService(repos.Users,
+		service.WithNotifier(notifier),
+		service.WithFrontendBaseURL(cfg.FrontendBaseURL),
+	)
 
 	// Create odontogram services
 	odontogramService := service.NewOdontogramService(repos.Odontograms, repos.Patients, repos.TreatmentPlans)

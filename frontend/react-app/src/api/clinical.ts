@@ -189,4 +189,35 @@ export const clinicalApi = {
       method: "GET",
       token
     }),
+
+  // Platform admin endpoints
+  listOrgs: (token: string) =>
+    request<{ items: Array<{ id: string; name: string; createdAt: string }> }>("/platform/orgs", { token }),
+
+  createOrg: (name: string, token: string) =>
+    request<{ id: string; name: string; createdAt: string }>("/platform/orgs", { method: "POST", body: { name }, token }),
+
+  createOrgAdmin: (orgId: string, data: { name: string; email: string; password: string }, token: string) =>
+    request<{ userId: string; email: string; role: string }>(`/platform/orgs/${orgId}/admins`, { method: "POST", body: data, token }),
+
+  // Org user management endpoints
+  listOrgUsers: (orgId: string, token: string) =>
+    request<{ items: Array<{ id: string; name: string; email: string; role: string; status: string; createdAt: string }> }>(
+      `/orgs/${orgId}/users`, { token }
+    ),
+
+  updateOrgUser: (orgId: string, userId: string, data: { role?: string; status?: string }, token: string) =>
+    request<{ id: string; name: string; email: string; role: string; status: string }>(
+      `/orgs/${orgId}/users/${userId}`, { method: "PATCH", body: data, token }
+    ),
+
+  inviteUser: (orgId: string, data: { email: string; role: string }, token: string) =>
+    request<{ token: string; email: string; role: string; expiresAt: string }>(
+      `/orgs/${orgId}/invitations`, { method: "POST", body: data, token }
+    ),
+
+  acceptInvitation: (invToken: string, data: { name: string; password: string }) =>
+    request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string }>(
+      "/auth/accept-invitation", { method: "POST", body: { token: invToken, ...data } }
+    ),
 };
