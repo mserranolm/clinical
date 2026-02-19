@@ -10,6 +10,8 @@ type Config struct {
 	UserTable          string
 	OdontogramTable    string
 	TreatmentPlanTable string
+	PlatformAdminEmail string
+	BootstrapSecret    string
 	SendSMS            bool
 	SendEmail          bool
 	UseInMemory        bool
@@ -35,6 +37,8 @@ func Load() Config {
 		UserTable:          getEnv("USER_TABLE", "clinical-users"),
 		OdontogramTable:    getEnv("ODONTOGRAM_TABLE", "clinical-odontograms"),
 		TreatmentPlanTable: getEnv("TREATMENT_PLAN_TABLE", "clinical-treatment-plans"),
+		PlatformAdminEmail: getEnv("PLATFORM_ADMIN_EMAIL", ""),
+		BootstrapSecret:    getEnv("BOOTSTRAP_SECRET", ""),
 		SendSMS:            getEnv("SEND_SMS", "false") == "true",
 		SendEmail:          getEnv("SEND_EMAIL", "false") == "true",
 		UseInMemory:        useInMemory,

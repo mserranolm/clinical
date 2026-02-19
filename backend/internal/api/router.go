@@ -10,6 +10,7 @@ import (
 
 	"clinical-backend/internal/domain"
 	"clinical-backend/internal/service"
+	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-lambda-go/events"
 )
@@ -25,11 +26,14 @@ const (
 	permPatientsManage     permission = "patients.manage"
 	permAppointmentsManage permission = "appointments.manage"
 	permTreatmentsManage   permission = "treatments.manage"
+	permPlatformManage     permission = "platform.manage"
 )
 
 func hasPermission(role string, p permission) bool {
 	r := strings.ToLower(strings.TrimSpace(role))
 	switch p {
+	case permPlatformManage:
+		return r == "platform_admin"
 	case permUsersManage:
 		return r == "admin"
 	case permPatientsManage:
@@ -65,6 +69,9 @@ func isPublicEndpoint(method, path string) bool {
 	if method == "POST" && strings.HasPrefix(path, "/auth/") {
 		return true
 	}
+	if method == "POST" && path == "/platform/bootstrap" {
+		return true
+	}
 	return false
 }
 
@@ -79,6 +86,7 @@ func (r *Router) require(ctx context.Context, req events.APIGatewayV2HTTPRequest
 		resp, _ := response(403, map[string]string{"error": "forbidden"})
 		return ctx, resp, false
 	}
+	ctx = store.ContextWithOrgID(ctx, auth.User.OrgID)
 	return context.WithValue(ctx, ctxAuthKey, auth), events.APIGatewayV2HTTPResponse{}, true
 }
 
@@ -148,6 +156,8 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 		switch {
 		case method == "GET" && path == "/health":
 			resp, err = response(200, map[string]string{"status": "ok", "message": "Clinical API is running", "version": "1.0.1", "updated": "2026-02-18"})
+		case method == "POST" && path == "/platform/bootstrap":
+			resp, err = r.platformBootstrap(ctx, req)
 		case method == "POST" && path == "/auth/register":
 			resp, err = r.register(ctx, req)
 		case method == "POST" && path == "/auth/login":
@@ -324,6 +334,23 @@ func (r *Router) login(ctx context.Context, req events.APIGatewayV2HTTPRequest) 
 		return response(400, map[string]string{"error": "invalid_json"})
 	}
 	out, err := r.auth.Login(ctx, in)
+	if err != nil {
+		return response(401, map[string]string{"error": err.Error()})
+	}
+	return response(200, out)
+}
+
+func (r *Router) platformBootstrap(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in struct {
+		Secret   string `json:"secret"`
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	out, err := r.auth.BootstrapPlatformAdmin(ctx, service.BootstrapPlatformAdminInput(in))
 	if err != nil {
 		return response(401, map[string]string{"error": err.Error()})
 	}

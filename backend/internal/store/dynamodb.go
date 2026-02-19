@@ -364,8 +364,12 @@ type dynamoPatientRepo struct {
 }
 
 func (r *dynamoPatientRepo) Create(ctx context.Context, patient domain.Patient) (domain.Patient, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return domain.Patient{}, fmt.Errorf("missing orgId")
+	}
 	item := map[string]types.AttributeValue{
-		"PK":         &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patient.ID)},
+		"PK":         &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":         &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patient.ID)},
 		"ID":         &types.AttributeValueMemberS{Value: patient.ID},
 		"DoctorID":   &types.AttributeValueMemberS{Value: patient.DoctorID},
@@ -399,10 +403,14 @@ func (r *dynamoPatientRepo) Create(ctx context.Context, patient domain.Patient) 
 }
 
 func (r *dynamoPatientRepo) GetByID(ctx context.Context, id string) (domain.Patient, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return domain.Patient{}, fmt.Errorf("missing orgId")
+	}
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", id)},
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", id)},
 		},
 	})
@@ -425,11 +433,16 @@ func (r *dynamoPatientRepo) GetByID(ctx context.Context, id string) (domain.Pati
 }
 
 func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return nil, fmt.Errorf("missing orgId")
+	}
 	input := &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),
-		FilterExpression: aws.String("begins_with(PK, :prefix)"),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":prefix": &types.AttributeValueMemberS{Value: "PATIENT#"},
+			":pk": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":sk": &types.AttributeValueMemberS{Value: "PATIENT#"},
 		},
 	}
 
@@ -453,13 +466,18 @@ func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) (
 }
 
 func (r *dynamoPatientRepo) SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return nil, fmt.Errorf("missing orgId")
+	}
 	q := strings.ToLower(strings.TrimSpace(query))
 
 	input := &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),
-		FilterExpression: aws.String("begins_with(PK, :prefix)"),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":prefix": &types.AttributeValueMemberS{Value: "PATIENT#"},
+			":pk": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":sk": &types.AttributeValueMemberS{Value: "PATIENT#"},
 		},
 	}
 
@@ -496,10 +514,14 @@ func (r *dynamoPatientRepo) Update(ctx context.Context, patient domain.Patient) 
 }
 
 func (r *dynamoPatientRepo) Delete(ctx context.Context, id string) error {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return fmt.Errorf("missing orgId")
+	}
 	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", id)},
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", id)},
 		},
 	})
@@ -513,8 +535,12 @@ type dynamoAppointmentRepo struct {
 }
 
 func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return domain.Appointment{}, fmt.Errorf("missing orgId")
+	}
 	item := map[string]types.AttributeValue{
-		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", appointment.ID)},
+		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", appointment.ID)},
 		"ID":             &types.AttributeValueMemberS{Value: appointment.ID},
 		"DoctorID":       &types.AttributeValueMemberS{Value: appointment.DoctorID},
@@ -548,10 +574,14 @@ func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.A
 }
 
 func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.Appointment, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return domain.Appointment{}, fmt.Errorf("missing orgId")
+	}
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", id)},
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", id)},
 		},
 	})
@@ -574,13 +604,18 @@ func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.
 }
 
 func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return nil, fmt.Errorf("missing orgId")
+	}
 	// Use Scan with FilterExpression since we don't have a GSI for doctor+date
 	dayStr := day.Format("2006-01-02")
 
 	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),
-		FilterExpression: aws.String("DoctorID = :doctorID AND begins_with(StartAt, :dayStr)"),
+		FilterExpression: aws.String("PK = :pk AND DoctorID = :doctorID AND begins_with(StartAt, :dayStr)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 			":doctorID": &types.AttributeValueMemberS{Value: doctorID},
 			":dayStr":   &types.AttributeValueMemberS{Value: dayStr},
 		},
@@ -620,8 +655,12 @@ type dynamoConsentRepo struct {
 }
 
 func (r *dynamoConsentRepo) Create(ctx context.Context, consent domain.Consent) (domain.Consent, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return domain.Consent{}, fmt.Errorf("missing orgId")
+	}
 	item := map[string]types.AttributeValue{
-		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", consent.ID)},
+		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", consent.ID)},
 		"ID":             &types.AttributeValueMemberS{Value: consent.ID},
 		"PatientID":      &types.AttributeValueMemberS{Value: consent.PatientID},
@@ -656,10 +695,14 @@ func (r *dynamoConsentRepo) Update(ctx context.Context, consent domain.Consent) 
 }
 
 func (r *dynamoConsentRepo) GetByID(ctx context.Context, id string) (domain.Consent, error) {
+	orgID := OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return domain.Consent{}, fmt.Errorf("missing orgId")
+	}
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", id)},
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", id)},
 		},
 	})

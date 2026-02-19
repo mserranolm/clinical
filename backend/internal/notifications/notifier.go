@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"clinical-backend/internal/config"
+	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -52,8 +53,12 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 	if channel == "email" && r.sendEmail && r.ses != nil {
 		to := patientID
 		if !strings.Contains(to, "@") && r.ddb != nil {
+			orgID := store.OrgIDFromContext(ctx)
+			if strings.TrimSpace(orgID) == "" {
+				return fmt.Errorf("missing orgId")
+			}
 			key := map[string]ddbtypes.AttributeValue{
-				"PK": &ddbtypes.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patientID)},
+				"PK": &ddbtypes.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 				"SK": &ddbtypes.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patientID)},
 			}
 			out, err := r.ddb.GetItem(ctx, &dynamodb.GetItemInput{
@@ -74,7 +79,7 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 		subject := "Confirmación de cita"
 		_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
 			FromEmailAddress: aws.String(sender),
-			Destination:     &sestypes.Destination{ToAddresses: []string{to}},
+			Destination:      &sestypes.Destination{ToAddresses: []string{to}},
 			Content: &sestypes.EmailContent{Simple: &sestypes.Message{
 				Subject: &sestypes.Content{Data: aws.String(subject)},
 				Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(message)}},

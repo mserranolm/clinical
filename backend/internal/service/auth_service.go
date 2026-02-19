@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -180,6 +181,70 @@ func (s *AuthService) ForgotPassword(ctx context.Context, in ForgotPasswordInput
 type ResetPasswordInput struct {
 	Token       string `json:"token"`
 	NewPassword string `json:"newPassword"`
+}
+
+type BootstrapPlatformAdminInput struct {
+	Secret   string
+	Email    string
+	Name     string
+	Password string
+}
+
+type BootstrapPlatformAdminOutput struct {
+	UserID string `json:"userId"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
+}
+
+func (s *AuthService) BootstrapPlatformAdmin(ctx context.Context, in BootstrapPlatformAdminInput) (BootstrapPlatformAdminOutput, error) {
+	secret := strings.TrimSpace(os.Getenv("BOOTSTRAP_SECRET"))
+	if secret == "" {
+		return BootstrapPlatformAdminOutput{}, fmt.Errorf("bootstrap disabled")
+	}
+	if strings.TrimSpace(in.Secret) == "" || in.Secret != secret {
+		return BootstrapPlatformAdminOutput{}, fmt.Errorf("invalid secret")
+	}
+
+	defaultEmail := strings.TrimSpace(os.Getenv("PLATFORM_ADMIN_EMAIL"))
+	if strings.TrimSpace(in.Email) == "" {
+		in.Email = defaultEmail
+	}
+	if strings.TrimSpace(in.Email) == "" {
+		return BootstrapPlatformAdminOutput{}, fmt.Errorf("email is required")
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		in.Name = "Platform Admin"
+	}
+	if strings.TrimSpace(in.Password) == "" {
+		return BootstrapPlatformAdminOutput{}, fmt.Errorf("password is required")
+	}
+	if len(in.Password) < 8 {
+		return BootstrapPlatformAdminOutput{}, fmt.Errorf("password must have at least 8 characters")
+	}
+
+	// Idempotent: if exists, return it.
+	if existing, err := s.repo.GetUserByEmail(ctx, in.Email); err == nil {
+		if strings.ToLower(strings.TrimSpace(existing.Role)) != "platform_admin" {
+			return BootstrapPlatformAdminOutput{}, fmt.Errorf("user exists with different role")
+		}
+		return BootstrapPlatformAdminOutput{UserID: existing.ID, Email: existing.Email, Role: existing.Role}, nil
+	}
+
+	user := store.AuthUser{
+		ID:           buildID("usr"),
+		OrgID:        "platform",
+		Name:         strings.TrimSpace(in.Name),
+		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
+		Role:         "platform_admin",
+		Status:       "active",
+		PasswordHash: hashPassword(in.Password),
+		CreatedAt:    time.Now().UTC(),
+	}
+	created, err := s.repo.CreateUser(ctx, user)
+	if err != nil {
+		return BootstrapPlatformAdminOutput{}, err
+	}
+	return BootstrapPlatformAdminOutput{UserID: created.ID, Email: created.Email, Role: created.Role}, nil
 }
 
 func (s *AuthService) ResetPassword(ctx context.Context, in ResetPasswordInput) error {

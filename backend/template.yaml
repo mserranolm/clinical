@@ -18,6 +18,8 @@ Globals:
         ODONTOGRAM_TABLE: !Ref OdontogramsTable
         TREATMENT_PLAN_TABLE: !Ref TreatmentPlansTable
         USER_TABLE: !Ref UsersTable
+        PLATFORM_ADMIN_EMAIL: mserranolm@gmail.com
+        BOOTSTRAP_SECRET: ""
         SEND_SMS: "true"
         SEND_EMAIL: "true"
         USE_DYNAMODB: "true"
