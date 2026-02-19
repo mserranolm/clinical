@@ -97,6 +97,42 @@ func main() {
 
 	// Lambda handler that detects event type and routes accordingly
 	lambda.Start(func(ctx context.Context, event json.RawMessage) (interface{}, error) {
+		var apiReqV1 events.APIGatewayProxyRequest
+		if err := json.Unmarshal(event, &apiReqV1); err == nil {
+			if apiReqV1.HTTPMethod != "" {
+				log.Printf("Processing API Gateway REST request: %s %s", apiReqV1.HTTPMethod, apiReqV1.Path)
+
+				converted := events.APIGatewayV2HTTPRequest{
+					RouteKey:              "$default",
+					RawPath:               apiReqV1.Path,
+					Headers:               apiReqV1.Headers,
+					QueryStringParameters: apiReqV1.QueryStringParameters,
+					Body:                  apiReqV1.Body,
+					IsBase64Encoded:       apiReqV1.IsBase64Encoded,
+					RequestContext: events.APIGatewayV2HTTPRequestContext{
+						HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+							Method: apiReqV1.HTTPMethod,
+							Path:   apiReqV1.Path,
+						},
+					},
+				}
+
+				resp, routeErr := router.Handle(ctx, converted)
+				if routeErr != nil {
+					log.Printf("API request failed: %v", routeErr)
+					return events.APIGatewayProxyResponse{StatusCode: 500, Body: `{"error":"internal_error"}`}, nil
+				}
+
+				return events.APIGatewayProxyResponse{
+					StatusCode:        resp.StatusCode,
+					Headers:           resp.Headers,
+					Body:              resp.Body,
+					IsBase64Encoded:   resp.IsBase64Encoded,
+					MultiValueHeaders: map[string][]string{},
+				}, nil
+			}
+		}
+
 		var apiReq events.APIGatewayV2HTTPRequest
 		if err := json.Unmarshal(event, &apiReq); err == nil {
 			if apiReq.RequestContext.HTTP.Method != "" || apiReq.Version != "" {

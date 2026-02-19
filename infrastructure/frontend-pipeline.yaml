@@ -1,17 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Clinical Frontend CI/CD Pipeline - Deploys to CloudFront only when frontend/ changes'
+Description: 'Clinical Frontend CI/CD Pipeline with CloudFront'
 
 Parameters:
   ProjectName:
     Type: String
     Default: clinical-frontend
-    Description: Name of the frontend project
-    
-  Environment:
-    Type: String
-    Default: production
-    AllowedValues: [dev, staging, production]
-    Description: Environment name
+    Description: Project name for resource naming
     
   GitHubOwner:
     Type: String
@@ -34,8 +28,13 @@ Parameters:
 
   DomainName:
     Type: String
-    Default: ""
-    Description: Custom domain name (optional, e.g., clinical.yourdomain.com)
+    Default: "clinisense.aski-tech.net"
+    Description: Custom domain name for CloudFront
+
+  CertificateArn:
+    Type: String
+    Default: "arn:aws:acm:us-east-1:975738006503:certificate/c6f19465-0bd5-486a-9e6a-9a53ee20a81e"
+    Description: ACM certificate ARN in us-east-1 for CloudFront custom domain
 
 Resources:
   # S3 Bucket for Frontend Hosting
@@ -58,7 +57,7 @@ Resources:
             AllowedOrigins: ['*']
             MaxAge: 3600
 
-  # S3 Bucket Policy for Public Access
+  # S3 Bucket Policy for CloudFront access
   FrontendS3BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -66,23 +65,32 @@ Resources:
       PolicyDocument:
         Statement:
           - Effect: Allow
-            Principal: '*'
+            Principal:
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
-            Resource: !Sub "${FrontendS3Bucket}/*"
+            Resource: !Sub "${FrontendS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendCloudFrontDistribution}"
 
-  # CloudFront Origin Access Identity
-  FrontendCloudFrontOAI:
-    Type: AWS::CloudFront::OriginAccessIdentity
+  # CloudFront Origin Access Control
+  FrontendOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
     Properties:
-      OriginAccessIdentityConfig:
-        Comment: !Sub "OAI for ${ProjectName}"
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
 
   # CloudFront Distribution
   FrontendCloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Comment: !Sub "Clinical Frontend Distribution - ${Environment}"
+        Aliases:
+          - !Ref DomainName
+        Comment: !Sub "Clinical Frontend Distribution - ${ProjectName}"
         DefaultCacheBehavior:
           TargetOriginId: !Sub "${ProjectName}-S3-origin"
           ViewerProtocolPolicy: redirect-to-https
@@ -106,10 +114,13 @@ Resources:
           - DomainName: !GetAtt FrontendS3Bucket.RegionalDomainName
             Id: !Sub "${ProjectName}-S3-origin"
             S3OriginConfig:
-              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${FrontendCloudFrontOAI}"
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !Ref FrontendOriginAccessControl
         PriceClass: PriceClass_100
         ViewerCertificate:
-          CloudFrontDefaultCertificate: true
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
 
   # S3 Bucket for Pipeline Artifacts
   FrontendArtifactStore:
@@ -163,7 +174,7 @@ Resources:
                   - s3:GetBucketAcl
                   - s3:GetBucketLocation
                 Resource: 
-                  - !Sub "${FrontendArtifactStore}/*"
+                  - !Sub "${FrontendArtifactStore.Arn}/*"
                   - !GetAtt FrontendArtifactStore.Arn
               
               # S3 Access for hosting bucket
@@ -175,7 +186,7 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource: 
-                  - !Sub "${FrontendS3Bucket}/*"
+                  - !Sub "${FrontendS3Bucket.Arn}/*"
                   - !GetAtt FrontendS3Bucket.Arn
               
               # CloudFront Access
@@ -217,28 +228,29 @@ Resources:
             pre_build:
               commands:
                 - echo Logging into build environment...
-                - cd frontend
-                - echo "Current directory structure:"
-                - ls -la
+                - cd frontend/react-app
+                - echo "Installing React dependencies..."
+                - npm install
             build:
               commands:
                 - echo Build started on `date`
-                - echo "No build process needed for vanilla JS/HTML/CSS"
-                - echo "Files ready for deployment:"
-                - find . -name "*.html" -o -name "*.js" -o -name "*.css" | head -20
+                - echo "Building React app with Vite..."
+                - npm run build
+                - echo "Build completed, contents of dist:"
+                - ls -la dist/
             post_build:
               commands:
                 - echo Build completed on `date`
                 - echo Uploading to S3 bucket $S3_BUCKET...
-                - aws s3 sync . s3://$S3_BUCKET --delete --cache-control "public, max-age=86400"
-                - aws s3 cp index.html s3://$S3_BUCKET/index.html --cache-control "public, max-age=300"
+                - aws s3 sync dist/ s3://$S3_BUCKET --delete --cache-control "public, max-age=86400"
+                - aws s3 cp dist/index.html s3://$S3_BUCKET/index.html --cache-control "public, max-age=300"
                 - echo Creating CloudFront invalidation...
                 - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
                 - echo Deployment completed successfully!
           artifacts:
             files:
               - '**/*'
-            base-directory: frontend
+            base-directory: frontend/react-app/dist
 
   # CodePipeline Service Role
   FrontendCodePipelineRole:
@@ -264,23 +276,47 @@ Resources:
                   - s3:GetObjectVersion
                   - s3:PutObject
                 Resource:
-                  - !Sub "${FrontendArtifactStore}/*"
+                  - !Sub "${FrontendArtifactStore.Arn}/*"
                   - !GetAtt FrontendArtifactStore.Arn
               - Effect: Allow
                 Action:
                   - codebuild:BatchGetBuilds
                   - codebuild:StartBuild
                 Resource: !GetAtt FrontendCodeBuildProject.Arn
+              - Effect: Allow
+                Action:
+                  - codeconnections:UseConnection
+                  - codeconnections:GetConnection
+                  - codeconnections:ListConnections
+                  - codestar-connections:UseConnection
+                  - codestar-connections:GetConnection
+                  - codestar-connections:ListConnections
+                Resource: 
+                  - !Ref CodeConnectionArn
+                  - !Sub "arn:aws:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
+                  - !Sub "arn:aws:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
 
   # CodePipeline
   FrontendPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub "${ProjectName}-pipeline"
+      PipelineType: V2
       RoleArn: !GetAtt FrontendCodePipelineRole.Arn
       ArtifactStore:
         Type: S3
         Location: !Ref FrontendArtifactStore
+      Triggers:
+        - ProviderType: CodeStarSourceConnection
+          GitConfiguration:
+            SourceActionName: SourceAction
+            Push:
+              - Branches:
+                  Includes:
+                    - !Ref BranchName
+                FilePaths:
+                  Includes:
+                    - frontend/**
       Stages:
         - Name: Source
           Actions:
@@ -295,6 +331,7 @@ Resources:
                 FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
                 BranchName: !Ref BranchName
                 OutputArtifactFormat: CODE_ZIP
+                DetectChanges: false
               OutputArtifacts:
                 - Name: SourceOutput
         - Name: Build

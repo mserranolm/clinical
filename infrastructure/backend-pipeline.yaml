@@ -251,10 +251,22 @@ Resources:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub "${ProjectName}-pipeline"
+      PipelineType: V2
       RoleArn: !GetAtt BackendCodePipelineRole.Arn
       ArtifactStore:
         Type: S3
         Location: !Ref BackendArtifactStore
+      Triggers:
+        - ProviderType: CodeStarSourceConnection
+          GitConfiguration:
+            SourceActionName: SourceAction
+            Push:
+              - Branches:
+                  Includes:
+                    - !Ref BranchName
+                FilePaths:
+                  Includes:
+                    - backend/**
       Stages:
         - Name: Source
           Actions:
@@ -269,6 +281,7 @@ Resources:
                 FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
                 BranchName: !Ref BranchName
                 OutputArtifactFormat: CODE_ZIP
+                DetectChanges: false
               OutputArtifacts:
                 - Name: SourceOutput
         - Name: Build
