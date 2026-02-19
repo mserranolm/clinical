@@ -114,8 +114,8 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
               </div>
             )}
             <div className="input-group">
-              <label>Email Profesional</label>
-              <input name="email" type="email" placeholder="doctor@clinisense.com" required autoComplete="email" />
+              <label>Usuario o Email</label>
+              <input name="email" type="text" placeholder="admin o doctor@clinisense.com" required autoComplete="username" />
             </div>
             <div className="input-group">
               <label>Contraseña</label>
