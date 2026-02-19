@@ -183,7 +183,7 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
                   <td><span className="badge status-confirmed">Activo</span></td>
                 </tr>
               ))}
-              {rows.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="empty-state">
                     <div className="empty-state-content">
