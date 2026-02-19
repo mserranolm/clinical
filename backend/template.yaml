@@ -24,22 +24,46 @@ Globals:
 
 Resources:
 
-  ServerlessHttpApi:
-    Type: AWS::Serverless::HttpApi
+  # API Gateway REST API (para API Keys)
+  ClinicalRestApi:
+    Type: AWS::Serverless::Api
     Properties:
-      CorsConfiguration:
-        AllowOrigins:
-          - "http://localhost:5173"
-          - "http://127.0.0.1:5173"
-        AllowHeaders:
-          - "content-type"
-          - "authorization"
-        AllowMethods:
-          - "GET"
-          - "POST"
-          - "PUT"
-          - "DELETE"
-          - "OPTIONS"
+      Name: !Sub "${AWS::StackName}-api"
+      Description: Clinical REST API with API Key authentication
+      StageName: prod
+      EndpointConfiguration:
+        Type: REGIONAL
+      
+  # API Key para autenticación del frontend
+  ClinicalApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub "${AWS::StackName}-api-key"
+      Description: API Key for Clinical frontend
+      Enabled: true
+      
+  # Usage Plan con límite de 100 llamadas diarias
+  ClinicalUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn:
+      - ClinicalApiFunction
+    Properties:
+      UsagePlanName: !Sub "${AWS::StackName}-usage-plan"
+      Description: Clinical API usage plan - 100 requests per day
+      Throttle:
+        RateLimit: 10
+        BurstLimit: 20
+      Quota:
+        Limit: 100
+        Period: DAY
+          
+  # Asociar API Key con Usage Plan
+  ClinicalUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ClinicalApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref ClinicalUsagePlan
 
   ClinicalApiFunction:
     Type: AWS::Serverless::Function
@@ -69,11 +93,13 @@ Resources:
             Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref ServerlessHttpApi
+            RestApiId: !Ref ClinicalRestApi
             Path: /{proxy+}
             Method: ANY
+            Auth:
+              ApiKeyRequired: true
 
   Reminder24hFunction:
     Type: AWS::Serverless::Function
@@ -213,7 +239,25 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Description: HTTP API endpoint
-    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+    Description: REST API endpoint with API Key authentication
+    Value: !Sub https://${ClinicalRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod
     Export:
       Name: !Sub ${AWS::StackName}-ApiUrl
+      
+  ApiKey:
+    Description: API Key for frontend authentication  
+    Value: !Ref ClinicalApiKey
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiKey
+      
+  ApiKeyId:
+    Description: API Key ID for retrieving the actual key value
+    Value: !Ref ClinicalApiKey
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiKeyId
+      
+  UsagePlanId:
+    Description: Usage Plan ID (100 requests per day)
+    Value: !Ref ClinicalUsagePlan
+    Export:
+      Name: !Sub ${AWS::StackName}-UsagePlanId

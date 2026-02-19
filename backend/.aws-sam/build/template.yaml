@@ -27,6 +27,44 @@ Globals:
         SEND_EMAIL: 'true'
         USE_DYNAMODB: 'true'
 Resources:
+  ClinicalRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name:
+        Fn::Sub: ${AWS::StackName}-api
+      Description: Clinical REST API with API Key authentication
+      StageName: prod
+      EndpointConfiguration:
+        Type: REGIONAL
+  ClinicalApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name:
+        Fn::Sub: ${AWS::StackName}-api-key
+      Description: API Key for Clinical frontend
+      Enabled: true
+  ClinicalUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn:
+    - ClinicalApiFunction
+    Properties:
+      UsagePlanName:
+        Fn::Sub: ${AWS::StackName}-usage-plan
+      Description: Clinical API usage plan - 100 requests per day
+      Throttle:
+        RateLimit: 10
+        BurstLimit: 20
+      Quota:
+        Limit: 100
+        Period: DAY
+  ClinicalUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId:
+        Ref: ClinicalApiKey
+      KeyType: API_KEY
+      UsagePlanId:
+        Ref: ClinicalUsagePlan
   ClinicalApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -62,10 +100,14 @@ Resources:
             Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
+            RestApiId:
+              Ref: ClinicalRestApi
             Path: /{proxy+}
             Method: ANY
+            Auth:
+              ApiKeyRequired: true
     Metadata:
       SamResourceId: ClinicalApiFunction
   Reminder24hFunction:
@@ -206,9 +248,30 @@ Resources:
         KeyType: RANGE
 Outputs:
   ApiUrl:
-    Description: HTTP API endpoint
+    Description: REST API endpoint with API Key authentication
     Value:
-      Fn::Sub: https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+      Fn::Sub: https://${ClinicalRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod
     Export:
       Name:
         Fn::Sub: ${AWS::StackName}-ApiUrl
+  ApiKey:
+    Description: API Key for frontend authentication
+    Value:
+      Ref: ClinicalApiKey
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-ApiKey
+  ApiKeyId:
+    Description: API Key ID for retrieving the actual key value
+    Value:
+      Ref: ClinicalApiKey
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-ApiKeyId
+  UsagePlanId:
+    Description: Usage Plan ID (100 requests per day)
+    Value:
+      Ref: ClinicalUsagePlan
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-UsagePlanId

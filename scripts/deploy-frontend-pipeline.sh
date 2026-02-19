@@ -15,23 +15,29 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 Clinical Frontend CI/CD Pipeline Deployment${NC}"
 echo "=================================================="
 
-# Check if required parameters are provided
-if [ $# -lt 1 ]; then
-    echo -e "${RED}❌ Error: Missing required parameters${NC}"
-    echo ""
-    echo "Usage: $0 <GITHUB_OWNER>"
-    echo ""
-    echo "Parameters:"
-    echo "  GITHUB_OWNER    GitHub username (e.g., mserranolm)"
-    echo ""
-    echo "Example:"
-    echo "  $0 mserranolm"
-    echo ""
-    echo "Note: Using AWS CodeConnections (no GitHub token needed)"
+# Auto-detect GitHub owner from git remote
+GITHUB_REMOTE=$(git remote get-url origin 2>/dev/null)
+if [ $? -ne 0 ] || [ -z "$GITHUB_REMOTE" ]; then
+    echo -e "${RED}❌ Error: No git remote origin found${NC}"
+    echo "Make sure you're in a git repository with GitHub remote configured"
     exit 1
 fi
 
-GITHUB_OWNER=$1
+# Extract owner from GitHub URL (supports both HTTPS and SSH)
+GITHUB_OWNER=""
+if [[ "$GITHUB_REMOTE" =~ github\.com[:/]([^/]+)/([^/]+) ]]; then
+    GITHUB_OWNER="${BASH_REMATCH[1]}"
+    GITHUB_REPO="${BASH_REMATCH[2]%.git}"
+else
+    echo -e "${RED}❌ Error: Invalid GitHub remote URL: $GITHUB_REMOTE${NC}"
+    echo "Expected format: git@github.com:owner/repo.git or https://github.com/owner/repo.git"
+    exit 1
+fi
+
+echo -e "${GREEN}🔍 Auto-detected from git remote:${NC}"
+echo "  • GitHub Owner: $GITHUB_OWNER"  
+echo "  • GitHub Repo: $GITHUB_REPO"
+echo ""
 STACK_NAME="clinical-frontend-pipeline"
 REGION="us-east-1"
 PROFILE="aski"
@@ -39,7 +45,7 @@ PROFILE="aski"
 echo -e "${YELLOW}📋 Pipeline Configuration:${NC}"
 echo "  • Stack Name: $STACK_NAME"
 echo "  • GitHub Owner: $GITHUB_OWNER"
-echo "  • GitHub Repo: clinical"
+echo "  • GitHub Repo: $GITHUB_REPO"
 echo "  • Branch: main"
 echo "  • Region: $REGION"
 echo "  • AWS Profile: $PROFILE"
@@ -70,9 +76,10 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
         ProjectName=clinical-frontend \
-        Environment=production \
         GitHubOwner=$GITHUB_OWNER \
-        GitHubRepo=clinical \
+        GitHubRepo=$GITHUB_REPO \
+        DomainName=clinisense.aski-tech.net \
+        CertificateArn=arn:aws:acm:us-east-1:975738006503:certificate/c6f19465-0bd5-486a-9e6a-9a53ee20a81e \
         BranchName=main \
     --no-fail-on-empty-changeset
 
