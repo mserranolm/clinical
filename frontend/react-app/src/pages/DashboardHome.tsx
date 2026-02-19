@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import type { AuthSession } from "../types";
 
 type AppointmentRow = {
@@ -9,7 +9,7 @@ type AppointmentRow = {
   paymentAmount?: number;
 };
 
-export function DashboardHome({ user, rows, loading, error, date, onDateChange }: { 
+export function DashboardHome({ rows, loading, error, date, onDateChange }: { 
   user: AuthSession; 
   rows: AppointmentRow[]; 
   loading: boolean;

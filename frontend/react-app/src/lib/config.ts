@@ -31,14 +31,14 @@ function normalizeUrl(url: string): string {
 }
 
 export function getApiBaseUrl(): string {
-  const runtime = window.localStorage.getItem(STORAGE_KEY);
-  if (runtime) {
-    return normalizeUrl(runtime);
-  }
-
   const envValue = import.meta.env.VITE_API_BASE_URL;
   if (envValue && typeof envValue === "string") {
     return normalizeUrl(envValue);
+  }
+
+  const runtime = window.localStorage.getItem(STORAGE_KEY);
+  if (runtime) {
+    return normalizeUrl(runtime);
   }
 
   if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
@@ -58,8 +58,11 @@ export function clearApiBaseUrl(): void {
 }
 
 export function getApiConfig() {
+  const envValue = import.meta.env.VITE_API_BASE_URL;
+  const runtime = window.localStorage.getItem(STORAGE_KEY);
+
   return {
     baseUrl: getApiBaseUrl(),
-    source: window.localStorage.getItem(STORAGE_KEY) ? "localStorage" : import.meta.env.VITE_API_BASE_URL ? "env" : "default"
+    source: envValue ? "env" : runtime ? "localStorage" : "default"
   };
 }

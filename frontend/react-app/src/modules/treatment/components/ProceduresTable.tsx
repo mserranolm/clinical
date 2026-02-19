@@ -1,5 +1,3 @@
-import React from "react";
-
 interface Procedure {
   id: string;
   date: string;
@@ -22,9 +20,9 @@ export function ProceduresTable({ procedures }: ProceduresTableProps) {
         <table className="procedures-table">
           <thead>
             <tr>
-              <th style={{ width: '120px' }}>Fecha</th>
-              <th className="evolution-cell">Evolución / Detalle del Procedimiento</th>
-              <th style={{ width: '100px' }}>Firma</th>
+              <th style={{ width: '150px' }}>Fecha</th>
+              <th className="evolution-cell">Evolución / Detalle</th>
+              <th style={{ width: '150px' }}>Firma Autorizada</th>
             </tr>
           </thead>
           <tbody>
@@ -32,15 +30,21 @@ export function ProceduresTable({ procedures }: ProceduresTableProps) {
               <tr key={proc.id}>
                 <td>{new Date(proc.date).toLocaleDateString()}</td>
                 <td>{proc.evolution}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {proc.signed ? "✅" : "—"}
+                <td style={{ textAlign: 'center', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                  {proc.signed ? "Firmado Digitalmente" : "Pendiente"}
                 </td>
               </tr>
             ))}
             {procedures.length === 0 && (
-              <tr>
-                <td colSpan={3} className="empty-state">No hay procedimientos registrados.</td>
-              </tr>
+              <>
+                {[1, 2, 3].map((i) => (
+                  <tr key={`empty-${i}`}>
+                    <td style={{ height: '40px' }}></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                ))}
+              </>
             )}
           </tbody>
         </table>

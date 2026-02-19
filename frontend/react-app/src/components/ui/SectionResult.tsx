@@ -1,5 +1,3 @@
-import React from "react";
-
 export type ActionState = {
   status: "idle" | "loading" | "success" | "error";
   title: string;

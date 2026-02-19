@@ -1,4 +1,4 @@
-import React from "react";
+import { useMemo } from "react";
 
 interface MedicalHistoryFormProps {
   patientData: any;
@@ -6,7 +6,7 @@ interface MedicalHistoryFormProps {
 }
 
 export function MedicalHistoryForm({ patientData, readOnly = false }: MedicalHistoryFormProps) {
-  const historyMap = React.useMemo(() => {
+  const historyMap = useMemo(() => {
     const map: Record<string, boolean> = {};
     if (Array.isArray(patientData?.medicalBackgrounds)) {
       patientData.medicalBackgrounds.forEach((bg: any) => {
@@ -36,26 +36,19 @@ export function MedicalHistoryForm({ patientData, readOnly = false }: MedicalHis
       <div className="history-checklist">
         {pathologies.map((path) => (
           <div key={path.id} className="check-item">
-            <input 
-              type="checkbox" 
-              id={path.id} 
-              checked={historyMap[path.id] || false} 
-              disabled={readOnly}
-              onChange={() => {}} 
-            />
-            <label htmlFor={path.id}>{path.label}</label>
+            <div className={`custom-checkbox ${historyMap[path.id] ? 'checked' : ''} ${readOnly ? 'readonly' : ''}`}>
+              {historyMap[path.id] && "✓"}
+            </div>
+            <label>{path.label}</label>
           </div>
         ))}
       </div>
 
-      <div className="input-group" style={{ marginTop: '24px' }}>
-        <label>Otras patologías / Observaciones</label>
-        <textarea 
-          defaultValue={patientData?.medicalBackgrounds?.find((bg: any) => bg.type === "notes")?.description || ""} 
-          readOnly={readOnly}
-          rows={3} 
-          placeholder="Detalle adicional..."
-        />
+      <div className="other-pathologies">
+        <label>Otra patología / Observaciones</label>
+        <div className={`dotted-line-text ${readOnly ? 'readonly' : ''}`}>
+          {patientData?.medicalBackgrounds?.find((bg: any) => bg.type === "notes")?.description || "Ninguna observada."}
+        </div>
       </div>
     </div>
   );

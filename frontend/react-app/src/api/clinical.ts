@@ -12,7 +12,7 @@ import {
   type ResetPasswordInput
 } from "../types";
 
-type AppointmentDTO = {
+export type AppointmentDTO = {
   id: string;
   doctorId: string;
   patientId: string;
