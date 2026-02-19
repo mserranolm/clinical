@@ -113,6 +113,19 @@ export const clinicalApi = {
       token
     }),
 
+  updateAppointment: (appointmentId: string, data: Partial<{ doctorId: string; patientId: string; startAt: string; endAt: string; status: string; treatmentPlan: string; paymentAmount: number; paymentMethod: string }>, token?: string) =>
+    request<AppointmentDTO>(endpointCatalog.updateAppointment(appointmentId), {
+      method: "PUT",
+      body: data,
+      token
+    }),
+
+  deleteAppointment: (appointmentId: string, token?: string) =>
+    request<{ status: string }>(endpointCatalog.deleteAppointment(appointmentId), {
+      method: "DELETE",
+      token
+    }),
+
   resendAppointmentConfirmation: (appointmentId: string, token?: string) =>
     request<{ status: string }>(endpointCatalog.resendAppointmentConfirmation(appointmentId), {
       method: "POST",

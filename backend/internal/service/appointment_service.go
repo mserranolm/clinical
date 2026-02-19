@@ -142,3 +142,55 @@ func (s *AppointmentService) SendDoctorCloseDayReminder(ctx context.Context, doc
 	message := "Recuerda cerrar tu agenda al final del día y registrar evolución/pago de cada cita."
 	return s.notifier.SendDoctorDailySummary(ctx, doctorID, channel, message)
 }
+
+type UpdateAppointmentInput struct {
+	DoctorID      string  `json:"doctorId"`
+	PatientID     string  `json:"patientId"`
+	StartAt       string  `json:"startAt"`
+	EndAt         string  `json:"endAt"`
+	Status        string  `json:"status"`
+	TreatmentPlan string  `json:"treatmentPlan"`
+	PaymentAmount float64 `json:"paymentAmount"`
+	PaymentMethod string  `json:"paymentMethod"`
+}
+
+func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, in UpdateAppointmentInput) (domain.Appointment, error) {
+	appt, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if in.StartAt != "" {
+		t, err := time.Parse(time.RFC3339, in.StartAt)
+		if err != nil {
+			return domain.Appointment{}, fmt.Errorf("invalid startAt")
+		}
+		appt.StartAt = t.UTC()
+	}
+	if in.EndAt != "" {
+		t, err := time.Parse(time.RFC3339, in.EndAt)
+		if err != nil {
+			return domain.Appointment{}, fmt.Errorf("invalid endAt")
+		}
+		appt.EndAt = t.UTC()
+	}
+	if in.Status != "" {
+		appt.Status = in.Status
+	}
+	if in.TreatmentPlan != "" {
+		appt.TreatmentPlan = in.TreatmentPlan
+	}
+	if in.PaymentAmount > 0 {
+		appt.PaymentAmount = in.PaymentAmount
+	}
+	if in.PaymentMethod != "" {
+		appt.PaymentMethod = in.PaymentMethod
+	}
+	return s.repo.Update(ctx, appt)
+}
+
+func (s *AppointmentService) Delete(ctx context.Context, id string) error {
+	if _, err := s.repo.GetByID(ctx, id); err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, id)
+}

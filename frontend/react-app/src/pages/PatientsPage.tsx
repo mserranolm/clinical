@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
+import { canWritePatients, canDeletePatients } from "../lib/rbac";
+import type { AuthSession } from "../types";
 
 type PatientRow = {
   id: string;
@@ -12,7 +14,7 @@ type PatientRow = {
   birthDate?: string;
 };
 
-export function PatientsPage({ token, doctorId }: { token: string; doctorId: string }) {
+export function PatientsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
   const [rows, setRows] = useState<PatientRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -152,9 +154,11 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
               {searching ? <span className="auth-spinner" style={{borderTopColor: "white"}} /> : "Buscar"}
             </button>
           </div>
-          <button className="btn-new-patient" onClick={() => setShowModal(true)}>
-            + Nuevo Paciente
-          </button>
+          {canWritePatients(session) && (
+            <button className="btn-new-patient" onClick={() => setShowModal(true)}>
+              + Nuevo Paciente
+            </button>
+          )}
         </div>
       </div>
 
@@ -200,14 +204,18 @@ export function PatientsPage({ token, doctorId }: { token: string; doctorId: str
                   <td><span className="badge status-confirmed">Activo</span></td>
                   <td>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
-                        <span className="icon">✏️</span>
-                        <span>Editar</span>
-                      </button>
-                      <button type="button" className="action-btn action-btn-delete" onClick={() => handleDelete(row)}>
-                        <span className="icon">🗑️</span>
-                        <span>Eliminar</span>
-                      </button>
+                      {canWritePatients(session) && (
+                        <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
+                          <span className="icon">✏️</span>
+                          <span>Editar</span>
+                        </button>
+                      )}
+                      {canDeletePatients(session) && (
+                        <button type="button" className="action-btn action-btn-delete" onClick={() => handleDelete(row)}>
+                          <span className="icon">🗑️</span>
+                          <span>Eliminar</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

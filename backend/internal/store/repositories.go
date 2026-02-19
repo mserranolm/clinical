@@ -24,6 +24,7 @@ type AppointmentRepository interface {
 	GetByID(ctx context.Context, id string) (domain.Appointment, error)
 	ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error)
 	Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type ConsentRepository interface {
@@ -263,6 +264,16 @@ func (r *memoryAppointmentRepo) Update(_ context.Context, appointment domain.App
 	}
 	r.items[appointment.ID] = appointment
 	return appointment, nil
+}
+
+func (r *memoryAppointmentRepo) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.items[id]; !ok {
+		return fmt.Errorf("appointment not found")
+	}
+	delete(r.items, id)
+	return nil
 }
 
 type memoryConsentRepo struct {

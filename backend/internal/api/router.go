@@ -22,27 +22,42 @@ const ctxAuthKey authCtxKey = "auth"
 type permission string
 
 const (
-	permUsersManage        permission = "users.manage"
-	permPatientsManage     permission = "patients.manage"
-	permAppointmentsManage permission = "appointments.manage"
-	permTreatmentsManage   permission = "treatments.manage"
 	permPlatformManage     permission = "platform.manage"
+	permUsersManage        permission = "users.manage"
+	permPatientsView       permission = "patients.view"
+	permPatientsWrite      permission = "patients.write"
+	permPatientsDelete     permission = "patients.delete"
+	permAppointmentsWrite  permission = "appointments.write"
+	permAppointmentsDelete permission = "appointments.delete"
+	permTreatmentsManage   permission = "treatments.manage"
 )
 
+// hasPermission enforces the RBAC matrix:
+//
+//	platform_admin : everything
+//	admin          : users, patients (view+write+delete), appointments (write+delete), treatments
+//	doctor         : patients (view+write), appointments (write), treatments
+//	assistant      : patients (view only), appointments (write — create/edit/cancel/confirm)
 func hasPermission(role string, p permission) bool {
 	r := strings.ToLower(strings.TrimSpace(role))
 	if r == "platform_admin" {
-		return true // platform_admin has access to everything
+		return true
 	}
 	switch p {
 	case permPlatformManage:
-		return false // only platform_admin, handled above
+		return false
 	case permUsersManage:
 		return r == "admin"
-	case permPatientsManage:
+	case permPatientsView:
 		return r == "admin" || r == "doctor" || r == "assistant"
-	case permAppointmentsManage:
+	case permPatientsWrite:
+		return r == "admin" || r == "doctor"
+	case permPatientsDelete:
+		return r == "admin"
+	case permAppointmentsWrite:
 		return r == "admin" || r == "doctor" || r == "assistant"
+	case permAppointmentsDelete:
+		return r == "admin"
 	case permTreatmentsManage:
 		return r == "admin" || r == "doctor"
 	default:
@@ -216,57 +231,57 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 		case method == "POST" && path == "/auth/reset-password":
 			resp, err = r.resetPassword(ctx, req)
 		case method == "POST" && path == "/patients/onboard":
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.onboardPatient(actx, req)
 			}
 		case method == "GET" && path == "/patients":
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.listPatients(actx, req)
 			}
 		case method == "GET" && path == "/patients/search":
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.searchPatients(actx, req)
 			}
 		case method == "GET" && strings.HasPrefix(path, "/patients/"):
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.getPatient(actx, strings.TrimPrefix(path, "/patients/"))
 			}
 		case method == "PUT" && strings.HasPrefix(path, "/patients/"):
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				id := strings.TrimPrefix(path, "/patients/")
 				resp, err = r.updatePatient(actx, id, req)
 			}
 		case method == "DELETE" && strings.HasPrefix(path, "/patients/"):
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsDelete); !ok {
 				resp, err = deny, nil
 			} else {
 				id := strings.TrimPrefix(path, "/patients/")
 				resp, err = r.deletePatient(actx, id)
 			}
 		case method == "POST" && path == "/appointments":
-			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.createAppointment(actx, req)
 			}
 		case method == "GET" && path == "/appointments":
-			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.listAppointments(actx, req)
 			}
 		case method == "POST" && strings.HasSuffix(path, "/confirm") && strings.HasPrefix(path, "/appointments/"):
-			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/confirm")
@@ -280,14 +295,28 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = r.closeAppointmentDay(actx, date, req)
 			}
 		case method == "POST" && strings.HasSuffix(path, "/resend-confirmation") && strings.HasPrefix(path, "/appointments/"):
-			if actx, deny, ok := r.require(ctx, req, permAppointmentsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/resend-confirmation")
 				resp, err = r.resendAppointmentConfirmation(actx, id, req)
 			}
+		case method == "DELETE" && strings.HasPrefix(path, "/appointments/"):
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsDelete); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/appointments/")
+				resp, err = r.deleteAppointment(actx, id)
+			}
+		case method == "PUT" && strings.HasPrefix(path, "/appointments/"):
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/appointments/")
+				resp, err = r.updateAppointment(actx, id, req)
+			}
 		case method == "POST" && path == "/consents":
-			if actx, deny, ok := r.require(ctx, req, permPatientsManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permPatientsWrite); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.createConsent(actx, req)
@@ -592,6 +621,25 @@ func (r *Router) listAppointments(ctx context.Context, req events.APIGatewayV2HT
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]any{"items": items})
+}
+
+func (r *Router) deleteAppointment(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
+	if err := r.appointments.Delete(ctx, id); err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"status": "deleted"})
+}
+
+func (r *Router) updateAppointment(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.UpdateAppointmentInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	appt, err := r.appointments.UpdateAppointment(ctx, id, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, appt)
 }
 
 func (r *Router) confirmAppointment(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {

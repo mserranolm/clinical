@@ -622,14 +622,23 @@ func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID
 }
 
 func (r *dynamoAppointmentRepo) Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
-	// First check if exists
 	_, err := r.GetByID(ctx, appointment.ID)
 	if err != nil {
 		return domain.Appointment{}, err
 	}
-
-	// Use Create/Put to update (overwrites the item)
 	return r.Create(ctx, appointment)
+}
+
+func (r *dynamoAppointmentRepo) Delete(ctx context.Context, id string) error {
+	orgID := orgIDOrDefault(ctx)
+	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", id)},
+		},
+	})
+	return err
 }
 
 // Consent repository implementation

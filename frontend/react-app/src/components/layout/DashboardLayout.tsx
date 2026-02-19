@@ -90,8 +90,8 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
           <Routes>
             <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} />} />
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
-            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={session.userId} />} />
-            <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={session.userId} />} />
+            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={session.userId} session={session} />} />
+            <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={session.userId} session={session} />} />
             <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={session.userId} />} />
             <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={session.userId} />} />
             <Route path="planes" element={<PlansPage token={session.token} doctorId={session.userId} />} />

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { PatientSearch } from "../modules/appointments/components/PatientSearch";
+import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
+import type { AuthSession } from "../types";
 
 type AppointmentRow = {
   id: string;
@@ -13,7 +15,7 @@ type AppointmentRow = {
   paymentAmount?: number;
 };
 
-export function AppointmentsPage({ token, doctorId }: { token: string; doctorId: string }) {
+export function AppointmentsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
   const navigate = useNavigate();
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<AppointmentRow[]>([]);
@@ -96,6 +98,26 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
       loading: "Reenviando confirmación...",
       success: () => "Confirmación reenviada",
       error: "Error al reenviar",
+    });
+  }
+
+  async function onCancel(id: string) {
+    if (!window.confirm("¿Cancelar esta cita?")) return;
+    const promise = clinicalApi.updateAppointment(id, { status: "cancelled" }, token);
+    notify.promise(promise, {
+      loading: "Cancelando cita...",
+      success: () => { loadAppointments(); return "Cita cancelada"; },
+      error: "Error al cancelar",
+    });
+  }
+
+  async function onDelete(id: string) {
+    if (!window.confirm("¿Eliminar esta cita permanentemente?")) return;
+    const promise = clinicalApi.deleteAppointment(id, token);
+    notify.promise(promise, {
+      loading: "Eliminando cita...",
+      success: () => { loadAppointments(); return "Cita eliminada"; },
+      error: "Error al eliminar",
     });
   }
 
@@ -185,21 +207,37 @@ export function AppointmentsPage({ token, doctorId }: { token: string; doctorId:
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {!isConfirmed(row.status) ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {canWriteAppointments(session) && !isConfirmed(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
                           <span className="icon">✓</span>
                           <span>Confirmar</span>
                         </button>
-                      ) : null}
-                      <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
-                        <span className="icon">✉️</span>
-                        <span>Reenviar</span>
-                      </button>
-                      <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
-                        <span>Atender</span>
-                        <span className="icon">→</span>
-                      </button>
+                      )}
+                      {canWriteAppointments(session) && row.status !== "cancelled" && (
+                        <button type="button" className="action-btn" onClick={() => onCancel(row.id)}>
+                          <span className="icon">✕</span>
+                          <span>Cancelar</span>
+                        </button>
+                      )}
+                      {canWriteAppointments(session) && (
+                        <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
+                          <span className="icon">✉️</span>
+                          <span>Reenviar</span>
+                        </button>
+                      )}
+                      {canManageTreatments(session) && (
+                        <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
+                          <span>Atender</span>
+                          <span className="icon">→</span>
+                        </button>
+                      )}
+                      {canDeleteAppointments(session) && (
+                        <button type="button" className="action-btn action-btn-delete" onClick={() => onDelete(row.id)}>
+                          <span className="icon">🗑️</span>
+                          <span>Eliminar</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
