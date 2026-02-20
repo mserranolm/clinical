@@ -1881,6 +1881,7 @@ button.ghost:hover { border-color: var(--clinical-blue); background: #f8fafc; }
 
 /* ── Finalizar actions row ─────────────────────────────────── */
 .finalizar-actions {
+  display: flex;
   justify-content: flex-end;
   gap: 12px;
   margin-top: 12px;
@@ -2038,6 +2039,122 @@ button.ghost:hover { border-color: var(--clinical-blue); background: #f8fafc; }
 .odontogram-legend { display: none; }
 .odontogram-main { overflow-x: auto; }
 
+/* ── Redesigned OdontogramChart ────────────────────────────── */
+.odn-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 8px 0;
+  min-width: 600px;
+}
+
+.odn-arch {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  justify-content: center;
+  width: 100%;
+}
+
+.odn-half {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.odn-row {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+}
+
+.odn-tooth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.odn-tooth-num {
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  text-align: center;
+  display: block;
+}
+
+.odn-surface {
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+
+.odn-surface:hover {
+  filter: brightness(0.82);
+}
+
+.odn-quadrant-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 2px 0 6px;
+}
+
+.odn-arch-label {
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.odn-arch-label--temp {
+  font-size: 0.62rem;
+  color: #94a3b8;
+}
+
+.odn-v-divider {
+  width: 2px;
+  min-height: 80px;
+  background: linear-gradient(to bottom, transparent, #cbd5e1 30%, #cbd5e1 70%, transparent);
+  margin: 0 8px;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.odn-h-divider {
+  width: 90%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, #cbd5e1 20%, #cbd5e1 80%, transparent);
+  margin: 4px 0;
+}
+
+.odn-temp-section {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px 16px;
+  border: 1.5px dashed #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.odn-temp-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
 /* ── Elite card variant ────────────────────────────────────── */
 .elite-card {
   background: white;
@@ -2045,14 +2162,4 @@ button.ghost:hover { border-color: var(--clinical-blue); background: #f8fafc; }
   box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
-/* ── Auth spinner (reused in consulta saving state) ────────── */
-.auth-spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  vertical-align: middle;
-}
+/* auth-spinner defined above in login section */
