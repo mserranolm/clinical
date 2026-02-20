@@ -4,6 +4,7 @@ import type { AuthSession } from "../types";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canManageTreatments, canWriteAppointments } from "../lib/rbac";
+import { Modal } from "../components/Modal";
 
 const TIME_SLOTS = [
   "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
@@ -123,32 +124,30 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   return (
     <section className="page-section">
       {editRow && (
-        <div className="modal-overlay" onClick={() => setEditRow(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
-            <div className="input-group">
-              <label>Fecha</label>
-              <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-            </div>
-            <div className="input-group">
-              <label>Hora de inicio</label>
-              <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
-                <option value="">Seleccione una hora</option>
-                {TIME_SLOTS.map((s) => <option key={s} value={s}>{fmtTime(s)}</option>)}
-              </select>
-            </div>
-            <div className="input-group">
-              <label>Bloque de tiempo</label>
-              <select value={editDuration} onChange={(e) => setEditDuration(Number(e.target.value))}>
-                {DURATION_BLOCKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button className="action-btn action-btn-confirm" onClick={saveEdit} disabled={saving}>Guardar</button>
-              <button className="action-btn" onClick={() => setEditRow(null)}>Cancelar</button>
-            </div>
+        <Modal onClose={() => setEditRow(null)}>
+          <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
+          <div className="input-group">
+            <label>Fecha</label>
+            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
           </div>
-        </div>
+          <div className="input-group">
+            <label>Hora de inicio</label>
+            <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
+              <option value="">Seleccione una hora</option>
+              {TIME_SLOTS.map((s) => <option key={s} value={s}>{fmtTime(s)}</option>)}
+            </select>
+          </div>
+          <div className="input-group">
+            <label>Bloque de tiempo</label>
+            <select value={editDuration} onChange={(e) => setEditDuration(Number(e.target.value))}>
+              {DURATION_BLOCKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button className="action-btn action-btn-confirm" onClick={saveEdit} disabled={saving}>Guardar</button>
+            <button className="action-btn" onClick={() => setEditRow(null)}>Cancelar</button>
+          </div>
+        </Modal>
       )}
       <div className="stats-grid">
         {kpis.map((card) => (

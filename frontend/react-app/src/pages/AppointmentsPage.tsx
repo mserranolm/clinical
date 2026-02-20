@@ -4,6 +4,7 @@ import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { PatientSearch } from "../modules/appointments/components/PatientSearch";
 import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
+import { Modal } from "../components/Modal";
 import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
 import type { AuthSession } from "../types";
 
@@ -195,40 +196,38 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   return (
     <section className="page-section">
       {editRow && (
-        <div className="modal-overlay" onClick={() => setEditRow(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
-            <div className="input-group">
-              <label>Fecha</label>
-              <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-            </div>
-            <div className="input-group">
-              <label>Hora de inicio</label>
-              <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
-                <option value="">Seleccione una hora</option>
-                {["07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
-                  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
-                  "15:00","15:30","16:00","16:30","17:00","17:30","18:00"].map((s) => {
-                  const [h, m] = s.split(":").map(Number);
-                  const ampm = h >= 12 ? "PM" : "AM";
-                  const h12 = h % 12 || 12;
-                  const label = `${String(h12).padStart(2,"0")}:${String(m).padStart(2,"0")} ${ampm}`;
-                  return <option key={s} value={s}>{label}</option>;
-                })}
-              </select>
-            </div>
-            <div className="input-group">
-              <label>Bloque de tiempo</label>
-              <select value={editDuration} onChange={(e) => setEditDuration(Number(e.target.value))}>
-                {DURATION_BLOCKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button type="button" className="action-btn action-btn-confirm" onClick={saveEdit} disabled={saving}>Guardar</button>
-              <button type="button" className="action-btn" onClick={() => setEditRow(null)}>Cancelar</button>
-            </div>
+        <Modal onClose={() => setEditRow(null)}>
+          <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
+          <div className="input-group">
+            <label>Fecha</label>
+            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
           </div>
-        </div>
+          <div className="input-group">
+            <label>Hora de inicio</label>
+            <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
+              <option value="">Seleccione una hora</option>
+              {["07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
+                "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
+                "15:00","15:30","16:00","16:30","17:00","17:30","18:00"].map((s) => {
+                const [h, m] = s.split(":").map(Number);
+                const ampm = h >= 12 ? "PM" : "AM";
+                const h12 = h % 12 || 12;
+                const label = `${String(h12).padStart(2,"0")}:${String(m).padStart(2,"0")} ${ampm}`;
+                return <option key={s} value={s}>{label}</option>;
+              })}
+            </select>
+          </div>
+          <div className="input-group">
+            <label>Bloque de tiempo</label>
+            <select value={editDuration} onChange={(e) => setEditDuration(Number(e.target.value))}>
+              {DURATION_BLOCKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button type="button" className="action-btn action-btn-confirm" onClick={saveEdit} disabled={saving}>Guardar</button>
+            <button type="button" className="action-btn" onClick={() => setEditRow(null)}>Cancelar</button>
+          </div>
+        </Modal>
       )}
       <div className="grid-2-cols">
         <article className="card elite-card">
