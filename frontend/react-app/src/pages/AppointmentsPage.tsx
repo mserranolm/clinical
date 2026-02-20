@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { PatientSearch } from "../modules/appointments/components/PatientSearch";
+import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
 import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
 import type { AuthSession } from "../types";
 
@@ -175,16 +176,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             {canSelectDoctor && (
               <div className="input-group">
                 <label>Doctor</label>
-                <select
-                  value={selectedDoctorId}
-                  onChange={(e) => setSelectedDoctorId(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccione un doctor</option>
-                  {doctors.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
+                <DoctorSearch
+                  doctors={doctors}
+                  onDoctorSelect={(d) => setSelectedDoctorId(d.id)}
+                />
               </div>
             )}
             <div className="input-group">
