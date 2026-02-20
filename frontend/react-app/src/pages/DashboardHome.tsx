@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { AuthSession } from "../types";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
+import { canManageTreatments } from "../lib/rbac";
 
 type AppointmentRow = {
   id: string;
@@ -139,10 +140,12 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange }
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
-                        <span>Atender</span>
-                        <span className="icon">→</span>
-                      </button>
+                      {canManageTreatments(user) && (
+                        <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
+                          <span>Atender</span>
+                          <span className="icon">→</span>
+                        </button>
+                      )}
                       <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
                         <span className="icon">✉️</span>
                         <span>Reenviar</span>
