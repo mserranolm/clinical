@@ -83,6 +83,7 @@ func main() {
 	auth := service.NewAuthService(repos.Users,
 		service.WithNotifier(notifier),
 		service.WithFrontendBaseURL(cfg.FrontendBaseURL),
+		service.WithAuthPatientRepo(repos.Patients),
 	)
 
 	// Create odontogram services

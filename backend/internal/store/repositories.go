@@ -14,6 +14,7 @@ type PatientRepository interface {
 	Create(ctx context.Context, patient domain.Patient) (domain.Patient, error)
 	GetByID(ctx context.Context, id string) (domain.Patient, error)
 	ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error)
+	ListAll(ctx context.Context) ([]domain.Patient, error)
 	SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error)
 	Update(ctx context.Context, patient domain.Patient) (domain.Patient, error)
 	Delete(ctx context.Context, id string) error
@@ -192,6 +193,16 @@ func (r *memoryPatientRepo) ListByDoctor(_ context.Context, doctorID string) ([]
 		if doctorID == "" || p.DoctorID == doctorID {
 			results = append(results, p)
 		}
+	}
+	return results, nil
+}
+
+func (r *memoryPatientRepo) ListAll(_ context.Context) ([]domain.Patient, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	results := make([]domain.Patient, 0, len(r.items))
+	for _, p := range r.items {
+		results = append(results, p)
 	}
 	return results, nil
 }

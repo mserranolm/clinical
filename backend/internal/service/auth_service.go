@@ -17,6 +17,7 @@ import (
 
 type AuthService struct {
 	repo            store.AuthRepository
+	patientRepo     store.PatientRepository
 	notifier        notifications.Notifier
 	frontendBaseURL string
 }
@@ -35,6 +36,10 @@ func WithNotifier(n notifications.Notifier) func(*AuthService) {
 
 func WithFrontendBaseURL(url string) func(*AuthService) {
 	return func(s *AuthService) { s.frontendBaseURL = url }
+}
+
+func WithAuthPatientRepo(r store.PatientRepository) func(*AuthService) {
+	return func(s *AuthService) { s.patientRepo = r }
 }
 
 type Authenticated struct {
@@ -501,6 +506,11 @@ func (s *AuthService) GetPlatformStats(ctx context.Context) (PlatformStatsDTO, e
 			case "admin":
 				stats.TotalAdmins++
 			}
+		}
+	}
+	if s.patientRepo != nil {
+		if patients, err := s.patientRepo.ListAll(ctx); err == nil {
+			stats.TotalPatients = len(patients)
 		}
 	}
 	return stats, nil

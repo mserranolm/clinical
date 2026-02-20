@@ -464,6 +464,10 @@ func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) (
 	return patients, nil
 }
 
+func (r *dynamoPatientRepo) ListAll(ctx context.Context) ([]domain.Patient, error) {
+	return r.ListByDoctor(ctx, "")
+}
+
 func (r *dynamoPatientRepo) SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error) {
 	orgID := orgIDOrDefault(ctx)
 	q := strings.ToLower(strings.TrimSpace(query))
