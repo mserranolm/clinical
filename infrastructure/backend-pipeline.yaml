@@ -196,25 +196,7 @@ Resources:
               commands:
                 - echo Build completed on `date`
                 - echo Deploying to AWS...
-                - |
-                  DEPLOY_OUTPUT=$(sam deploy \
-                    --stack-name $STACK_NAME \
-                    --region $AWS_DEFAULT_REGION \
-                    --capabilities CAPABILITY_IAM \
-                    --resolve-s3 \
-                    --no-confirm-changeset \
-                    --no-fail-on-empty-changeset \
-                    --no-progressbar 2>&1) || true
-                  echo "$DEPLOY_OUTPUT"
-                  if echo "$DEPLOY_OUTPUT" | grep -q "OBSOLETE\|execution status of \[OBSOLETE\]"; then
-                    echo "Changeset is OBSOLETE (already applied by a concurrent deploy). Treating as success."
-                    exit 0
-                  fi
-                  if echo "$DEPLOY_OUTPUT" | grep -q "Error:"; then
-                    echo "Deploy failed with an unexpected error."
-                    exit 1
-                  fi
-                  echo "Deploy completed successfully."
+                - sam deploy --stack-name $STACK_NAME --region $AWS_DEFAULT_REGION --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset --no-progressbar 2>&1 | tee /tmp/deploy_out.txt; DEPLOY_EXIT=${PIPESTATUS[0]}; grep -q "OBSOLETE" /tmp/deploy_out.txt && echo "Changeset OBSOLETE - already deployed, treating as success" && exit 0; exit $DEPLOY_EXIT
           artifacts:
             files:
               - '**/*'
