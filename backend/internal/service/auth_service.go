@@ -590,6 +590,14 @@ func (s *AuthService) CreateOrgUser(ctx context.Context, in CreateOrgUserInput) 
 	if err != nil {
 		return UserDTO{}, err
 	}
+	if s.notifier != nil {
+		base := s.frontendBaseURL
+		if base == "" {
+			base = os.Getenv("FRONTEND_BASE_URL")
+		}
+		loginURL := fmt.Sprintf("%s/login", strings.TrimRight(base, "/"))
+		_ = s.notifier.SendWelcome(ctx, created.Email, created.Name, created.Role, in.Password, loginURL)
+	}
 	return UserDTO{
 		ID: created.ID, OrgID: created.OrgID, Name: created.Name,
 		Email: created.Email, Phone: created.Phone, Address: created.Address,
