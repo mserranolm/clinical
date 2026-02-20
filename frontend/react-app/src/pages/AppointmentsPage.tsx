@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
@@ -40,15 +40,36 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
   const [duration, setDuration] = useState<number>(30);
 
+  const isDoctor = session.role === "doctor";
+  const canSelectDoctor = session.role === "admin" || session.role === "assistant";
+  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+
+  useEffect(() => {
+    if (canSelectDoctor && session.orgId) {
+      clinicalApi.listOrgUsers(session.orgId, token).then((res) => {
+        const docs = (res.items ?? []).filter((u) => u.role === "doctor" && u.status === "active");
+        setDoctors(docs.map((u) => ({ id: u.id, name: u.name })));
+        if (docs.length > 0) setSelectedDoctorId(docs[0].id);
+      }).catch(() => {});
+    }
+  }, [canSelectDoctor, session.orgId]);
+
+  const effectiveDoctorId = isDoctor ? doctorId : selectedDoctorId;
+
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const form = e.currentTarget;
 
+    if (canSelectDoctor && !selectedDoctorId) {
+      notify.error("Selecciona un doctor", "Debes asignar un doctor a la cita.");
+      return;
+    }
     const startAt = new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString();
     const promise = clinicalApi.createAppointment(
       {
-        doctorId,
+        doctorId: effectiveDoctorId,
         patientId: selectedPatient?.id || '',
         startAt,
         durationMinutes: duration,
@@ -76,8 +97,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
 
   function loadAppointments() {
     const promise = Promise.all([
-      clinicalApi.listAppointments(doctorId, date, token),
-      clinicalApi.listPatients(doctorId, token)
+      clinicalApi.listAppointments(effectiveDoctorId, date, token),
+      clinicalApi.listPatients(effectiveDoctorId, token)
     ]).then(([appointments, patients]) => {
       const patientById = new Map(
         (patients.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
@@ -151,9 +172,24 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             <h3>Nueva Cita Médica</h3>
           </header>
           <form className="card-form" onSubmit={onCreate}>
+            {canSelectDoctor && (
+              <div className="input-group">
+                <label>Doctor</label>
+                <select
+                  value={selectedDoctorId}
+                  onChange={(e) => setSelectedDoctorId(e.target.value)}
+                  required
+                >
+                  <option value="">Seleccione un doctor</option>
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="input-group">
               <label>Paciente</label>
-              <PatientSearch doctorId={doctorId} token={token} onPatientSelect={setSelectedPatient} />
+              <PatientSearch doctorId={effectiveDoctorId} token={token} onPatientSelect={setSelectedPatient} />
               <input type="hidden" name="patientId" value={selectedPatient?.id || ''} />
             </div>
             <div className="row-inputs">
