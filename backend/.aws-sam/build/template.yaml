@@ -44,7 +44,7 @@ Resources:
       Cors:
         AllowOrigin: '''*'''
         AllowHeaders: '''Content-Type,Authorization,x-api-key'''
-        AllowMethods: '''GET,POST,PUT,DELETE,OPTIONS'''
+        AllowMethods: '''GET,POST,PUT,PATCH,DELETE,OPTIONS'''
   ClinicalApiKey:
     Type: AWS::ApiGateway::ApiKey
     Properties:
@@ -55,16 +55,20 @@ Resources:
   ClinicalUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
     DependsOn:
-    - ClinicalApiFunction
+    - ClinicalRestApiprodStage
     Properties:
       UsagePlanName:
         Fn::Sub: ${AWS::StackName}-usage-plan
-      Description: Clinical API usage plan - 100 requests per day
+      Description: Clinical API usage plan - 50000 requests per day
+      ApiStages:
+      - ApiId:
+          Ref: ClinicalRestApi
+        Stage: prod
       Throttle:
-        RateLimit: 10
-        BurstLimit: 20
+        RateLimit: 100
+        BurstLimit: 500
       Quota:
-        Limit: 100
+        Limit: 50000
         Period: DAY
   ClinicalUsagePlanKey:
     Type: AWS::ApiGateway::UsagePlanKey

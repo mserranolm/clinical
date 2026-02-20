@@ -1645,30 +1645,7 @@ button.ghost:hover { border-color: var(--clinical-blue); background: #f8fafc; }
   box-shadow: 0 0 0 4px rgba(15, 41, 83, 0.05);
 }
 
-/* Pathology Chips */
-.pathology-chip {
-  padding: 10px 18px;
-  border-radius: 12px;
-  border: 2px solid #f1f5f9;
-  background: white;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.pathology-chip:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-}
-
-.pathology-chip.active {
-  background: #eff6ff;
-  border-color: var(--clinical-blue);
-  color: var(--clinical-blue);
-  box-shadow: 0 4px 12px rgba(15, 41, 83, 0.08);
-}
+/* Pathology Chips — defined below in CONSULTA MISSING LAYOUT CLASSES */
 
 .historia-textarea {
   border: 2px solid #f1f5f9;
@@ -1701,4 +1678,381 @@ button.ghost:hover { border-color: var(--clinical-blue); background: #f8fafc; }
 .finalizar-btn:hover {
   transform: translateY(-2px) !important;
   box-shadow: 0 12px 30px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* ============================================================
+   CONSULTA — MISSING LAYOUT CLASSES
+   ============================================================ */
+
+/* Two-column layout: checkboxes left, pathologies right */
+.historia-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 900px) {
+  .historia-grid { grid-template-columns: 1fr; gap: 24px; }
+}
+
+.historia-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Section subtitle (Antecedentes patológicos) */
+.historia-subtitle {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+/* Pathologies right column */
+.historia-pathologies {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Grid of chips — 2 columns, wrapping */
+.pathologies-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+/* Hide the native checkbox inside chips */
+.pathology-chip input[type="checkbox"] {
+  display: none;
+}
+
+/* Override chip to be a proper pill with no stacking */
+.pathology-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.pathology-chip:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+.pathology-chip.active {
+  background: #eff6ff;
+  border-color: var(--clinical-accent);
+  color: var(--clinical-accent);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.15);
+}
+
+/* Observaciones textarea section */
+.historia-other {
+  margin-top: 4px;
+}
+
+.historia-other label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* Detail input that appears when checkbox is checked */
+.historia-detail-input {
+  margin-top: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+  background: white;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+
+.historia-detail-input:focus {
+  border-color: var(--clinical-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+/* ── Evolución tab ─────────────────────────────────────────── */
+.evolucion-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.evolucion-textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+/* Input group label */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-group label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.required { color: #ef4444; }
+
+/* ── Pago section ──────────────────────────────────────────── */
+.pago-section {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 24px 28px;
+  margin-bottom: 8px;
+}
+
+.pago-section h4 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 20px;
+  font-family: 'Fraunces', serif;
+}
+
+.pago-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 600px) {
+  .pago-grid { grid-template-columns: 1fr; }
+}
+
+/* Elite input (number + select in evolución) */
+.elite-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  background: white;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  appearance: none;
+}
+
+.elite-input:focus {
+  border-color: var(--clinical-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+/* ── Finalizar actions row ─────────────────────────────────── */
+.finalizar-actions {
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 24px;
+  border-top: 1.5px solid #f1f5f9;
+}
+
+/* General action-btn base (used across tabs) */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn-confirm {
+  background: var(--clinical-blue) !important;
+  color: white !important;
+  border-color: var(--clinical-blue) !important;
+}
+
+.action-btn-confirm:hover:not(:disabled) {
+  background: #1e293b !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2) !important;
+}
+
+.action-btn-treat {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: white !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.2) !important;
+}
+
+.action-btn-treat:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Consulta actions row */
+.consulta-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ── Odontograma legend ────────────────────────────────────── */
+.odon-legend-inline {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.odon-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Odontogram tooth SVG surfaces ────────────────────────── */
+.tooth-surface {
+  stroke: #cbd5e1;
+  stroke-width: 2;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.tooth-surface:hover { filter: brightness(0.88); }
+
+.tooth-svg { width: 100%; height: 100%; display: block; }
+.tooth-svg-wrapper { width: 48px; height: 48px; }
+
+.tooth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.tooth-number {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.tooth-container.temporary .tooth-svg-wrapper { width: 38px; height: 38px; }
+.tooth-container.temporary .tooth-number { font-size: 0.58rem; color: #b0bec5; }
+
+.odontogram-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.odontogram-quadrants {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.divider-v {
+  width: 2px;
+  height: 56px;
+  background: linear-gradient(to bottom, transparent, #cbd5e1, transparent);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+
+.temporary-section .divider-v { height: 90px; }
+
+.temp-rows-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.odontogram-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.odontogram-legend { display: none; }
+.odontogram-main { overflow-x: auto; }
+
+/* ── Elite card variant ────────────────────────────────────── */
+.elite-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+/* ── Auth spinner (reused in consulta saving state) ────────── */
+.auth-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
 }

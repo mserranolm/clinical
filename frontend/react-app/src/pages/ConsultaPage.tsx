@@ -158,11 +158,18 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   async function saveOdontogram() {
     setSaving(true);
     try {
-      if (!odontogramId) {
+      let currentId = odontogramId?.trim() || null;
+      console.log("[saveOdontogram] odontogramId state:", odontogramId, "-> currentId:", currentId);
+      if (!currentId) {
+        console.log("[saveOdontogram] No odontogram found, creating one...");
         const created = await clinicalApi.createOdontogram({ doctorId, patientId }, token);
-        setOdontogramId(created.id);
+        console.log("[saveOdontogram] Created odontogram:", created);
+        currentId = created.id?.trim() || null;
+        if (!currentId) throw new Error("El servidor no devolvió un ID de odontograma válido");
+        setOdontogramId(currentId);
       }
-      await clinicalApi.updateOdontogramTeeth(odontogramId ?? "", toothStates, token);
+      console.log("[saveOdontogram] Calling updateOdontogramTeeth with id:", currentId);
+      await clinicalApi.updateOdontogramTeeth(currentId, toothStates, token);
       notify.success("Odontograma guardado");
     } catch (err) {
       notify.error("Error guardando odontograma", err instanceof Error ? err.message : String(err));

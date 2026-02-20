@@ -5,6 +5,7 @@ codeuri = "/Users/manuelserrano/Trabajo/Desarrollo/Personal/clinical/backend"
 runtime = "provided.al2023"
 architecture = "arm64"
 handler = "bootstrap"
+source_hash = "3c06f28f22e6e53465899c62498432cc6c3381073501773d4f1213135b447796"
 manifest_hash = ""
 packagetype = "Zip"
 functions = ["ClinicalApiFunction", "Reminder24hFunction", "EndOfDayFunction"]

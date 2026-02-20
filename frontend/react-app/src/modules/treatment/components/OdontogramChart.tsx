@@ -27,50 +27,47 @@ const Tooth: React.FC<ToothProps> = ({ number, onSurfaceClick, conditions = {}, 
   };
 
   return (
-    <div className={`tooth-container ${isTemporary ? 'temporary' : ''}`}>
+    <div className={`tooth-container ${isTemporary ? 'temporary' : ''}`} title={`Diente ${number}`}>
       <span className="tooth-number">{number}</span>
-      <svg viewBox="0 0 100 100" className="tooth-svg">
-        {/* Top - Vestibular (V) */}
-        <path
-          d="M 0 0 L 100 0 L 70 30 L 30 30 Z"
-          fill={getSurfaceColor('V')}
-          stroke="#334155"
-          strokeWidth="1.5"
-          onClick={() => handleInteraction('V')}
-        />
-        {/* Bottom - Lingual (L) */}
-        <path
-          d="M 0 100 L 100 100 L 70 70 L 30 70 Z"
-          fill={getSurfaceColor('L')}
-          stroke="#334155"
-          strokeWidth="1.5"
-          onClick={() => handleInteraction('L')}
-        />
-        {/* Left - Mesial (M) */}
-        <path
-          d="M 0 0 L 30 30 L 30 70 L 0 100 Z"
-          fill={getSurfaceColor('M')}
-          stroke="#334155"
-          strokeWidth="1.5"
-          onClick={() => handleInteraction('M')}
-        />
-        {/* Right - Distal (D) */}
-        <path
-          d="M 100 0 L 70 30 L 70 70 L 100 100 Z"
-          fill={getSurfaceColor('D')}
-          stroke="#334155"
-          strokeWidth="1.5"
-          onClick={() => handleInteraction('D')}
-        />
-        {/* Center - Occlusal (O) */}
-        <rect
-          x="30" y="30" width="40" height="40"
-          fill={getSurfaceColor('O')}
-          stroke="#334155"
-          strokeWidth="1.5"
-          onClick={() => handleInteraction('O')}
-        />
-      </svg>
+      <div className="tooth-svg-wrapper">
+        <svg viewBox="0 0 100 100" className="tooth-svg">
+          {/* Top - Vestibular (V) */}
+          <path
+            d="M 0 0 L 100 0 L 75 25 L 25 25 Z"
+            fill={getSurfaceColor('V')}
+            className="tooth-surface"
+            onClick={() => handleInteraction('V')}
+          />
+          {/* Bottom - Lingual (L) */}
+          <path
+            d="M 0 100 L 100 100 L 75 75 L 25 75 Z"
+            fill={getSurfaceColor('L')}
+            className="tooth-surface"
+            onClick={() => handleInteraction('L')}
+          />
+          {/* Left - Mesial (M) */}
+          <path
+            d="M 0 0 L 25 25 L 25 75 L 0 100 Z"
+            fill={getSurfaceColor('M')}
+            className="tooth-surface"
+            onClick={() => handleInteraction('M')}
+          />
+          {/* Right - Distal (D) */}
+          <path
+            d="M 100 0 L 75 25 L 75 75 L 100 100 Z"
+            fill={getSurfaceColor('D')}
+            className="tooth-surface"
+            onClick={() => handleInteraction('D')}
+          />
+          {/* Center - Occlusal (O) */}
+          <rect
+            x="25" y="25" width="50" height="50"
+            fill={getSurfaceColor('O')}
+            className="tooth-surface"
+            onClick={() => handleInteraction('O')}
+          />
+        </svg>
+      </div>
     </div>
   );
 };

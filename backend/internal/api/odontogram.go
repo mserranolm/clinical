@@ -75,7 +75,10 @@ func (h *OdontogramHandler) GetOdontogramByPatient(ctx context.Context, request 
 // UpdateOdontogram updates the full odontogram (all teeth) in one call
 // PUT /odontograms/{id}
 func (h *OdontogramHandler) UpdateOdontogram(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	odontogramID := strings.TrimPrefix(request.RawPath, "/odontograms/")
+	odontogramID := request.PathParameters["odontogramId"]
+	if odontogramID == "" {
+		odontogramID = strings.TrimPrefix(request.RawPath, "/odontograms/")
+	}
 	if odontogramID == "" {
 		return response(http.StatusBadRequest, map[string]string{"error": "odontogramId is required"})
 	}

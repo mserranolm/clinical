@@ -411,9 +411,14 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = deny, nil
 			} else {
 				id := strings.TrimPrefix(path, "/odontograms/")
+				if req.PathParameters == nil {
+					req.PathParameters = make(map[string]string)
+				}
 				if strings.HasSuffix(id, "/tooth-condition") {
+					req.PathParameters["odontogramId"] = strings.TrimSuffix(id, "/tooth-condition")
 					resp, err = r.odontogram.UpdateToothCondition(actx, req)
 				} else {
+					req.PathParameters["odontogramId"] = id
 					resp, err = r.odontogram.UpdateOdontogram(actx, req)
 				}
 			}
