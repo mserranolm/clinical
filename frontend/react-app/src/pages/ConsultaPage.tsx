@@ -80,7 +80,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   const [saving, setSaving] = useState(false);
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [history, setHistory] = useState<MedicalHistory>(EMPTY_HISTORY);
-  const [historyReadOnly, setHistoryReadOnly] = useState(true);
   const [toothStates, setToothStates] = useState<Record<number, Record<Surface, string>>>({});
   const [odontogramId, setOdontogramId] = useState<string | null>(null);
   const [evolutionNotes, setEvolutionNotes] = useState("");
@@ -107,8 +106,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         setPatient(p);
         const h = patientToHistory(p);
         setHistory(h);
-        const hasHistory = (p.medicalBackgrounds ?? []).length > 0;
-        setHistoryReadOnly(hasHistory);
       }
 
       if (odnResult.status === "fulfilled") {
@@ -151,7 +148,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
     try {
       await clinicalApi.updatePatient(patient.id, { medicalBackgrounds: historyToBackgrounds(history) }, token);
       notify.success("Historial médico guardado");
-      setHistoryReadOnly(true);
     } catch (err) {
       notify.error("Error guardando historial", err instanceof Error ? err.message : String(err));
     } finally {
@@ -275,11 +271,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         <div className="consulta-section card elite-card">
           <div className="consulta-section-header">
             <h3>Historial Médico</h3>
-            {historyReadOnly && (
-              <button className="action-btn" onClick={() => setHistoryReadOnly(false)}>
-                ✏️ Editar
-              </button>
-            )}
+            <span className="consulta-hint" style={{margin:0}}>Actualiza los antecedentes del paciente</span>
           </div>
 
           <div className="historia-grid">
@@ -290,7 +282,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   <input
                     type="checkbox"
                     checked={history.medication}
-                    disabled={historyReadOnly}
                     onChange={e => setHistory(h => ({ ...h, medication: e.target.checked }))}
                   />
                   <span>¿Toma algún medicamento?</span>
@@ -300,7 +291,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     className="historia-detail-input"
                     placeholder="¿Cuál(es)?"
                     value={history.medicationDetail}
-                    disabled={historyReadOnly}
                     onChange={e => setHistory(h => ({ ...h, medicationDetail: e.target.value }))}
                   />
                 )}
@@ -311,7 +301,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   <input
                     type="checkbox"
                     checked={history.allergyMed}
-                    disabled={historyReadOnly}
                     onChange={e => setHistory(h => ({ ...h, allergyMed: e.target.checked }))}
                   />
                   <span>¿Alergia a algún medicamento?</span>
@@ -321,7 +310,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     className="historia-detail-input"
                     placeholder="¿A cuál(es)?"
                     value={history.allergyMedDetail}
-                    disabled={historyReadOnly}
                     onChange={e => setHistory(h => ({ ...h, allergyMedDetail: e.target.value }))}
                   />
                 )}
@@ -332,7 +320,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   <input
                     type="checkbox"
                     checked={history.allergies}
-                    disabled={historyReadOnly}
                     onChange={e => setHistory(h => ({ ...h, allergies: e.target.checked }))}
                   />
                   <span>Alergias generales</span>
@@ -342,7 +329,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     className="historia-detail-input"
                     placeholder="Especificar..."
                     value={history.allergiesDetail}
-                    disabled={historyReadOnly}
                     onChange={e => setHistory(h => ({ ...h, allergiesDetail: e.target.value }))}
                   />
                 )}
@@ -360,11 +346,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   ["hypertension", "Hipertensión"],
                   ["cholesterol", "Colesterol"],
                 ] as [keyof MedicalHistory, string][]).map(([key, label]) => (
-                  <label key={key} className={`pathology-chip ${history[key] ? "active" : ""} ${historyReadOnly ? "readonly" : ""}`}>
+                  <label key={key} className={`pathology-chip ${history[key] ? "active" : ""}`}>
                     <input
                       type="checkbox"
                       checked={!!history[key]}
-                      disabled={historyReadOnly}
                       onChange={e => setHistory(h => ({ ...h, [key]: e.target.checked }))}
                     />
                     {label}
@@ -380,22 +365,16 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
               className="historia-textarea"
               placeholder="Describa otras condiciones relevantes..."
               value={history.otherPathology}
-              disabled={historyReadOnly}
               rows={3}
               onChange={e => setHistory(h => ({ ...h, otherPathology: e.target.value }))}
             />
           </div>
 
-          {!historyReadOnly && (
-            <div className="consulta-actions">
-              <button className="action-btn action-btn-confirm" onClick={saveHistoria} disabled={saving}>
-                💾 Guardar Historial
-              </button>
-              <button className="action-btn" onClick={() => setHistoryReadOnly(true)}>
-                Cancelar
-              </button>
-            </div>
-          )}
+          <div className="consulta-actions">
+            <button className="action-btn action-btn-confirm" onClick={saveHistoria} disabled={saving}>
+              💾 Guardar Historial
+            </button>
+          </div>
         </div>
       )}
 

@@ -101,7 +101,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   const patientLabel = (row: AppointmentRow) => row.patientName || row.patientId;
 
   const goToTreatment = (row: AppointmentRow) => {
-    navigate(`/dashboard/nuevo-tratamiento?patientId=${encodeURIComponent(row.patientId)}`);
+    navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
   };
 
   // Removed duplicate create appointment button from header
