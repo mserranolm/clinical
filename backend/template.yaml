@@ -41,7 +41,7 @@ Resources:
       Cors:
         AllowOrigin: "'*'"
         AllowHeaders: "'Content-Type,Authorization,x-api-key'"
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
       
   # API Key para autenticación del frontend
   ClinicalApiKey:
