@@ -12,7 +12,6 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   const initials = userName ? userName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "SA";
   const isPlatformAdmin = role === "platform_admin";
   const isAdmin = role === "admin";
-  const isAssistant = role === "assistant";
 
   if (isPlatformAdmin) {
     return (
@@ -62,12 +61,6 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
 
         <div className="nav-group">
           <span className="nav-group-label">Clínica</span>
-          {!isAssistant && (
-            <NavLink to="/dashboard/nuevo-tratamiento" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">+</span>
-              <span className="nav-item-label">Nuevo Tratamiento</span>
-            </NavLink>
-          )}
           <NavLink to="/dashboard/pacientes" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
             <span className="nav-item-icon">⊕</span>
             <span className="nav-item-label">Pacientes</span>
@@ -76,38 +69,14 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
             <span className="nav-item-icon">◫</span>
             <span className="nav-item-label">Agenda Médica</span>
           </NavLink>
-          {!isAssistant && (
-            <NavLink to="/dashboard/odontograma" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">◎</span>
-              <span className="nav-item-label">Odontograma</span>
-            </NavLink>
-          )}
-          {!isAssistant && (
-            <NavLink to="/dashboard/planes" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">≡</span>
-              <span className="nav-item-label">Tratamientos</span>
-            </NavLink>
-          )}
         </div>
 
-        {!isAssistant && (
+        {isAdmin && (
           <div className="nav-group">
             <span className="nav-group-label">Administración</span>
-            {!isAssistant && (
-              <NavLink to="/dashboard/consentimientos" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-                <span className="nav-item-icon">◻</span>
-                <span className="nav-item-label">Documentos</span>
-              </NavLink>
-            )}
-            {isAdmin && (
-              <NavLink to="/dashboard/usuarios" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-                <span className="nav-item-icon">👥</span>
-                <span className="nav-item-label">Usuarios</span>
-              </NavLink>
-            )}
-            <NavLink to="/dashboard/testing" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">⚙</span>
-              <span className="nav-item-label">Service Tester</span>
+            <NavLink to="/dashboard/usuarios" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">👥</span>
+              <span className="nav-item-label">Usuarios</span>
             </NavLink>
           </div>
         )}
