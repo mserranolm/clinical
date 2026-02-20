@@ -65,9 +65,6 @@ func (s *PatientService) GetByID(ctx context.Context, id string) (domain.Patient
 }
 
 func (s *PatientService) ListByDoctor(ctx context.Context, doctorID string) ([]domain.Patient, error) {
-	if doctorID == "" {
-		return nil, fmt.Errorf("doctorId is required")
-	}
 	return s.repo.ListByDoctor(ctx, doctorID)
 }
 
