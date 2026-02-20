@@ -26,7 +26,7 @@ export const endpointCatalog = {
   verifyConsent: (consentId: string) => `/consents/verify/${consentId}`,
   createOdontogram: "/odontograms",
   getOdontogramByPatient: (patientId: string) => `/odontograms/patient/${patientId}`,
-  updateOdontogram: "/odontograms",
+  updateOdontogram: (odontogramId: string) => `/odontograms/${odontogramId}`,
   createTreatmentPlan: "/treatment-plans",
   getTreatmentPlan: (planId: string) => `/treatment-plans/${planId}`,
   getTreatmentPlansByPatient: (patientId: string) => `/treatment-plans/patient/${patientId}`,

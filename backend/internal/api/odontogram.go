@@ -72,6 +72,35 @@ func (h *OdontogramHandler) GetOdontogramByPatient(ctx context.Context, request 
 	return response(http.StatusOK, odontogram)
 }
 
+// UpdateOdontogram updates the full odontogram (all teeth) in one call
+// PUT /odontograms/{id}
+func (h *OdontogramHandler) UpdateOdontogram(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	odontogramID := strings.TrimPrefix(request.RawPath, "/odontograms/")
+	if odontogramID == "" {
+		return response(http.StatusBadRequest, map[string]string{"error": "odontogramId is required"})
+	}
+
+	var req struct {
+		Teeth []domain.ToothInfo `json:"teeth"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return response(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	odn, err := h.odontogramService.GetOdontogramByID(ctx, odontogramID)
+	if err != nil {
+		return response(http.StatusNotFound, map[string]string{"error": "Odontogram not found"})
+	}
+
+	odn.Teeth = req.Teeth
+	updated, err := h.odontogramService.UpdateOdontogram(ctx, odn)
+	if err != nil {
+		return response(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return response(http.StatusOK, updated)
+}
+
 // UpdateToothCondition updates the condition of specific tooth surfaces
 // PUT /odontogram/{odontogramId}/tooth/{toothNumber}
 func (h *OdontogramHandler) UpdateToothCondition(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

@@ -124,7 +124,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const isConfirmed = (status: string) => status === "confirmed";
 
   const goToTreatment = (row: AppointmentRow) => {
-    navigate(`/dashboard/nuevo-tratamiento?patientId=${encodeURIComponent(row.patientId)}`);
+    navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
   };
 
   function loadAppointments() {

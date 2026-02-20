@@ -406,11 +406,16 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				req.PathParameters["patientId"] = patientId
 				resp, err = r.odontogram.GetOdontogramByPatient(actx, req)
 			}
-		case method == "PUT" && strings.HasPrefix(path, "/odontograms"):
+		case method == "PUT" && strings.HasPrefix(path, "/odontograms/"):
 			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
 				resp, err = deny, nil
 			} else {
-				resp, err = r.odontogram.UpdateToothCondition(actx, req)
+				id := strings.TrimPrefix(path, "/odontograms/")
+				if strings.HasSuffix(id, "/tooth-condition") {
+					resp, err = r.odontogram.UpdateToothCondition(actx, req)
+				} else {
+					resp, err = r.odontogram.UpdateOdontogram(actx, req)
+				}
 			}
 		case method == "POST" && strings.Contains(path, "/treatment-plans"):
 			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {

@@ -172,6 +172,26 @@ export const clinicalApi = {
       }
     ),
 
+  updateOdontogramTeeth: (odontogramId: string, toothStates: Record<number, Record<string, string>>, token?: string) => {
+    const teeth = Object.entries(toothStates).map(([num, surfaces]) => ({
+      toothNumber: Number(num),
+      isPresent: true,
+      surfaces: Object.entries(surfaces)
+        .filter(([, cond]) => cond !== "none")
+        .map(([surf, cond]) => ({
+          surface: surf === "O" ? "oclusal" : surf === "V" ? "vestibular" : surf === "L" ? "lingual" : surf === "M" ? "mesial" : "distal",
+          condition: cond === "caries" ? "caries" : cond === "restored" ? "filled" : cond === "completed" ? "filled" : "healthy",
+          severity: 1,
+          notes: "",
+        })),
+    }));
+    return request<{ id: string }>(endpointCatalog.updateOdontogram(odontogramId), {
+      method: "PUT",
+      body: { teeth },
+      token,
+    });
+  },
+
   createTreatmentPlan: (input: CreateTreatmentPlanInput, token?: string) =>
     request<{ id: string; patientId: string; doctorId: string; status?: string }>(endpointCatalog.createTreatmentPlan, {
       method: "POST",

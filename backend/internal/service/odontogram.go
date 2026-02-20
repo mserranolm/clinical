@@ -64,6 +64,18 @@ func (s *OdontogramService) GetOdontogramByPatient(ctx context.Context, patientI
 	return s.repo.GetByPatientID(ctx, patientID)
 }
 
+// GetOdontogramByID retrieves an odontogram by its ID
+func (s *OdontogramService) GetOdontogramByID(ctx context.Context, id string) (domain.Odontogram, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+// UpdateOdontogram updates an existing odontogram
+func (s *OdontogramService) UpdateOdontogram(ctx context.Context, odn domain.Odontogram) (domain.Odontogram, error) {
+	odn.UpdatedAt = time.Now()
+	odn.LastExamDate = time.Now()
+	return s.repo.Update(ctx, odn)
+}
+
 // UpdateToothCondition updates the condition of specific tooth surfaces
 func (s *OdontogramService) UpdateToothCondition(ctx context.Context, odontogramID string, toothNumber domain.ToothNumber, surfaces []domain.ToothSurfaceCondition, doctorID string) error {
 	// Add doctor info to surface conditions

@@ -14,6 +14,7 @@ import { OdontogramPage } from "../../pages/OdontogramPage";
 import { PatientsPage } from "../../pages/PatientsPage";
 import { PlansPage } from "../../pages/PlansPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
+import { ConsultaPage } from "../../pages/ConsultaPage";
 import { UsersAdminPage } from "../../pages/UsersAdminPage";
 import { AdminConsoleHome } from "../../pages/admin/AdminConsoleHome";
 
@@ -118,6 +119,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
           <Routes>
             <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} />} />
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
+            <Route path="consulta" element={<ConsultaPage token={session.token} doctorId={session.userId} />} />
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={scopedDoctorId} />} />
