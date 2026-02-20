@@ -54,6 +54,8 @@ Resources:
   # Usage Plan con límite de llamadas diarias
   ClinicalUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     DependsOn:
       - ClinicalRestApiprodStage
     Properties:
@@ -72,6 +74,8 @@ Resources:
   # Asociar API Key con Usage Plan
   ClinicalUsagePlanKey:
     Type: AWS::ApiGateway::UsagePlanKey
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       KeyId: !Ref ClinicalApiKey
       KeyType: API_KEY
