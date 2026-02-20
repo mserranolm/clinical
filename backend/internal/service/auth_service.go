@@ -2,11 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -778,19 +774,6 @@ func (s *AuthService) checkRoleLimit(ctx context.Context, orgID, role string) er
 	return nil
 }
 
-func generateTempPassword() (string, error) {
-	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#"
-	b := make([]byte, 12)
-	for i := range b {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
-		if err != nil {
-			return "", err
-		}
-		b[i] = chars[n.Int64()]
-	}
-	return string(b), nil
-}
-
 func (s *AuthService) InviteUser(ctx context.Context, in InviteUserInput) (InviteUserOutput, error) {
 	if strings.TrimSpace(in.OrgID) == "" || strings.TrimSpace(in.Email) == "" || strings.TrimSpace(in.Role) == "" {
 		return InviteUserOutput{}, fmt.Errorf("orgId, email and role are required")
@@ -939,17 +922,4 @@ func (s *AuthService) ResetPassword(ctx context.Context, in ResetPasswordInput) 
 		return err
 	}
 	return s.repo.MarkResetTokenUsed(ctx, in.Token)
-}
-
-func hashPassword(password string) string {
-	hash := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(hash[:])
-}
-
-func randomToken(size int) (string, error) {
-	buf := make([]byte, size)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generate token: %w", err)
-	}
-	return hex.EncodeToString(buf), nil
 }

@@ -1,0 +1,165 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"clinical-backend/internal/service"
+	"clinical-backend/internal/store"
+
+	"github.com/aws/aws-lambda-go/events"
+)
+
+// AuthHandler handles authentication-related requests
+type AuthHandler struct {
+	authService *service.AuthService
+}
+
+// NewAuthHandler creates a new auth handler
+func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+	return &AuthHandler{
+		authService: authService,
+	}
+}
+
+// Login handles user login
+func (h *AuthHandler) Login(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.LoginInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	result, err := h.authService.Login(ctx, in)
+	if err != nil {
+		return response(401, map[string]string{"error": err.Error()})
+	}
+
+	return response(200, result)
+}
+
+// Register handles user registration
+func (h *AuthHandler) Register(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.RegisterInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	result, err := h.authService.Register(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+
+	return response(201, result)
+}
+
+// ForgotPassword handles password reset requests
+func (h *AuthHandler) ForgotPassword(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.ForgotPasswordInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	err := h.authService.ForgotPassword(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+
+	return response(200, map[string]string{"ok": "reset_email_sent"})
+}
+
+// ResetPassword handles password reset
+func (h *AuthHandler) ResetPassword(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.ResetPasswordInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	err := h.authService.ResetPassword(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+
+	return response(200, map[string]string{"ok": "password_reset"})
+}
+
+// ChangePassword handles password change
+func (h *AuthHandler) ChangePassword(ctx context.Context, authCtx AuthenticatedContext, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.ChangePasswordInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	in.UserID = authCtx.User.ID
+
+	err := h.authService.ChangePassword(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+
+	return response(200, map[string]string{"ok": "password_changed"})
+}
+
+// GetUserProfile handles getting user profile
+func (h *AuthHandler) GetUserProfile(ctx context.Context, authCtx AuthenticatedContext) (events.APIGatewayV2HTTPResponse, error) {
+	profile, err := h.authService.GetUserProfile(ctx, authCtx.User.ID)
+	if err != nil {
+		return response(404, map[string]string{"error": "profile_not_found"})
+	}
+
+	return response(200, profile)
+}
+
+// AcceptInvitation handles invitation acceptance
+func (h *AuthHandler) AcceptInvitation(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in struct {
+		Token     string `json:"token"`
+		Name      string `json:"name"`
+		Phone     string `json:"phone"`
+		Address   string `json:"address"`
+		Password  string `json:"password"`
+	}
+
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	result, err := h.authService.AcceptInvitation(ctx, in.Token, service.AcceptInvitationInput{
+		Name:      in.Name,
+		Phone:     in.Phone,
+		Address:   in.Address,
+		Password:  in.Password,
+	})
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+
+	return response(200, result)
+}
+
+// GetPlatformStats handles platform statistics
+func (h *AuthHandler) GetPlatformStats(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {
+	stats, err := h.authService.GetPlatformStats(ctx)
+	if err != nil {
+		return response(500, map[string]string{"error": "failed_to_get_stats"})
+	}
+
+	return response(200, stats)
+}
+
+// response is a helper function to create HTTP responses
+func response(statusCode int, body interface{}) (events.APIGatewayV2HTTPResponse, error) {
+	jsonBody, _ := json.Marshal(body)
+	return events.APIGatewayV2HTTPResponse{
+		StatusCode: statusCode,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
+		Body: string(jsonBody),
+	}, nil
+}
+
+// AuthenticatedContext represents the authenticated user context
+type AuthenticatedContext struct {
+	User store.AuthUser
+}

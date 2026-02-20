@@ -1,0 +1,577 @@
+package dynamodb
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"clinical-backend/internal/store"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+)
+
+// AuthRepository implementation for DynamoDB
+type dynamoAuthRepo struct {
+	client    *dynamodb.Client
+	tableName string
+}
+
+// NewAuthRepository creates a new auth repository
+func NewAuthRepository(client *dynamodb.Client, tableName string) store.AuthRepository {
+	return &dynamoAuthRepo{
+		client:    client,
+		tableName: tableName,
+	}
+}
+
+func (r *dynamoAuthRepo) CreateUser(ctx context.Context, user store.AuthUser) (store.AuthUser, error) {
+	// Check if email already exists
+	if _, err := r.GetUserByEmail(ctx, user.Email); err == nil {
+		return store.AuthUser{}, fmt.Errorf("email already exists")
+	}
+	if user.Role == "" {
+		user.Role = "admin"
+	}
+	if user.Status == "" {
+		user.Status = "active"
+	}
+	if user.ID == "" {
+		user.ID = fmt.Sprintf("user_%d", time.Now().UnixNano())
+	}
+	user.CreatedAt = time.Now().UTC()
+	user.UpdatedAt = &user.CreatedAt
+
+	item := map[string]types.AttributeValue{
+		"PK":               &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", user.OrgID)},
+		"SK":               &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
+		"ID":               &types.AttributeValueMemberS{Value: user.ID},
+		"OrgID":            &types.AttributeValueMemberS{Value: user.OrgID},
+		"Name":             &types.AttributeValueMemberS{Value: user.Name},
+		"Email":            &types.AttributeValueMemberS{Value: user.Email},
+		"Phone":            &types.AttributeValueMemberS{Value: user.Phone},
+		"Address":          &types.AttributeValueMemberS{Value: user.Address},
+		"Role":             &types.AttributeValueMemberS{Value: user.Role},
+		"Status":           &types.AttributeValueMemberS{Value: user.Status},
+		"PasswordHash":     &types.AttributeValueMemberS{Value: user.PasswordHash},
+		"MustChangePassword": &types.AttributeValueMemberBOOL{Value: user.MustChangePassword},
+		"CreatedAt":        &types.AttributeValueMemberS{Value: user.CreatedAt.Format(time.RFC3339)},
+	}
+
+	if user.UpdatedAt != nil {
+		item["UpdatedAt"] = &types.AttributeValueMemberS{Value: user.UpdatedAt.Format(time.RFC3339)}
+	}
+
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+
+	return user, err
+}
+
+func (r *dynamoAuthRepo) UpdateUser(ctx context.Context, user store.AuthUser) (store.AuthUser, error) {
+	// First check if exists
+	_, err := r.GetUserByID(ctx, user.ID)
+	if err != nil {
+		return store.AuthUser{}, err
+	}
+
+	now := time.Now().UTC()
+	user.UpdatedAt = &now
+
+	item := map[string]types.AttributeValue{
+		"PK":               &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", user.OrgID)},
+		"SK":               &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
+		"ID":               &types.AttributeValueMemberS{Value: user.ID},
+		"OrgID":            &types.AttributeValueMemberS{Value: user.OrgID},
+		"Name":             &types.AttributeValueMemberS{Value: user.Name},
+		"Email":            &types.AttributeValueMemberS{Value: user.Email},
+		"Phone":            &types.AttributeValueMemberS{Value: user.Phone},
+		"Address":          &types.AttributeValueMemberS{Value: user.Address},
+		"Role":             &types.AttributeValueMemberS{Value: user.Role},
+		"Status":           &types.AttributeValueMemberS{Value: user.Status},
+		"PasswordHash":     &types.AttributeValueMemberS{Value: user.PasswordHash},
+		"MustChangePassword": &types.AttributeValueMemberBOOL{Value: user.MustChangePassword},
+		"CreatedAt":        &types.AttributeValueMemberS{Value: user.CreatedAt.Format(time.RFC3339)},
+		"UpdatedAt":        &types.AttributeValueMemberS{Value: now.Format(time.RFC3339)},
+	}
+
+	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+
+	return user, err
+}
+
+func (r *dynamoAuthRepo) GetUserByID(ctx context.Context, id string) (store.AuthUser, error) {
+	// Try to get user from any organization
+	scanInput := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("SK = :sk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":sk": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", id)},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
+	if err != nil {
+		return store.AuthUser{}, err
+	}
+
+	if len(result.Items) == 0 {
+		return store.AuthUser{}, fmt.Errorf("user not found")
+	}
+
+	var user store.AuthUser
+	err = attributevalue.UnmarshalMap(result.Items[0], &user)
+	if err != nil {
+		return store.AuthUser{}, err
+	}
+
+	return user, nil
+}
+
+func (r *dynamoAuthRepo) GetUserByEmail(ctx context.Context, email string) (store.AuthUser, error) {
+	// Try to get user from any organization
+	scanInput := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("Email = :email"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":email": &types.AttributeValueMemberS{Value: email},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
+	if err != nil {
+		return store.AuthUser{}, err
+	}
+
+	if len(result.Items) == 0 {
+		return store.AuthUser{}, fmt.Errorf("user not found")
+	}
+
+	var user store.AuthUser
+	err = attributevalue.UnmarshalMap(result.Items[0], &user)
+	if err != nil {
+		return store.AuthUser{}, err
+	}
+
+	return user, nil
+}
+
+func (r *dynamoAuthRepo) ListUsersByOrg(ctx context.Context, orgID string) ([]store.AuthUser, error) {
+	input := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":sk": &types.AttributeValueMemberS{Value: "USER#"},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []store.AuthUser
+	for _, item := range result.Items {
+		var user store.AuthUser
+		if err := attributevalue.UnmarshalMap(item, &user); err != nil {
+			continue
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (r *dynamoAuthRepo) DeleteUser(ctx context.Context, id string) error {
+	// First get the user to find the org
+	user, err := r.GetUserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", user.OrgID)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", id)},
+		},
+	})
+
+	return err
+}
+
+func (r *dynamoAuthRepo) UpdateUserPassword(ctx context.Context, id, passwordHash string) error {
+	user, err := r.GetUserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	user.PasswordHash = passwordHash
+	now := time.Now().UTC()
+	user.UpdatedAt = &now
+
+	_, err = r.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", user.OrgID)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", id)},
+		},
+		UpdateExpression: aws.String("SET PasswordHash = :ph, UpdatedAt = :ua"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":ph": &types.AttributeValueMemberS{Value: passwordHash},
+			":ua": &types.AttributeValueMemberS{Value: now.Format(time.RFC3339)},
+		},
+	})
+
+	return err
+}
+
+func (r *dynamoAuthRepo) CreateSession(ctx context.Context, session store.AuthSession) (store.AuthSession, error) {
+	if session.ID == "" {
+		session.ID = fmt.Sprintf("session_%d", time.Now().UnixNano())
+	}
+	if session.CreatedAt.IsZero() {
+		session.CreatedAt = time.Now().UTC()
+	}
+	if session.ExpiresAt.IsZero() {
+		session.ExpiresAt = session.CreatedAt.Add(24 * time.Hour)
+	}
+
+	item := map[string]types.AttributeValue{
+		"PK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", session.OrgID)},
+		"SK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("SESSION#%s", session.ID)},
+		"ID":        &types.AttributeValueMemberS{Value: session.ID},
+		"OrgID":     &types.AttributeValueMemberS{Value: session.OrgID},
+		"UserID":    &types.AttributeValueMemberS{Value: session.UserID},
+		"CreatedAt": &types.AttributeValueMemberS{Value: session.CreatedAt.Format(time.RFC3339)},
+		"ExpiresAt": &types.AttributeValueMemberS{Value: session.ExpiresAt.Format(time.RFC3339)},
+	}
+
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+
+	return session, err
+}
+
+func (r *dynamoAuthRepo) GetSession(ctx context.Context, id string) (store.AuthSession, error) {
+	scanInput := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("SK = :sk AND ExpiresAt > :now"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":sk":  &types.AttributeValueMemberS{Value: fmt.Sprintf("SESSION#%s", id)},
+			":now": &types.AttributeValueMemberS{Value: time.Now().UTC().Format(time.RFC3339)},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
+	if err != nil {
+		return store.AuthSession{}, err
+	}
+
+	if len(result.Items) == 0 {
+		return store.AuthSession{}, fmt.Errorf("session not found or expired")
+	}
+
+	var session store.AuthSession
+	err = attributevalue.UnmarshalMap(result.Items[0], &session)
+	if err != nil {
+		return store.AuthSession{}, err
+	}
+
+	return session, nil
+}
+
+func (r *dynamoAuthRepo) DeleteSession(ctx context.Context, id string) error {
+	// First get session to find org
+	session, err := r.GetSession(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", session.OrgID)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("SESSION#%s", id)},
+		},
+	})
+
+	return err
+}
+
+func (r *dynamoAuthRepo) CreateResetToken(ctx context.Context, token store.ResetToken) (store.ResetToken, error) {
+	if token.ID == "" {
+		token.ID = fmt.Sprintf("reset_%d", time.Now().UnixNano())
+	}
+	if token.CreatedAt.IsZero() {
+		token.CreatedAt = time.Now().UTC()
+	}
+	if token.ExpiresAt.IsZero() {
+		token.ExpiresAt = token.CreatedAt.Add(1 * time.Hour)
+	}
+
+	item := map[string]types.AttributeValue{
+		"PK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", token.OrgID)},
+		"SK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("RESET#%s", token.ID)},
+		"ID":        &types.AttributeValueMemberS{Value: token.ID},
+		"OrgID":     &types.AttributeValueMemberS{Value: token.OrgID},
+		"UserID":    &types.AttributeValueMemberS{Value: token.UserID},
+		"Token":     &types.AttributeValueMemberS{Value: token.Token},
+		"Used":      &types.AttributeValueMemberBOOL{Value: token.Used},
+		"CreatedAt": &types.AttributeValueMemberS{Value: token.CreatedAt.Format(time.RFC3339)},
+		"ExpiresAt": &types.AttributeValueMemberS{Value: token.ExpiresAt.Format(time.RFC3339)},
+	}
+
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+
+	return token, err
+}
+
+func (r *dynamoAuthRepo) GetResetToken(ctx context.Context, token string) (store.ResetToken, error) {
+	scanInput := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("Token = :token AND Used = :used AND ExpiresAt > :now"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":token": &types.AttributeValueMemberS{Value: token},
+			":used":  &types.AttributeValueMemberBOOL{Value: false},
+			":now":   &types.AttributeValueMemberS{Value: time.Now().UTC().Format(time.RFC3339)},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
+	if err != nil {
+		return store.ResetToken{}, err
+	}
+
+	if len(result.Items) == 0 {
+		return store.ResetToken{}, fmt.Errorf("reset token not found or expired")
+	}
+
+	var resetToken store.ResetToken
+	err = attributevalue.UnmarshalMap(result.Items[0], &resetToken)
+	if err != nil {
+		return store.ResetToken{}, err
+	}
+
+	return resetToken, nil
+}
+
+func (r *dynamoAuthRepo) MarkResetTokenUsed(ctx context.Context, token string) error {
+	resetToken, err := r.GetResetToken(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", resetToken.OrgID)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("RESET#%s", resetToken.ID)},
+		},
+		UpdateExpression: aws.String("SET Used = :used"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":used": &types.AttributeValueMemberBOOL{Value: true},
+		},
+	})
+
+	return err
+}
+
+func (r *dynamoAuthRepo) CreateOrganization(ctx context.Context, org store.Organization) (store.Organization, error) {
+	if org.ID == "" {
+		org.ID = fmt.Sprintf("org_%d", time.Now().UnixNano())
+	}
+	if org.Status == "" {
+		org.Status = "active"
+	}
+	if org.PaymentStatus == "" {
+		org.PaymentStatus = "pending"
+	}
+	org.CreatedAt = time.Now().UTC()
+
+	item := map[string]types.AttributeValue{
+		"PK":            &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", org.ID)},
+		"SK":            &types.AttributeValueMemberS{Value: "ORG#METADATA"},
+		"ID":            &types.AttributeValueMemberS{Value: org.ID},
+		"Name":          &types.AttributeValueMemberS{Value: org.Name},
+		"BusinessName":  &types.AttributeValueMemberS{Value: org.BusinessName},
+		"TaxID":         &types.AttributeValueMemberS{Value: org.TaxID},
+		"Address":       &types.AttributeValueMemberS{Value: org.Address},
+		"Email":         &types.AttributeValueMemberS{Value: org.Email},
+		"Phone":         &types.AttributeValueMemberS{Value: org.Phone},
+		"Status":        &types.AttributeValueMemberS{Value: org.Status},
+		"PaymentStatus": &types.AttributeValueMemberS{Value: org.PaymentStatus},
+		"MaxDoctors":    &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.MaxDoctors)},
+		"MaxAssistants": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.MaxAssistants)},
+		"MaxPatients":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.MaxPatients)},
+		"CreatedAt":     &types.AttributeValueMemberS{Value: org.CreatedAt.Format(time.RFC3339)},
+	}
+
+	if org.UpdatedAt != nil {
+		item["UpdatedAt"] = &types.AttributeValueMemberS{Value: org.UpdatedAt.Format(time.RFC3339)}
+	}
+
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+
+	return org, err
+}
+
+func (r *dynamoAuthRepo) UpdateOrganization(ctx context.Context, org store.Organization) (store.Organization, error) {
+	// First check if exists
+	_, err := r.GetOrganization(ctx, org.ID)
+	if err != nil {
+		return store.Organization{}, err
+	}
+
+	now := time.Now().UTC()
+	org.UpdatedAt = &now
+
+	item := map[string]types.AttributeValue{
+		"PK":            &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", org.ID)},
+		"SK":            &types.AttributeValueMemberS{Value: "ORG#METADATA"},
+		"ID":            &types.AttributeValueMemberS{Value: org.ID},
+		"Name":          &types.AttributeValueMemberS{Value: org.Name},
+		"BusinessName":  &types.AttributeValueMemberS{Value: org.BusinessName},
+		"TaxID":         &types.AttributeValueMemberS{Value: org.TaxID},
+		"Address":       &types.AttributeValueMemberS{Value: org.Address},
+		"Email":         &types.AttributeValueMemberS{Value: org.Email},
+		"Phone":         &types.AttributeValueMemberS{Value: org.Phone},
+		"Status":        &types.AttributeValueMemberS{Value: org.Status},
+		"PaymentStatus": &types.AttributeValueMemberS{Value: org.PaymentStatus},
+		"MaxDoctors":    &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.MaxDoctors)},
+		"MaxAssistants": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.MaxAssistants)},
+		"MaxPatients":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.MaxPatients)},
+		"CreatedAt":     &types.AttributeValueMemberS{Value: org.CreatedAt.Format(time.RFC3339)},
+		"UpdatedAt":     &types.AttributeValueMemberS{Value: now.Format(time.RFC3339)},
+	}
+
+	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+
+	return org, err
+}
+
+func (r *dynamoAuthRepo) GetOrganization(ctx context.Context, id string) (store.Organization, error) {
+	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", id)},
+			"SK": &types.AttributeValueMemberS{Value: "ORG#METADATA"},
+		},
+	})
+
+	if err != nil {
+		return store.Organization{}, err
+	}
+
+	if result.Item == nil {
+		return store.Organization{}, fmt.Errorf("organization not found")
+	}
+
+	var org store.Organization
+	err = attributevalue.UnmarshalMap(result.Item, &org)
+	if err != nil {
+		return store.Organization{}, err
+	}
+
+	return org, nil
+}
+
+func (r *dynamoAuthRepo) ListOrganizations(ctx context.Context) ([]store.Organization, error) {
+	input := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("SK = :sk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":sk": &types.AttributeValueMemberS{Value: "ORG#METADATA"},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	var orgs []store.Organization
+	for _, item := range result.Items {
+		var org store.Organization
+		if err := attributevalue.UnmarshalMap(item, &org); err != nil {
+			continue
+		}
+		orgs = append(orgs, org)
+	}
+
+	return orgs, nil
+}
+
+func (r *dynamoAuthRepo) DeleteOrganization(ctx context.Context, id string) error {
+	// Delete organization metadata
+	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", id)},
+			"SK": &types.AttributeValueMemberS{Value: "ORG#METADATA"},
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Delete all related items (users, sessions, etc.)
+	scanInput := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", id)},
+		},
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range result.Items {
+		pk := item["PK"].(*types.AttributeValueMemberS).Value
+		sk := item["SK"].(*types.AttributeValueMemberS).Value
+
+		// Skip the org metadata item we already deleted
+		if strings.HasSuffix(sk, "METADATA") {
+			continue
+		}
+
+		_, err = r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+			TableName: aws.String(r.tableName),
+			Key: map[string]types.AttributeValue{
+				"PK": &types.AttributeValueMemberS{Value: pk},
+				"SK": &types.AttributeValueMemberS{Value: sk},
+			},
+		})
+
+		if err != nil {
+			// Log error but continue with other deletions
+			continue
+		}
+	}
+
+	return nil
+}
