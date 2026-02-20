@@ -62,10 +62,12 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
 
         <div className="nav-group">
           <span className="nav-group-label">Clínica</span>
-          <NavLink to="/dashboard/nuevo-tratamiento" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-            <span className="nav-item-icon">+</span>
-            <span className="nav-item-label">Nuevo Tratamiento</span>
-          </NavLink>
+          {!isAssistant && (
+            <NavLink to="/dashboard/nuevo-tratamiento" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">+</span>
+              <span className="nav-item-label">Nuevo Tratamiento</span>
+            </NavLink>
+          )}
           <NavLink to="/dashboard/pacientes" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
             <span className="nav-item-icon">⊕</span>
             <span className="nav-item-label">Pacientes</span>
