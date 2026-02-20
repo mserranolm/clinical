@@ -883,7 +883,7 @@ func response(code int, payload any) (events.APIGatewayV2HTTPResponse, error) {
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
 			"Access-Control-Allow-Headers": "content-type,authorization",
-			"Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+			"Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		},
 	}, nil
 }
