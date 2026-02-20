@@ -578,6 +578,13 @@ func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.A
 	if appointment.DoctorDailyClosedAt != nil {
 		item["DoctorDailyClosedAt"] = &types.AttributeValueMemberS{Value: appointment.DoctorDailyClosedAt.Format(time.RFC3339)}
 	}
+	if len(appointment.ImageKeys) > 0 {
+		vals := make([]types.AttributeValue, len(appointment.ImageKeys))
+		for i, k := range appointment.ImageKeys {
+			vals[i] = &types.AttributeValueMemberS{Value: k}
+		}
+		item["ImageKeys"] = &types.AttributeValueMemberL{Value: vals}
+	}
 
 	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(r.tableName),
