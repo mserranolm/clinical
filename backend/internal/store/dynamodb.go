@@ -730,18 +730,19 @@ func (r *dynamoAuthRepo) CreateUser(ctx context.Context, user AuthUser) (AuthUse
 	}
 
 	item := map[string]types.AttributeValue{
-		"PK":           &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
-		"SK":           &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
-		"ID":           &types.AttributeValueMemberS{Value: user.ID},
-		"OrgID":        &types.AttributeValueMemberS{Value: user.OrgID},
-		"Name":         &types.AttributeValueMemberS{Value: user.Name},
-		"Email":        &types.AttributeValueMemberS{Value: strings.ToLower(strings.TrimSpace(user.Email))},
-		"Phone":        &types.AttributeValueMemberS{Value: user.Phone},
-		"Address":      &types.AttributeValueMemberS{Value: user.Address},
-		"Role":         &types.AttributeValueMemberS{Value: user.Role},
-		"Status":       &types.AttributeValueMemberS{Value: user.Status},
-		"PasswordHash": &types.AttributeValueMemberS{Value: user.PasswordHash},
-		"CreatedAt":    &types.AttributeValueMemberS{Value: user.CreatedAt.Format(time.RFC3339)},
+		"PK":                 &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
+		"SK":                 &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
+		"ID":                 &types.AttributeValueMemberS{Value: user.ID},
+		"OrgID":              &types.AttributeValueMemberS{Value: user.OrgID},
+		"Name":               &types.AttributeValueMemberS{Value: user.Name},
+		"Email":              &types.AttributeValueMemberS{Value: strings.ToLower(strings.TrimSpace(user.Email))},
+		"Phone":              &types.AttributeValueMemberS{Value: user.Phone},
+		"Address":            &types.AttributeValueMemberS{Value: user.Address},
+		"Role":               &types.AttributeValueMemberS{Value: user.Role},
+		"Status":             &types.AttributeValueMemberS{Value: user.Status},
+		"PasswordHash":       &types.AttributeValueMemberS{Value: user.PasswordHash},
+		"MustChangePassword": &types.AttributeValueMemberBOOL{Value: user.MustChangePassword},
+		"CreatedAt":          &types.AttributeValueMemberS{Value: user.CreatedAt.Format(time.RFC3339)},
 	}
 
 	// Also create email index entry
@@ -884,7 +885,7 @@ func (r *dynamoAuthRepo) UpdateUser(ctx context.Context, user AuthUser) (AuthUse
 			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", user.ID)},
 		},
-		UpdateExpression: aws.String("SET #Name = :name, OrgID = :orgId, #Role = :role, #Status = :status, Phone = :phone, Address = :address"),
+		UpdateExpression: aws.String("SET #Name = :name, OrgID = :orgId, #Role = :role, #Status = :status, Phone = :phone, Address = :address, MustChangePassword = :mcp"),
 		ExpressionAttributeNames: map[string]string{
 			"#Name":   "Name",
 			"#Role":   "Role",
@@ -897,6 +898,7 @@ func (r *dynamoAuthRepo) UpdateUser(ctx context.Context, user AuthUser) (AuthUse
 			":status":  &types.AttributeValueMemberS{Value: user.Status},
 			":phone":   &types.AttributeValueMemberS{Value: user.Phone},
 			":address": &types.AttributeValueMemberS{Value: user.Address},
+			":mcp":     &types.AttributeValueMemberBOOL{Value: user.MustChangePassword},
 		},
 		ConditionExpression: aws.String("attribute_exists(PK)"),
 	})

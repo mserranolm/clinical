@@ -113,12 +113,13 @@ type LoginInput struct {
 }
 
 type LoginOutput struct {
-	AccessToken string `json:"accessToken"`
-	UserID      string `json:"userId"`
-	OrgID       string `json:"orgId"`
-	Name        string `json:"name"`
-	Email       string `json:"email"`
-	Role        string `json:"role"`
+	AccessToken        string `json:"accessToken"`
+	UserID             string `json:"userId"`
+	OrgID              string `json:"orgId"`
+	Name               string `json:"name"`
+	Email              string `json:"email"`
+	Role               string `json:"role"`
+	MustChangePassword bool   `json:"mustChangePassword"`
 }
 
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
@@ -152,12 +153,13 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginOutput, er
 		return LoginOutput{}, err
 	}
 	return LoginOutput{
-		AccessToken: token,
-		UserID:      user.ID,
-		OrgID:       user.OrgID,
-		Name:        user.Name,
-		Email:       user.Email,
-		Role:        user.Role,
+		AccessToken:        token,
+		UserID:             user.ID,
+		OrgID:              user.OrgID,
+		Name:               user.Name,
+		Email:              user.Email,
+		Role:               user.Role,
+		MustChangePassword: user.MustChangePassword,
 	}, nil
 }
 
@@ -564,9 +566,6 @@ func (s *AuthService) CreateOrgUser(ctx context.Context, in CreateOrgUserInput) 
 	if strings.TrimSpace(in.Email) == "" {
 		return UserDTO{}, fmt.Errorf("email is required")
 	}
-	if len(in.Password) < 8 {
-		return UserDTO{}, fmt.Errorf("password must have at least 8 characters")
-	}
 	validRoles := map[string]bool{"admin": true, "doctor": true, "assistant": true, "patient": true}
 	if !validRoles[in.Role] {
 		return UserDTO{}, fmt.Errorf("invalid role")
@@ -577,17 +576,22 @@ func (s *AuthService) CreateOrgUser(ctx context.Context, in CreateOrgUserInput) 
 	if err := s.checkRoleLimit(ctx, in.OrgID, in.Role); err != nil {
 		return UserDTO{}, err
 	}
+	tempPassword, err := generateTempPassword()
+	if err != nil {
+		return UserDTO{}, err
+	}
 	user := store.AuthUser{
-		ID:           buildID("usr"),
-		OrgID:        in.OrgID,
-		Name:         strings.TrimSpace(in.Name),
-		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
-		Phone:        strings.TrimSpace(in.Phone),
-		Address:      strings.TrimSpace(in.Address),
-		Role:         in.Role,
-		Status:       "active",
-		PasswordHash: hashPassword(in.Password),
-		CreatedAt:    time.Now().UTC(),
+		ID:                 buildID("usr"),
+		OrgID:              in.OrgID,
+		Name:               strings.TrimSpace(in.Name),
+		Email:              strings.ToLower(strings.TrimSpace(in.Email)),
+		Phone:              strings.TrimSpace(in.Phone),
+		Address:            strings.TrimSpace(in.Address),
+		Role:               in.Role,
+		Status:             "active",
+		PasswordHash:       hashPassword(tempPassword),
+		MustChangePassword: true,
+		CreatedAt:          time.Now().UTC(),
 	}
 	created, err := s.repo.CreateUser(ctx, user)
 	if err != nil {
@@ -599,7 +603,7 @@ func (s *AuthService) CreateOrgUser(ctx context.Context, in CreateOrgUserInput) 
 			base = os.Getenv("FRONTEND_BASE_URL")
 		}
 		loginURL := fmt.Sprintf("%s/login", strings.TrimRight(base, "/"))
-		_ = s.notifier.SendWelcome(ctx, created.Email, created.Name, created.Role, in.Password, loginURL)
+		_ = s.notifier.SendWelcome(ctx, created.Email, created.Name, created.Role, tempPassword, loginURL)
 	}
 	return UserDTO{
 		ID: created.ID, OrgID: created.OrgID, Name: created.Name,
@@ -877,6 +881,32 @@ func (s *AuthService) AcceptInvitation(ctx context.Context, in AcceptInvitationI
 		Email:       created.Email,
 		Role:        created.Role,
 	}, nil
+}
+
+type ChangePasswordInput struct {
+	UserID      string `json:"userId"`
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
+}
+
+func (s *AuthService) ChangePassword(ctx context.Context, in ChangePasswordInput) error {
+	if len(in.NewPassword) < 8 {
+		return fmt.Errorf("newPassword must have at least 8 characters")
+	}
+	user, err := s.repo.GetUserByID(ctx, in.UserID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if user.PasswordHash != hashPassword(in.OldPassword) {
+		return fmt.Errorf("invalid current password")
+	}
+	if err := s.repo.UpdateUserPassword(ctx, in.UserID, hashPassword(in.NewPassword)); err != nil {
+		return err
+	}
+	// Clear the must-change flag
+	user.MustChangePassword = false
+	_, err = s.repo.UpdateUser(ctx, user)
+	return err
 }
 
 func (s *AuthService) ResetPassword(ctx context.Context, in ResetPasswordInput) error {

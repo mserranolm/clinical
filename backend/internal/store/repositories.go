@@ -34,16 +34,17 @@ type ConsentRepository interface {
 }
 
 type AuthUser struct {
-	ID           string
-	OrgID        string
-	Name         string
-	Email        string
-	Phone        string
-	Address      string
-	Role         string
-	Status       string
-	PasswordHash string
-	CreatedAt    time.Time
+	ID                 string
+	OrgID              string
+	Name               string
+	Email              string
+	Phone              string
+	Address            string
+	Role               string
+	Status             string
+	PasswordHash       string
+	MustChangePassword bool
+	CreatedAt          time.Time
 }
 
 type AuthSession struct {

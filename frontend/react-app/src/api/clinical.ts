@@ -33,7 +33,7 @@ export const clinicalApi = {
     }),
 
   login: (input: LoginInput) =>
-    request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string }>(endpointCatalog.login, {
+    request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string; mustChangePassword: boolean }>(endpointCatalog.login, {
       method: "POST",
       body: input
     }),
@@ -229,7 +229,12 @@ export const clinicalApi = {
       `/orgs/${orgId}/users/${userId}`, { method: "DELETE", token }
     ),
 
-  createOrgUser: (orgId: string, data: { name: string; email: string; phone?: string; address?: string; role: string; password: string }, token: string) =>
+  changePassword: (data: { oldPassword: string; newPassword: string }, token: string) =>
+    request<{ ok: string }>(
+      `/users/me/change-password`, { method: "POST", body: data, token }
+    ),
+
+  createOrgUser: (orgId: string, data: { name: string; email: string; phone?: string; address?: string; role: string; password?: string }, token: string) =>
     request<{ id: string; name: string; email: string; phone: string; address: string; role: string; status: string }>(
       `/orgs/${orgId}/users`, { method: "POST", body: data, token }
     ),
@@ -240,18 +245,18 @@ export const clinicalApi = {
     ),
 
   acceptInvitation: (invToken: string, data: { name: string; phone?: string; address?: string; password: string }) =>
-    request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string }>(
+    request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string; mustChangePassword: boolean }>(
       "/auth/accept-invitation", { method: "POST", body: { token: invToken, ...data } }
-    ),
-
-  getPlatformStats: (token: string) =>
-    request<{ totalOrgs: number; activeOrgs: number; totalDoctors: number; totalAssistants: number; totalAdmins: number; totalUsers: number; totalPatients: number; totalAppointments: number }>(
-      "/platform/stats", { token }
     ),
 
   getUserProfile: (token: string) =>
     request<{ id: string; orgId: string; name: string; email: string; role: string; status: string; orgName: string; orgLimits: { maxDoctors: number; maxAssistants: number; maxPatients: number } }>(
       "/users/me", { token }
+    ),
+
+  getPlatformStats: (token: string) =>
+    request<{ totalOrgs: number; activeOrgs: number; totalUsers: number; totalAdmins: number; totalDoctors: number; totalAssistants: number; totalPatients: number; totalAppointments: number }>(
+      "/platform/stats", { token }
     ),
 
   getOrg: (orgId: string, token: string) =>

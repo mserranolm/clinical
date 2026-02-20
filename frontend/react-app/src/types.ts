@@ -13,6 +13,7 @@ export type AuthSession = {
   email?: string;
   role?: string;
   orgName?: string;
+  mustChangePassword?: boolean;
 };
 
 export type RegisterInput = {

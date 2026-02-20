@@ -28,7 +28,7 @@ const statusBadge = (status: string) => (
 const inp: React.CSSProperties = { width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box", fontSize: "0.875rem" };
 const lbl: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 };
 
-const EMPTY_CREATE = { name: "", email: "", phone: "", address: "", role: "doctor", password: "", confirm: "" };
+const EMPTY_CREATE = { name: "", email: "", phone: "", address: "", role: "doctor" };
 const EMPTY_INVITE = { email: "", role: "doctor" };
 
 export function UsersAdminPage({ session }: { session: AuthSession }) {
@@ -75,14 +75,6 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (createForm.password !== createForm.confirm) {
-      setError("Las contraseñas no coinciden");
-      return;
-    }
-    if (createForm.password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres");
-      return;
-    }
     setSubmitting(true);
     setError(""); setSuccess("");
     try {
@@ -92,9 +84,8 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         phone: createForm.phone,
         address: createForm.address,
         role: createForm.role,
-        password: createForm.password,
       }, token);
-      setSuccess(`Usuario ${createForm.name} creado correctamente como ${ROLE_LABELS[createForm.role]}`);
+      setSuccess(`Usuario ${createForm.name} creado. Se envió un correo con la contraseña temporal.`);
       setCreateForm(EMPTY_CREATE);
       setShowForm(false);
       loadUsers();
@@ -294,13 +285,10 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
                   <label style={lbl}>Dirección</label>
                   <input style={inp} value={createForm.address} onChange={e => setCreateForm(f => ({ ...f, address: e.target.value }))} placeholder="Calle 10 # 5-20, Ciudad" />
                 </div>
-                <div>
-                  <label style={lbl}>Contraseña * (mín. 8 caracteres)</label>
-                  <input required type="password" style={inp} value={createForm.password} onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
-                </div>
-                <div>
-                  <label style={lbl}>Confirmar contraseña *</label>
-                  <input required type="password" style={inp} value={createForm.confirm} onChange={e => setCreateForm(f => ({ ...f, confirm: e.target.value }))} placeholder="••••••••" />
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "#6b7280", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "0.5rem 0.75rem" }}>
+                    🔐 Se generará una contraseña temporal automáticamente y se enviará por correo. El usuario deberá cambiarla en su primer inicio de sesión.
+                  </p>
                 </div>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>

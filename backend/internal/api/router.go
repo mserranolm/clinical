@@ -271,6 +271,12 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.getUserProfile(actx)
 			}
+		case method == "POST" && path == "/users/me/change-password":
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.changePassword(actx, req)
+			}
 		case method == "POST" && path == "/auth/accept-invitation":
 			resp, err = r.acceptInvitation(ctx, req)
 		case method == "POST" && path == "/auth/register":
@@ -513,6 +519,19 @@ func (r *Router) deleteOrgUser(ctx context.Context, orgID, userID string) (event
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]string{"deleted": userID})
+}
+
+func (r *Router) changePassword(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.ChangePasswordInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	auth, _ := ctx.Value(ctxAuthKey).(service.Authenticated)
+	in.UserID = auth.User.ID
+	if err := r.auth.ChangePassword(ctx, in); err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"ok": "password changed"})
 }
 
 func (r *Router) inviteUser(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

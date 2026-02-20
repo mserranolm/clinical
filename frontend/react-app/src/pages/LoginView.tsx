@@ -33,9 +33,14 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
         name: result.name,
         email: result.email,
         role: result.role,
-        orgName
+        orgName,
+        mustChangePassword: result.mustChangePassword,
       });
-      navigate("/dashboard");
+      if (result.mustChangePassword) {
+        navigate("/change-password");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No fue posible iniciar sesión");
     } finally {

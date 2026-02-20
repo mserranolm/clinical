@@ -12,6 +12,7 @@ import { AdminConsoleLayout } from "./components/layout/AdminConsoleLayout";
 import { Landing } from "./pages/Landing";
 import { LoginView } from "./pages/LoginView";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 
 function loadValidSession(): AuthSession | null {
   const s = getSession();
@@ -30,6 +31,11 @@ export function App() {
   function handleAuthSuccess(nextSession: AuthSession) {
     saveSession(nextSession);
     setSession(nextSession);
+  }
+
+  function handlePasswordChanged(updated: AuthSession) {
+    saveSession(updated);
+    setSession(updated);
   }
 
   function handleLogout() {
@@ -53,7 +59,11 @@ export function App() {
         element={session && isPlatformAdmin(session) ? <AdminConsoleLayout session={session} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
       />
       <Route path="/accept-invitation" element={<AcceptInvitationPage onSuccess={handleAuthSuccess} />} />
-      <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} replace />} />
+      <Route
+        path="/change-password"
+        element={session ? <ChangePasswordPage session={session} onSuccess={handlePasswordChanged} /> : <Navigate to="/login" replace />}
+      />
+      <Route path="*" element={<Navigate to={session ? (session.mustChangePassword ? "/change-password" : "/dashboard") : "/"} replace />} />
     </Routes>
   );
 }
