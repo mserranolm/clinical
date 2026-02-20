@@ -51,6 +51,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
   const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
   const [historial, setHistorial] = useState<ConsultaHistorial[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [detailCita, setDetailCita] = useState<ConsultaHistorial | null>(null);
 
   const closeModal = () => {
     setShowModal(false);
@@ -325,7 +326,12 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                 const fechaLabel = fecha.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
                 const horaLabel = fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                 return (
-                  <div key={cita.id} className={`historial-item ${cita.status === "completed" ? "historial-item-completed" : ""}`}>
+                  <div
+                    key={cita.id}
+                    className={`historial-item historial-item-clickable ${cita.status === "completed" ? "historial-item-completed" : ""}`}
+                    onClick={() => setDetailCita(cita)}
+                    title="Ver detalle completo"
+                  >
                     <div className="historial-item-header">
                       <div>
                         <span className="historial-fecha">{fechaLabel}</span>
@@ -339,14 +345,14 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                     {cita.evolutionNotes && (
                       <div className="historial-field">
                         <span className="historial-field-label">📝 Evolución</span>
-                        <p className="historial-field-value">{cita.evolutionNotes}</p>
+                        <p className="historial-field-value historial-field-preview">{cita.evolutionNotes}</p>
                       </div>
                     )}
 
                     {cita.treatmentPlan && (
                       <div className="historial-field">
                         <span className="historial-field-label">🦷 Plan de tratamiento</span>
-                        <p className="historial-field-value">{cita.treatmentPlan}</p>
+                        <p className="historial-field-value historial-field-preview">{cita.treatmentPlan}</p>
                       </div>
                     )}
 
@@ -362,6 +368,8 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                     {!cita.evolutionNotes && !cita.treatmentPlan && (
                       <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "4px 0 0" }}>Sin notas registradas</p>
                     )}
+
+                    <span className="historial-ver-detalle">Ver detalle →</span>
                   </div>
                 );
               })}
@@ -369,6 +377,90 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
           </aside>
         )}
       </div>
+
+      {/* Modal de detalle de consulta */}
+      {detailCita && selectedPatient && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDetailCita(null)}>
+          <div className="modal-card" style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <div>
+                <h3>Detalle de Consulta</h3>
+                <p>
+                  {new Date(detailCita.startAt).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  {" · "}
+                  {new Date(detailCita.startAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {" – "}
+                  {new Date(detailCita.endAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setDetailCita(null)}>✕</button>
+            </div>
+
+            <div style={{ padding: "0 28px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* Paciente y estado */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div className="patient-avatar-sm">{selectedPatient.firstName[0]}{selectedPatient.lastName[0]}</div>
+                  <div>
+                    <strong style={{ fontSize: "0.95rem" }}>{selectedPatient.firstName} {selectedPatient.lastName}</strong>
+                    {selectedPatient.documentId && <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>{selectedPatient.documentId}</p>}
+                  </div>
+                </div>
+                <span className={`badge ${statusClass[detailCita.status] ?? "status-unconfirmed"}`}>
+                  {statusLabel[detailCita.status] ?? detailCita.status}
+                </span>
+              </div>
+
+              {/* Notas de evolución */}
+              <div className="input-group">
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>📝</span> Notas de Evolución
+                </label>
+                <textarea
+                  readOnly
+                  rows={4}
+                  value={detailCita.evolutionNotes || "Sin notas de evolución registradas."}
+                  style={{ resize: "none", background: "#f8fafc", cursor: "default" }}
+                />
+              </div>
+
+              {/* Plan de tratamiento */}
+              <div className="input-group">
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>🦷</span> Plan de Tratamiento
+                </label>
+                <textarea
+                  readOnly
+                  rows={3}
+                  value={detailCita.treatmentPlan || "Sin plan de tratamiento registrado."}
+                  style={{ resize: "none", background: "#f8fafc", cursor: "default" }}
+                />
+              </div>
+
+              {/* Pago */}
+              {detailCita.paymentAmount != null && detailCita.paymentAmount > 0 && (
+                <div style={{ display: "flex", gap: 16 }}>
+                  <div className="input-group" style={{ flex: 1 }}>
+                    <label>💰 Monto pagado</label>
+                    <input readOnly value={`$${detailCita.paymentAmount.toFixed(2)}`} style={{ background: "#f8fafc", cursor: "default" }} />
+                  </div>
+                  <div className="input-group" style={{ flex: 1 }}>
+                    <label>💳 Método de pago</label>
+                    <input readOnly value={detailCita.paymentMethod ?? "—"} style={{ background: "#f8fafc", cursor: "default" }} />
+                  </div>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setDetailCita(null)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de registro/edición */}
       {showModal && (
