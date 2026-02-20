@@ -50,6 +50,9 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
 
   const [editUser, setEditUser] = useState<OrgUser | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [editInfoUser, setEditInfoUser] = useState<OrgUser | null>(null);
+  const [editInfo, setEditInfo] = useState({ name: "", phone: "", address: "" });
+  const [confirmDelete, setConfirmDelete] = useState<OrgUser | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function loadUsers() {
@@ -118,6 +121,38 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
       setError(e instanceof Error ? e.message : "Error enviando invitación");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(user: OrgUser) {
+    setSaving(true);
+    setError(""); setSuccess("");
+    try {
+      await clinicalApi.deleteOrgUser(orgId, user.id, token);
+      setSuccess(`Usuario ${user.name || user.email} eliminado`);
+      setConfirmDelete(null);
+      loadUsers();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error eliminando usuario");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveInfo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editInfoUser) return;
+    setSaving(true);
+    setError(""); setSuccess("");
+    try {
+      await clinicalApi.updateOrgUser(orgId, editInfoUser.id, { name: editInfo.name, phone: editInfo.phone, address: editInfo.address } as Parameters<typeof clinicalApi.updateOrgUser>[2], token);
+      setSuccess(`Datos de ${editInfo.name} actualizados`);
+      setEditInfoUser(null);
+      loadUsers();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error actualizando usuario");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -317,6 +352,57 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         </div>
       )}
 
+      {/* Modal confirmar eliminación */}
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", minWidth: 320, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ fontWeight: 700, marginBottom: "0.5rem", color: "#dc2626" }}>⚠️ Eliminar usuario</h3>
+            <p style={{ color: "#374151", marginBottom: "1rem", fontSize: "0.9rem" }}>
+              ¿Estás seguro de eliminar a <strong>{confirmDelete.name || confirmDelete.email}</strong>? Esta acción no se puede deshacer.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmDelete(null)}
+                style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
+              <button onClick={() => handleDelete(confirmDelete)} disabled={saving}
+                style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>
+                {saving ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar info (nombre, teléfono, dirección) */}
+      {editInfoUser && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+          <form onSubmit={handleSaveInfo} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", minWidth: 340, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ fontWeight: 700, marginBottom: "1rem" }}>Editar — {editInfoUser.name || editInfoUser.email}</h3>
+            <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
+              <div>
+                <label style={lbl}>Nombre completo</label>
+                <input style={inp} value={editInfo.name} onChange={e => setEditInfo(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" />
+              </div>
+              <div>
+                <label style={lbl}>Teléfono</label>
+                <input type="tel" style={inp} value={editInfo.phone} onChange={e => setEditInfo(f => ({ ...f, phone: e.target.value }))} placeholder="+57 300 000 0000" />
+              </div>
+              <div>
+                <label style={lbl}>Dirección</label>
+                <input style={inp} value={editInfo.address} onChange={e => setEditInfo(f => ({ ...f, address: e.target.value }))} placeholder="Calle 10 # 5-20" />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setEditInfoUser(null)}
+                style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
+              <button type="submit" disabled={saving}
+                style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Modal editar rol */}
       {editUser && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
@@ -363,7 +449,11 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
                   {u.address && <span>📍 {u.address}</span>}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
+                <button onClick={() => { setEditInfoUser(u); setEditInfo({ name: u.name || "", phone: u.phone || "", address: u.address || "" }); }}
+                  style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #86efac", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600 }}>
+                  ✏️ Editar
+                </button>
                 <button onClick={() => { setEditUser(u); setEditRole(u.role); }}
                   style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600 }}>
                   Rol
@@ -371,6 +461,10 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
                 <button onClick={() => handleToggleStatus(u)} disabled={saving}
                   style={{ background: u.status === "active" ? "#fef2f2" : "#f0fdf4", color: u.status === "active" ? "#dc2626" : "#16a34a", border: `1px solid ${u.status === "active" ? "#fca5a5" : "#86efac"}`, borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600 }}>
                   {u.status === "active" ? "Deshabilitar" : "Habilitar"}
+                </button>
+                <button onClick={() => setConfirmDelete(u)} disabled={saving}
+                  style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600 }}>
+                  🗑️ Eliminar
                 </button>
               </div>
             </div>

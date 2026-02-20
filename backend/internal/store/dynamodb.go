@@ -928,6 +928,45 @@ func (r *dynamoAuthRepo) UpdateUser(ctx context.Context, user AuthUser) (AuthUse
 	return user, nil
 }
 
+func (r *dynamoAuthRepo) DeleteUser(ctx context.Context, orgID, userID string) error {
+	user, err := r.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	_, err = r.client.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
+		TransactItems: []types.TransactWriteItem{
+			{
+				Delete: &types.Delete{
+					TableName: aws.String(r.tableName),
+					Key: map[string]types.AttributeValue{
+						"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", userID)},
+						"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", userID)},
+					},
+				},
+			},
+			{
+				Delete: &types.Delete{
+					TableName: aws.String(r.tableName),
+					Key: map[string]types.AttributeValue{
+						"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("EMAIL#%s", strings.ToLower(strings.TrimSpace(user.Email)))},
+						"SK": &types.AttributeValueMemberS{Value: "USER"},
+					},
+				},
+			},
+			{
+				Delete: &types.Delete{
+					TableName: aws.String(r.tableName),
+					Key: map[string]types.AttributeValue{
+						"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+						"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("USER#%s", userID)},
+					},
+				},
+			},
+		},
+	})
+	return err
+}
+
 func (r *dynamoAuthRepo) ListUsersByOrg(ctx context.Context, orgID string) ([]AuthUser, error) {
 	out, err := r.client.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String(r.tableName),

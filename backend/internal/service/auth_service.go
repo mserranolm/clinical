@@ -610,10 +610,13 @@ type UserDTO struct {
 }
 
 type UpdateOrgUserInput struct {
-	OrgID  string `json:"orgId"`
-	UserID string `json:"userId"`
-	Role   string `json:"role,omitempty"`
-	Status string `json:"status,omitempty"`
+	OrgID   string `json:"orgId"`
+	UserID  string `json:"userId"`
+	Name    string `json:"name,omitempty"`
+	Phone   string `json:"phone,omitempty"`
+	Address string `json:"address,omitempty"`
+	Role    string `json:"role,omitempty"`
+	Status  string `json:"status,omitempty"`
 }
 
 type InviteUserInput struct {
@@ -665,6 +668,15 @@ func (s *AuthService) UpdateOrgUser(ctx context.Context, in UpdateOrgUserInput) 
 	if user.OrgID != in.OrgID {
 		return UserDTO{}, fmt.Errorf("user does not belong to org")
 	}
+	if in.Name != "" {
+		user.Name = strings.TrimSpace(in.Name)
+	}
+	if in.Phone != "" {
+		user.Phone = strings.TrimSpace(in.Phone)
+	}
+	if in.Address != "" {
+		user.Address = strings.TrimSpace(in.Address)
+	}
 	if in.Role != "" {
 		validRoles := map[string]bool{"admin": true, "doctor": true, "assistant": true, "patient": true}
 		if !validRoles[in.Role] {
@@ -692,6 +704,17 @@ func (s *AuthService) UpdateOrgUser(ctx context.Context, in UpdateOrgUserInput) 
 		Email: updated.Email, Phone: updated.Phone, Address: updated.Address,
 		Role: updated.Role, Status: updated.Status, CreatedAt: updated.CreatedAt,
 	}, nil
+}
+
+func (s *AuthService) DeleteOrgUser(ctx context.Context, orgID, userID string) error {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if user.OrgID != orgID {
+		return fmt.Errorf("user does not belong to org")
+	}
+	return s.repo.DeleteUser(ctx, orgID, userID)
 }
 
 func (s *AuthService) checkRoleLimit(ctx context.Context, orgID, role string) error {

@@ -247,6 +247,17 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 					resp, err = response(400, map[string]string{"error": "invalid path"})
 				}
 			}
+		case method == "DELETE" && strings.Contains(path, "/users/") && strings.HasPrefix(path, "/orgs/"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				parts := strings.Split(strings.TrimPrefix(path, "/orgs/"), "/users/")
+				if len(parts) == 2 {
+					resp, err = r.deleteOrgUser(actx, parts[0], parts[1])
+				} else {
+					resp, err = response(400, map[string]string{"error": "invalid path"})
+				}
+			}
 		case method == "POST" && strings.HasPrefix(path, "/orgs/") && strings.HasSuffix(path, "/invitations"):
 			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
 				resp, err = deny, nil
@@ -495,6 +506,13 @@ func (r *Router) updateOrgUser(ctx context.Context, orgID, userID string, req ev
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, user)
+}
+
+func (r *Router) deleteOrgUser(ctx context.Context, orgID, userID string) (events.APIGatewayV2HTTPResponse, error) {
+	if err := r.auth.DeleteOrgUser(ctx, orgID, userID); err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"deleted": userID})
 }
 
 func (r *Router) inviteUser(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

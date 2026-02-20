@@ -99,6 +99,7 @@ type AuthRepository interface {
 	GetUserByEmail(ctx context.Context, email string) (AuthUser, error)
 	UpdateUserPassword(ctx context.Context, userID, passwordHash string) error
 	UpdateUser(ctx context.Context, user AuthUser) (AuthUser, error)
+	DeleteUser(ctx context.Context, orgID, userID string) error
 	ListUsersByOrg(ctx context.Context, orgID string) ([]AuthUser, error)
 	CreateOrganization(ctx context.Context, org Organization) (Organization, error)
 	GetOrganization(ctx context.Context, orgID string) (Organization, error)
@@ -397,6 +398,21 @@ func (r *memoryAuthRepo) UpdateUser(_ context.Context, user AuthUser) (AuthUser,
 	user.Email = normalizeEmail(user.Email)
 	r.usersByID[user.ID] = user
 	return user, nil
+}
+
+func (r *memoryAuthRepo) DeleteUser(_ context.Context, orgID, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	u, ok := r.usersByID[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+	delete(r.emailIndex, normalizeEmail(u.Email))
+	delete(r.usersByID, userID)
+	if ids, ok2 := r.usersByOrg[orgID]; ok2 {
+		delete(ids, userID)
+	}
+	return nil
 }
 
 func (r *memoryAuthRepo) ListUsersByOrg(_ context.Context, orgID string) ([]AuthUser, error) {
