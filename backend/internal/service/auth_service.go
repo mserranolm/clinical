@@ -475,6 +475,60 @@ type PlatformStatsDTO struct {
 	TotalAppointments int `json:"totalAppointments"`
 }
 
+// OrgStatsDTO holds stats scoped to a single organization
+type OrgStatsDTO struct {
+	TotalDoctors    int `json:"totalDoctors"`
+	TotalAssistants int `json:"totalAssistants"`
+	TotalAdmins     int `json:"totalAdmins"`
+	TotalUsers      int `json:"totalUsers"`
+	TotalPatients   int `json:"totalPatients"`
+	MaxDoctors      int `json:"maxDoctors"`
+	MaxAssistants   int `json:"maxAssistants"`
+	MaxPatients     int `json:"maxPatients"`
+}
+
+// GetOrgStats returns stats for a specific org: user counts by role + real patient count.
+func (s *AuthService) GetOrgStats(ctx context.Context, orgID string) (OrgStatsDTO, error) {
+	users, err := s.repo.ListUsersByOrg(ctx, orgID)
+	if err != nil {
+		return OrgStatsDTO{}, fmt.Errorf("list users: %w", err)
+	}
+
+	var stats OrgStatsDTO
+	for _, u := range users {
+		if u.Status == "disabled" {
+			continue
+		}
+		stats.TotalUsers++
+		switch u.Role {
+		case "doctor":
+			stats.TotalDoctors++
+		case "assistant":
+			stats.TotalAssistants++
+		case "admin":
+			stats.TotalAdmins++
+		}
+	}
+
+	// Count real patients from patient table filtered by orgID
+	if s.patientRepo != nil {
+		// ListByDoctor with empty doctorID returns all patients of the org (uses orgID from context)
+		orgCtx := store.ContextWithOrgID(ctx, orgID)
+		if patients, err := s.patientRepo.ListByDoctor(orgCtx, ""); err == nil {
+			stats.TotalPatients = len(patients)
+		}
+	}
+
+	// Attach org limits
+	if org, err := s.repo.GetOrganization(ctx, orgID); err == nil {
+		stats.MaxDoctors = org.Limits.MaxDoctors
+		stats.MaxAssistants = org.Limits.MaxAssistants
+		stats.MaxPatients = org.Limits.MaxPatients
+	}
+
+	return stats, nil
+}
+
 func (s *AuthService) GetPlatformStats(ctx context.Context) (PlatformStatsDTO, error) {
 	orgs, err := s.repo.ListOrganizations(ctx)
 	if err != nil {

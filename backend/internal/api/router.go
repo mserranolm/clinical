@@ -222,6 +222,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/platform/orgs/"), "/admins")
 				resp, err = r.createOrgAdmin(actx, orgID, req)
 			}
+		case method == "GET" && strings.HasPrefix(path, "/orgs/") && strings.HasSuffix(path, "/stats"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/orgs/"), "/stats")
+				resp, err = r.getOrgStats(actx, orgID)
+			}
 		case method == "GET" && strings.HasPrefix(path, "/orgs/") && strings.HasSuffix(path, "/users"):
 			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
 				resp, err = deny, nil
@@ -592,6 +599,14 @@ func (r *Router) deleteOrganization(ctx context.Context, orgID string) (events.A
 
 func (r *Router) getPlatformStats(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {
 	stats, err := r.auth.GetPlatformStats(ctx)
+	if err != nil {
+		return response(500, map[string]string{"error": err.Error()})
+	}
+	return response(200, stats)
+}
+
+func (r *Router) getOrgStats(ctx context.Context, orgID string) (events.APIGatewayV2HTTPResponse, error) {
+	stats, err := r.auth.GetOrgStats(ctx, orgID)
 	if err != nil {
 		return response(500, map[string]string{"error": err.Error()})
 	}

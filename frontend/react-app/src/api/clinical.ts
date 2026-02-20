@@ -259,6 +259,11 @@ export const clinicalApi = {
       "/platform/stats", { token }
     ),
 
+  getOrgStats: (orgId: string, token: string) =>
+    request<{ totalDoctors: number; totalAssistants: number; totalAdmins: number; totalUsers: number; totalPatients: number; maxDoctors: number; maxAssistants: number; maxPatients: number }>(
+      `/orgs/${orgId}/stats`, { token }
+    ),
+
   getOrg: (orgId: string, token: string) =>
     request<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number }; createdAt: string }>(
       `/platform/orgs/${orgId}`, { token }
