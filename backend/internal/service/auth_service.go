@@ -447,6 +447,49 @@ func (s *AuthService) ListOrganizations(ctx context.Context) ([]OrganizationDTO,
 	return result, nil
 }
 
+type PlatformStatsDTO struct {
+	TotalOrgs         int `json:"totalOrgs"`
+	ActiveOrgs        int `json:"activeOrgs"`
+	TotalDoctors      int `json:"totalDoctors"`
+	TotalAssistants   int `json:"totalAssistants"`
+	TotalAdmins       int `json:"totalAdmins"`
+	TotalUsers        int `json:"totalUsers"`
+	TotalPatients     int `json:"totalPatients"`
+	TotalAppointments int `json:"totalAppointments"`
+}
+
+func (s *AuthService) GetPlatformStats(ctx context.Context) (PlatformStatsDTO, error) {
+	orgs, err := s.repo.ListOrganizations(ctx)
+	if err != nil {
+		return PlatformStatsDTO{}, err
+	}
+	stats := PlatformStatsDTO{TotalOrgs: len(orgs)}
+	for _, org := range orgs {
+		if org.Status == "active" {
+			stats.ActiveOrgs++
+		}
+		users, err := s.repo.ListUsersByOrg(ctx, org.ID)
+		if err != nil {
+			continue
+		}
+		for _, u := range users {
+			if u.Status == "disabled" {
+				continue
+			}
+			stats.TotalUsers++
+			switch u.Role {
+			case "doctor":
+				stats.TotalDoctors++
+			case "assistant":
+				stats.TotalAssistants++
+			case "admin":
+				stats.TotalAdmins++
+			}
+		}
+	}
+	return stats, nil
+}
+
 func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (UserProfileDTO, error) {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {

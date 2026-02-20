@@ -5,55 +5,69 @@ import type { AuthSession } from "../../types";
 
 type OrgLimits = { maxDoctors: number; maxAssistants: number; maxPatients: number };
 type Org = {
-  id: string;
-  name: string;
-  businessName: string;
-  taxId: string;
-  address: string;
-  email: string;
-  phone: string;
-  status: string;
-  paymentStatus: string;
-  limits: OrgLimits;
-  createdAt: string;
+  id: string; name: string; businessName: string; taxId: string;
+  address: string; email: string; phone: string;
+  status: string; paymentStatus: string; limits: OrgLimits; createdAt: string;
+};
+type Stats = {
+  totalOrgs: number; activeOrgs: number; totalDoctors: number;
+  totalAssistants: number; totalAdmins: number; totalUsers: number;
+  totalPatients: number; totalAppointments: number;
 };
 
-const EMPTY_ORG_FORM = {
+const EMPTY_FORM = {
   name: "", businessName: "", taxId: "", address: "", email: "", phone: "",
   status: "active", paymentStatus: "current",
   maxDoctors: 5, maxAssistants: 2, maxPatients: 20,
+  adminName: "", adminEmail: "", adminPassword: "",
 };
+type OrgForm = typeof EMPTY_FORM;
 
-type OrgForm = typeof EMPTY_ORG_FORM;
+const SL: Record<string, string> = { active: "Activa", inactive: "Inactiva" };
+const PL: Record<string, string> = { current: "Al día", overdue: "Vencido", suspended: "Suspendido" };
+const SC: Record<string, string> = { active: "#d1fae5", inactive: "#fee2e2" };
+const PC: Record<string, string> = { current: "#d1fae5", overdue: "#fef3c7", suspended: "#fee2e2" };
+const ST: Record<string, string> = { active: "#065f46", inactive: "#991b1b" };
+const PT: Record<string, string> = { current: "#065f46", overdue: "#92400e", suspended: "#991b1b" };
 
-const STATUS_LABELS: Record<string, string> = { active: "Activa", inactive: "Inactiva" };
-const PAYMENT_LABELS: Record<string, string> = { current: "Al día", overdue: "Vencido", suspended: "Suspendido" };
-const STATUS_COLORS: Record<string, string> = { active: "#d1fae5", inactive: "#fee2e2" };
-const PAYMENT_COLORS: Record<string, string> = { current: "#d1fae5", overdue: "#fef3c7", suspended: "#fee2e2" };
-const STATUS_TEXT: Record<string, string> = { active: "#065f46", inactive: "#991b1b" };
-const PAYMENT_TEXT: Record<string, string> = { current: "#065f46", overdue: "#92400e", suspended: "#991b1b" };
+const inp: React.CSSProperties = { padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, width: "100%", fontSize: "0.875rem", boxSizing: "border-box" };
+const lbl: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 };
+const sec: React.CSSProperties = { borderTop: "1px solid #e5e7eb", paddingTop: "1rem", marginBottom: "1rem" };
+
+function StatCard({ value, label, color, icon }: { value: number; label: string; color: string; icon: string }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+      <div style={{ width: 48, height: 48, borderRadius: 12, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: "1.75rem", fontWeight: 800, lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: 2 }}>{label}</div>
+      </div>
+    </div>
+  );
+}
 
 export function AdminConsoleHome({ session }: { session: AuthSession }) {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [orgAdmins, setOrgAdmins] = useState<Record<string, { name: string; email: string }>>({});
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Org | null>(null);
-  const [form, setForm] = useState<OrgForm>(EMPTY_ORG_FORM);
+  const [form, setForm] = useState<OrgForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [showAdminForm, setShowAdminForm] = useState(false);
-  const [adminForm, setAdminForm] = useState({ orgId: "", name: "", email: "", password: "" });
-  const [adminSubmitting, setAdminSubmitting] = useState(false);
 
   const token = session.token;
 
-  async function loadOrgs() {
+  async function loadAll() {
     setLoading(true);
     try {
-      const res = await clinicalApi.listOrgs(token);
-      const items = res.items ?? [];
+      const [orgsRes, statsRes] = await Promise.all([
+        clinicalApi.listOrgs(token),
+        clinicalApi.getPlatformStats(token),
+      ]);
+      const items = orgsRes.items ?? [];
       setOrgs(items);
-      // Load admins for each org in parallel
+      setStats(statsRes);
       const adminsMap: Record<string, { name: string; email: string }> = {};
       await Promise.all(items.map(async (org) => {
         try {
@@ -64,34 +78,31 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
       }));
       setOrgAdmins(adminsMap);
     } catch (e) {
-      notify.error("Error cargando organizaciones", e instanceof Error ? e.message : "");
+      notify.error("Error cargando datos", e instanceof Error ? e.message : "");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { loadOrgs(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
   function openCreate() {
     setEditingOrg(null);
-    setForm(EMPTY_ORG_FORM);
+    setForm(EMPTY_FORM);
     setShowForm(true);
   }
 
   function openEdit(org: Org) {
     setEditingOrg(org);
     setForm({
-      name: org.name,
-      businessName: org.businessName || "",
-      taxId: org.taxId || "",
-      address: org.address || "",
-      email: org.email || "",
-      phone: org.phone || "",
-      status: org.status || "active",
-      paymentStatus: org.paymentStatus || "current",
+      name: org.name, businessName: org.businessName || "",
+      taxId: org.taxId || "", address: org.address || "",
+      email: org.email || "", phone: org.phone || "",
+      status: org.status || "active", paymentStatus: org.paymentStatus || "current",
       maxDoctors: org.limits?.maxDoctors ?? 5,
       maxAssistants: org.limits?.maxAssistants ?? 2,
       maxPatients: org.limits?.maxPatients ?? 20,
+      adminName: "", adminEmail: "", adminPassword: "",
     });
     setShowForm(true);
   }
@@ -100,133 +111,134 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
     e.preventDefault();
     setSubmitting(true);
     const payload = {
-      name: form.name,
-      businessName: form.businessName,
-      taxId: form.taxId,
-      address: form.address,
-      email: form.email,
-      phone: form.phone,
-      status: form.status,
-      paymentStatus: form.paymentStatus,
+      name: form.name, businessName: form.businessName, taxId: form.taxId,
+      address: form.address, email: form.email, phone: form.phone,
+      status: form.status, paymentStatus: form.paymentStatus,
       maxDoctors: Number(form.maxDoctors),
       maxAssistants: Number(form.maxAssistants),
       maxPatients: Number(form.maxPatients),
     };
 
-    const finalPromise = editingOrg
-      ? clinicalApi.updateOrg(editingOrg.id, payload, token)
-      : clinicalApi.createOrg(payload, token);
-
-    notify.promise(finalPromise, {
-      loading: editingOrg ? "Actualizando organización..." : "Creando organización...",
-      success: () => {
-        loadOrgs();
-        setShowForm(false);
-        setEditingOrg(null);
-        return editingOrg ? "Organización actualizada" : "Organización creada";
-      },
-      error: editingOrg ? "Error al actualizar" : "Error al crear",
-    }).finally(() => setSubmitting(false));
+    try {
+      if (editingOrg) {
+        await clinicalApi.updateOrg(editingOrg.id, payload, token);
+        notify.success("Organización actualizada");
+      } else {
+        const created = await clinicalApi.createOrg(payload, token) as { id: string };
+        if (form.adminEmail && form.adminPassword) {
+          await clinicalApi.createOrgAdmin(created.id, {
+            name: form.adminName || form.adminEmail,
+            email: form.adminEmail,
+            password: form.adminPassword,
+          }, token);
+        }
+        notify.success("Organización creada");
+      }
+      setShowForm(false);
+      setEditingOrg(null);
+      loadAll();
+    } catch (e) {
+      notify.error("Error", e instanceof Error ? e.message : "");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleDelete(org: Org) {
-    if (!window.confirm(`¿Eliminar la organización "${org.name}"? Esta acción no se puede deshacer.`)) return;
-    const promise = clinicalApi.deleteOrg(org.id, token);
-    notify.promise(promise, {
-      loading: "Eliminando organización...",
-      success: () => { loadOrgs(); return "Organización eliminada"; },
+    if (!window.confirm(`¿Eliminar "${org.name}"? Esta acción no se puede deshacer.`)) return;
+    notify.promise(clinicalApi.deleteOrg(org.id, token), {
+      loading: "Eliminando...",
+      success: () => { loadAll(); return "Organización eliminada"; },
       error: "Error al eliminar",
     });
   }
 
-  async function handleCreateAdmin(e: React.FormEvent) {
-    e.preventDefault();
-    setAdminSubmitting(true);
-    const promise = clinicalApi.createOrgAdmin(adminForm.orgId, {
-      name: adminForm.name, email: adminForm.email, password: adminForm.password,
-    }, token);
-    notify.promise(promise, {
-      loading: "Creando admin...",
-      success: () => {
-        setAdminForm({ orgId: "", name: "", email: "", password: "" });
-        setShowAdminForm(false);
-        return "Admin creado";
-      },
-      error: "Error al crear admin",
-    }).finally(() => setAdminSubmitting(false));
-  }
-
-  const inp: React.CSSProperties = { padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, width: "100%", fontSize: "0.875rem" };
-  const label: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 };
+  const btnPrimary: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" };
+  const btnCancel: React.CSSProperties = { background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" };
+  const btnDanger: React.CSSProperties = { background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, padding: "0.4rem 0.75rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600 };
+  const btnEdit: React.CSSProperties = { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", borderRadius: 6, padding: "0.4rem 0.75rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600 };
 
   return (
     <div style={{ padding: "2rem", maxWidth: 1100, margin: "0 auto" }}>
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.25rem" }}>Consola de Plataforma</h1>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.25rem" }}>Consola de Plataforma</h1>
           <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
-            {session.email} · <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 4, fontSize: "0.75rem" }}>platform_admin</span>
+            {session.name || session.email} ·{" "}
+            <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>SUPER ADMIN</span>
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button onClick={openCreate}
-            style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>
-            + Nueva organización
-          </button>
-          <button onClick={() => { setShowAdminForm(!showAdminForm); setShowForm(false); }}
-            style={{ background: "#7c3aed", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>
-            + Crear admin de org
-          </button>
-        </div>
+        <button onClick={openCreate} style={btnPrimary}>+ Nueva organización</button>
       </div>
+
+      {/* Stats dashboard */}
+      {stats && (
+        <div style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontWeight: 700, fontSize: "0.875rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>Resumen de la plataforma</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
+            <StatCard value={stats.totalOrgs} label="Organizaciones" color="#ede9fe" icon="🏥" />
+            <StatCard value={stats.activeOrgs} label="Activas" color="#d1fae5" icon="✅" />
+            <StatCard value={stats.totalAdmins} label="Admins de org" color="#fef3c7" icon="👤" />
+            <StatCard value={stats.totalDoctors} label="Doctores" color="#dbeafe" icon="🩺" />
+            <StatCard value={stats.totalAssistants} label="Asistentes" color="#f0fdf4" icon="🧑‍⚕️" />
+            <StatCard value={stats.totalPatients} label="Pacientes" color="#fce7f3" icon="🧑" />
+          </div>
+        </div>
+      )}
 
       {/* Form crear/editar org */}
       {showForm && (
-        <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "1.5rem", marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h3 style={{ fontWeight: 700, fontSize: "1rem" }}>{editingOrg ? `Editar: ${editingOrg.name}` : "Nueva organización"}</h3>
-            <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.25rem", color: "#6b7280" }}>✕</button>
+        <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.5rem", marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+            <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>
+              {editingOrg ? `✏️ Editar: ${editingOrg.name}` : "🏥 Nueva organización"}
+            </h3>
+            <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.25rem", color: "#6b7280", lineHeight: 1 }}>✕</button>
           </div>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            {/* Datos de la organización */}
+            <p style={{ fontWeight: 700, fontSize: "0.8rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>Datos de la organización</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
               <div>
-                <label style={label}>Nombre de la clínica *</label>
+                <label style={lbl}>Nombre de la clínica *</label>
                 <input required style={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Clínica San José" />
               </div>
               <div>
-                <label style={label}>Razón social</label>
+                <label style={lbl}>Razón social</label>
                 <input style={inp} value={form.businessName} onChange={e => setForm(f => ({ ...f, businessName: e.target.value }))} placeholder="Clínica San José S.A.S." />
               </div>
               <div>
-                <label style={label}>NIT / RUC / Tax ID</label>
+                <label style={lbl}>NIT / RUC / Tax ID</label>
                 <input style={inp} value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} placeholder="900.123.456-7" />
               </div>
               <div>
-                <label style={label}>Teléfono</label>
+                <label style={lbl}>Teléfono</label>
                 <input style={inp} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+57 300 000 0000" />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={label}>Dirección</label>
+                <label style={lbl}>Dirección</label>
                 <input style={inp} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Calle 10 # 5-20, Bogotá" />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={label}>Email de contacto</label>
+                <label style={lbl}>Email de contacto</label>
                 <input type="email" style={inp} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="contacto@clinica.com" />
               </div>
             </div>
 
-            <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "1rem", marginBottom: "1rem" }}>
-              <p style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: "0.75rem", color: "#374151" }}>Estado y pago</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            {/* Estado y pago */}
+            <div style={sec}>
+              <p style={{ fontWeight: 700, fontSize: "0.8rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>Estado y pago</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={label}>Estado de la organización</label>
+                  <label style={lbl}>Estado</label>
                   <select style={inp} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
                     <option value="active">Activa</option>
                     <option value="inactive">Inactiva</option>
                   </select>
                 </div>
                 <div>
-                  <label style={label}>Estado de pago</label>
+                  <label style={lbl}>Estado de pago</label>
                   <select style={inp} value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value }))}>
                     <option value="current">Al día</option>
                     <option value="overdue">Vencido</option>
@@ -236,31 +248,50 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
               </div>
             </div>
 
-            <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "1rem", marginBottom: "1rem" }}>
-              <p style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: "0.75rem", color: "#374151" }}>Límites de usuarios</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
+            {/* Límites */}
+            <div style={sec}>
+              <p style={{ fontWeight: 700, fontSize: "0.8rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>Límites de usuarios</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={label}>Máx. Doctores</label>
+                  <label style={lbl}>Máx. Doctores</label>
                   <input type="number" min={1} style={inp} value={form.maxDoctors} onChange={e => setForm(f => ({ ...f, maxDoctors: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label style={label}>Máx. Asistentes</label>
+                  <label style={lbl}>Máx. Asistentes</label>
                   <input type="number" min={1} style={inp} value={form.maxAssistants} onChange={e => setForm(f => ({ ...f, maxAssistants: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label style={label}>Máx. Pacientes</label>
+                  <label style={lbl}>Máx. Pacientes</label>
                   <input type="number" min={1} style={inp} value={form.maxPatients} onChange={e => setForm(f => ({ ...f, maxPatients: Number(e.target.value) }))} />
                 </div>
               </div>
             </div>
 
+            {/* Admin inicial — solo al crear */}
+            {!editingOrg && (
+              <div style={{ ...sec, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "1rem", marginBottom: "1rem" }}>
+                <p style={{ fontWeight: 700, fontSize: "0.8rem", color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>👤 Admin de la organización</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div>
+                    <label style={lbl}>Nombre del admin</label>
+                    <input style={inp} value={form.adminName} onChange={e => setForm(f => ({ ...f, adminName: e.target.value }))} placeholder="Dr. Juan Pérez" />
+                  </div>
+                  <div>
+                    <label style={lbl}>Email del admin</label>
+                    <input type="email" style={inp} value={form.adminEmail} onChange={e => setForm(f => ({ ...f, adminEmail: e.target.value }))} placeholder="admin@clinica.com" />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={lbl}>Contraseña (mín. 8 caracteres)</label>
+                    <input type="password" style={inp} value={form.adminPassword} onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))} placeholder="••••••••" />
+                  </div>
+                </div>
+                <p style={{ fontSize: "0.75rem", color: "#3b82f6", marginTop: "0.5rem" }}>Opcional — si no se completa, se puede crear después desde la lista.</p>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setShowForm(false)}
-                style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer" }}>
-                Cancelar
-              </button>
-              <button type="submit" disabled={submitting}
-                style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600 }}>
+              <button type="button" onClick={() => setShowForm(false)} style={btnCancel}>Cancelar</button>
+              <button type="submit" disabled={submitting} style={btnPrimary}>
                 {submitting ? "Guardando..." : (editingOrg ? "Guardar cambios" : "Crear organización")}
               </button>
             </div>
@@ -268,76 +299,38 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
         </div>
       )}
 
-      {/* Form crear admin */}
-      {showAdminForm && (
-        <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "1.5rem", marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h3 style={{ fontWeight: 700, fontSize: "1rem" }}>Crear admin de organización</h3>
-            <button onClick={() => setShowAdminForm(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.25rem", color: "#6b7280" }}>✕</button>
-          </div>
-          <form onSubmit={handleCreateAdmin}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={label}>Organización</label>
-                <select required style={inp} value={adminForm.orgId} onChange={e => setAdminForm(f => ({ ...f, orgId: e.target.value }))}>
-                  <option value="">Seleccionar organización...</option>
-                  {orgs.map(o => <option key={o.id} value={o.id}>{o.name} ({o.id})</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={label}>Nombre completo</label>
-                <input required style={inp} value={adminForm.name} onChange={e => setAdminForm(f => ({ ...f, name: e.target.value }))} placeholder="Dr. Juan Pérez" />
-              </div>
-              <div>
-                <label style={label}>Email</label>
-                <input required type="email" style={inp} value={adminForm.email} onChange={e => setAdminForm(f => ({ ...f, email: e.target.value }))} placeholder="admin@clinica.com" />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={label}>Contraseña (mín. 8 caracteres)</label>
-                <input required type="password" style={inp} value={adminForm.password} onChange={e => setAdminForm(f => ({ ...f, password: e.target.value }))} />
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setShowAdminForm(false)}
-                style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer" }}>
-                Cancelar
-              </button>
-              <button type="submit" disabled={adminSubmitting}
-                style={{ background: "#7c3aed", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600 }}>
-                {adminSubmitting ? "Creando..." : "Crear admin"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Lista de organizaciones */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+        <h2 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Organizaciones ({orgs.length})</h2>
+      </div>
 
-      {/* Tabla de organizaciones */}
-      <h2 style={{ fontWeight: 700, marginBottom: "0.75rem", fontSize: "1rem" }}>
-        Organizaciones ({orgs.length})
-      </h2>
       {loading ? (
-        <p style={{ color: "#6b7280" }}>Cargando...</p>
+        <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>Cargando...</div>
       ) : orgs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280", background: "#f9fafb", borderRadius: 10, border: "1px dashed #d1d5db" }}>
+        <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280", background: "#f9fafb", borderRadius: 12, border: "1px dashed #d1d5db" }}>
           <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏥</p>
           <p>No hay organizaciones aún. Crea la primera.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gap: "1rem" }}>
+        <div style={{ display: "grid", gap: "0.75rem" }}>
           {orgs.map(org => (
-            <div key={org.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+            <div key={org.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
                     <strong style={{ fontSize: "1rem" }}>{org.name}</strong>
-                    <span style={{ background: STATUS_COLORS[org.status] || "#f3f4f6", color: STATUS_TEXT[org.status] || "#374151", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>
-                      {STATUS_LABELS[org.status] || org.status}
+                    <span style={{ background: SC[org.status] || "#f3f4f6", color: ST[org.status] || "#374151", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>
+                      {SL[org.status] || org.status}
                     </span>
-                    <span style={{ background: PAYMENT_COLORS[org.paymentStatus] || "#f3f4f6", color: PAYMENT_TEXT[org.paymentStatus] || "#374151", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>
-                      💳 {PAYMENT_LABELS[org.paymentStatus] || org.paymentStatus}
+                    <span style={{ background: PC[org.paymentStatus] || "#f3f4f6", color: PT[org.paymentStatus] || "#374151", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>
+                      💳 {PL[org.paymentStatus] || org.paymentStatus}
                     </span>
                   </div>
-                  {org.businessName && <p style={{ color: "#6b7280", fontSize: "0.8rem", margin: "0 0 0.25rem" }}>{org.businessName}{org.taxId ? ` · ${org.taxId}` : ""}</p>}
+                  {org.businessName && (
+                    <p style={{ color: "#6b7280", fontSize: "0.8rem", margin: "0 0 0.25rem" }}>
+                      {org.businessName}{org.taxId ? ` · ${org.taxId}` : ""}
+                    </p>
+                  )}
                   <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", fontSize: "0.8rem", color: "#6b7280" }}>
                     {org.address && <span>📍 {org.address}</span>}
                     {org.email && <span>✉️ {org.email}</span>}
@@ -355,27 +348,21 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                     </div>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.75rem", textAlign: "center" }}>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "0.4rem 0.6rem", fontSize: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontWeight: 700, color: "#0369a1" }}>{org.limits?.maxDoctors ?? 5}</div>
-                    <div style={{ color: "#6b7280" }}>Doctores</div>
+                    <div style={{ color: "#6b7280" }}>Dr.</div>
                   </div>
-                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.75rem", textAlign: "center" }}>
+                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "0.4rem 0.6rem", fontSize: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontWeight: 700, color: "#15803d" }}>{org.limits?.maxAssistants ?? 2}</div>
-                    <div style={{ color: "#6b7280" }}>Asistentes</div>
+                    <div style={{ color: "#6b7280" }}>Asist.</div>
                   </div>
-                  <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.75rem", textAlign: "center" }}>
+                  <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 8, padding: "0.4rem 0.6rem", fontSize: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontWeight: 700, color: "#a16207" }}>{org.limits?.maxPatients ?? 20}</div>
-                    <div style={{ color: "#6b7280" }}>Pacientes</div>
+                    <div style={{ color: "#6b7280" }}>Pac.</div>
                   </div>
-                  <button onClick={() => openEdit(org)}
-                    style={{ background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.4rem 0.75rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600 }}>
-                    ✏️ Editar
-                  </button>
-                  <button onClick={() => handleDelete(org)}
-                    style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 6, padding: "0.4rem 0.75rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: "#991b1b" }}>
-                    🗑️ Eliminar
-                  </button>
+                  <button onClick={() => openEdit(org)} style={btnEdit}>✏️ Editar</button>
+                  <button onClick={() => handleDelete(org)} style={btnDanger}>🗑️ Eliminar</button>
                 </div>
               </div>
               <div style={{ marginTop: "0.5rem", fontSize: "0.7rem", color: "#9ca3af", fontFamily: "monospace" }}>

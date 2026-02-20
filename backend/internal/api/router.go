@@ -182,6 +182,12 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.createOrganization(actx, req)
 			}
+		case method == "GET" && path == "/platform/stats":
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.getPlatformStats(actx)
+			}
 		case method == "GET" && path == "/platform/orgs":
 			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
 				resp, err = deny, nil
@@ -538,6 +544,14 @@ func (r *Router) deleteOrganization(ctx context.Context, orgID string) (events.A
 		return response(404, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]string{"status": "deleted"})
+}
+
+func (r *Router) getPlatformStats(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {
+	stats, err := r.auth.GetPlatformStats(ctx)
+	if err != nil {
+		return response(500, map[string]string{"error": err.Error()})
+	}
+	return response(200, stats)
 }
 
 func (r *Router) getUserProfile(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {

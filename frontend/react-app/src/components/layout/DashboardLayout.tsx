@@ -15,6 +15,7 @@ import { PatientsPage } from "../../pages/PatientsPage";
 import { PlansPage } from "../../pages/PlansPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
 import { UsersAdminPage } from "../../pages/UsersAdminPage";
+import { AdminConsoleHome } from "../../pages/admin/AdminConsoleHome";
 
 type DashboardAppointmentRow = {
   id: string;
@@ -27,12 +28,18 @@ type DashboardAppointmentRow = {
 
 export function DashboardLayout({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const location = useLocation();
+  const isPlatformAdmin = session.role === "platform_admin";
+
   const [appointmentsDate, setAppointmentsDate] = useState(new Date().toISOString().slice(0, 10));
   const [appointmentRows, setAppointmentRows] = useState<DashboardAppointmentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const menu = [
+  const platformMenu = [
+    { to: "/dashboard", label: "Consola de Plataforma" },
+  ];
+
+  const clinicMenu = [
     { to: "/dashboard", label: "Panel Principal" },
     { to: "/dashboard/nuevo-tratamiento", label: "Nuevo Tratamiento" },
     { to: "/dashboard/pacientes", label: "Pacientes" },
@@ -40,13 +47,14 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     { to: "/dashboard/consentimientos", label: "Documentos" },
     { to: "/dashboard/odontograma", label: "Odontograma" },
     { to: "/dashboard/planes", label: "Tratamientos" },
-    { to: "/dashboard/testing", label: "Service Tester" }
+    { to: "/dashboard/testing", label: "Service Tester" },
   ];
 
+  const menu = isPlatformAdmin ? platformMenu : clinicMenu;
   const currentLabel = menu.find(m => m.to === location.pathname)?.label || "Dashboard";
 
   useEffect(() => {
-    if (location.pathname === "/dashboard") {
+    if (!isPlatformAdmin && location.pathname === "/dashboard") {
       loadDashboardData();
     }
   }, [location.pathname, appointmentsDate, session]);
@@ -79,6 +87,24 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     } finally {
       setLoading(false);
     }
+  }
+
+  // platform_admin: render only the platform console, no sidebar clinic menu
+  if (isPlatformAdmin) {
+    return (
+      <main className="admin-layout">
+        <Sidebar onLogout={onLogout} userName={session.name} role={session.role} />
+        <section className="content-area">
+          <Topbar session={session} onLogout={onLogout} title="Consola de Plataforma" />
+          <div className="page-content">
+            <Routes>
+              <Route index element={<AdminConsoleHome session={session} />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

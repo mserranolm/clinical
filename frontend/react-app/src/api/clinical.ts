@@ -234,6 +234,11 @@ export const clinicalApi = {
       "/auth/accept-invitation", { method: "POST", body: { token: invToken, ...data } }
     ),
 
+  getPlatformStats: (token: string) =>
+    request<{ totalOrgs: number; activeOrgs: number; totalDoctors: number; totalAssistants: number; totalAdmins: number; totalUsers: number; totalPatients: number; totalAppointments: number }>(
+      "/platform/stats", { token }
+    ),
+
   getUserProfile: (token: string) =>
     request<{ id: string; orgId: string; name: string; email: string; role: string; status: string; orgName: string; orgLimits: { maxDoctors: number; maxAssistants: number; maxPatients: number } }>(
       "/users/me", { token }

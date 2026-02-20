@@ -9,24 +9,47 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; userName?: string; role?: string }) {
-  const initials = userName ? userName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "DR";
+  const initials = userName ? userName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "SA";
   const isPlatformAdmin = role === "platform_admin";
-  const isAdmin = role === "admin" || isPlatformAdmin;
+  const isAdmin = role === "admin";
+
+  if (isPlatformAdmin) {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="sidebar-logo"><span className="sidebar-logo-icon">🦷</span></div>
+          <div><h2>Clini<span>Sense</span></h2><small>Plataforma</small></div>
+        </div>
+        <nav className="sidebar-nav">
+          <div className="nav-group">
+            <span className="nav-group-label">Plataforma</span>
+            <NavLink to="/dashboard" end className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">🛡</span>
+              <span className="nav-item-label">Consola de Plataforma</span>
+            </NavLink>
+          </div>
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">{initials}</div>
+            <div className="sidebar-user-info">
+              <strong>{userName || "Super Admin"}</strong>
+              <span>Super Admin</span>
+            </div>
+          </div>
+          <button className="sidebar-logout" onClick={onLogout}><span>⏻</span> Cerrar sesión</button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="sidebar">
-      {/* Brand */}
       <div className="sidebar-brand">
-        <div className="sidebar-logo">
-          <span className="sidebar-logo-icon">🦷</span>
-        </div>
-        <div>
-          <h2>Clini<span>Sense</span></h2>
-          <small>Medical Admin Suite</small>
-        </div>
+        <div className="sidebar-logo"><span className="sidebar-logo-icon">🦷</span></div>
+        <div><h2>Clini<span>Sense</span></h2><small>Medical Admin Suite</small></div>
       </div>
 
-      {/* Nav groups */}
       <nav className="sidebar-nav">
         <div className="nav-group">
           <span className="nav-group-label">Principal</span>
@@ -77,19 +100,8 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
             <span className="nav-item-label">Service Tester</span>
           </NavLink>
         </div>
-
-        {isPlatformAdmin && (
-          <div className="nav-group">
-            <span className="nav-group-label">Plataforma</span>
-            <NavLink to="/admin" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">🛡</span>
-              <span className="nav-item-label">Consola Admin</span>
-            </NavLink>
-          </div>
-        )}
       </nav>
 
-      {/* Footer */}
       <div className="sidebar-footer">
         <div className="sidebar-user">
           <div className="sidebar-user-avatar">{initials}</div>
@@ -98,9 +110,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
             <span>{ROLE_LABELS[role ?? ""] ?? "Médico Activo"}</span>
           </div>
         </div>
-        <button className="sidebar-logout" onClick={onLogout}>
-          <span>⏻</span> Cerrar sesión
-        </button>
+        <button className="sidebar-logout" onClick={onLogout}><span>⏻</span> Cerrar sesión</button>
       </div>
     </aside>
   );
