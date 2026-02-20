@@ -377,6 +377,9 @@ func (s *AuthService) CreateOrganization(ctx context.Context, in CreateOrganizat
 	if err != nil {
 		return OrganizationDTO{}, err
 	}
+	if s.notifier != nil && created.Email != "" {
+		_ = s.notifier.SendOrgCreated(ctx, created.Email, created.Name, created.Name)
+	}
 	return orgToDTO(created), nil
 }
 

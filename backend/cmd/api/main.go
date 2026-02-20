@@ -74,7 +74,10 @@ func main() {
 		repos.TreatmentPlans = memRepos.TreatmentPlans
 	}
 
-	appointments := service.NewAppointmentService(repos.Appointments, notifier)
+	appointments := service.NewAppointmentService(repos.Appointments, notifier,
+		service.WithPatientRepo(repos.Patients),
+		service.WithAuthRepo(repos.Users),
+	)
 	patients := service.NewPatientService(repos.Patients)
 	consents := service.NewConsentService(repos.Consents, notifier)
 	auth := service.NewAuthService(repos.Users,

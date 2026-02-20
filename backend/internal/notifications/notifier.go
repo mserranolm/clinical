@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"clinical-backend/internal/config"
 	"clinical-backend/internal/store"
@@ -25,6 +26,8 @@ type Notifier interface {
 	SendDoctorDailySummary(ctx context.Context, doctorID, channel, message string) error
 	SendInvitation(ctx context.Context, toEmail, inviteURL, role, tempPassword string) error
 	SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error
+	SendAppointmentEvent(ctx context.Context, toEmail, patientName, eventType string, startAt, endAt time.Time) error
+	SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error
 }
 
 type Router struct {
@@ -112,6 +115,101 @@ func (r *Router) SendDoctorDailySummary(_ context.Context, doctorID, channel, me
 	}
 	log.Printf("[notify:doctor-summary] doctor=%s channel=%s message=%s", doctorID, channel, message)
 	return nil
+}
+
+func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName, eventType string, startAt, endAt time.Time) error {
+	titles := map[string]string{
+		"created":   "Cita agendada",
+		"moved":     "Cita reprogramada",
+		"cancelled": "Cita cancelada",
+		"updated":   "Actualización de cita",
+	}
+	title := titles[eventType]
+	if title == "" {
+		title = "Actualización de cita"
+	}
+	subject := fmt.Sprintf("CliniSense — %s", title)
+	var body string
+	switch eventType {
+	case "cancelled":
+		body = fmt.Sprintf(
+			"Hola %s,\n\nTu cita del %s de %s a %s ha sido CANCELADA.\n\nSi tienes dudas, contáctanos.",
+			patientName,
+			startAt.Format("02/01/2006"),
+			startAt.Format("15:04"),
+			endAt.Format("15:04"),
+		)
+	case "moved":
+		body = fmt.Sprintf(
+			"Hola %s,\n\nTu cita ha sido REPROGRAMADA para el %s de %s a %s.\n\nSi tienes dudas, contáctanos.",
+			patientName,
+			startAt.Format("02/01/2006"),
+			startAt.Format("15:04"),
+			endAt.Format("15:04"),
+		)
+	default:
+		body = fmt.Sprintf(
+			"Hola %s,\n\nTu cita ha sido agendada para el %s de %s a %s.\n\nTe esperamos. Si necesitas cancelar o cambiar, contáctanos con anticipación.",
+			patientName,
+			startAt.Format("02/01/2006"),
+			startAt.Format("15:04"),
+			endAt.Format("15:04"),
+		)
+	}
+	log.Printf("[notify:appointment] to=%s event=%s start=%s", toEmail, eventType, startAt)
+	if !r.sendEmail || r.ses == nil {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = os.Getenv("SES_SENDER_EMAIL")
+	}
+	if sender == "" {
+		sender = "no-reply@clinisense.aski-tech.net"
+	}
+	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(sender),
+		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
+		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+			Subject: &sestypes.Content{Data: aws.String(subject)},
+			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body)}},
+		}},
+	})
+	if err != nil {
+		log.Printf("[notify:appointment] ses send failed: %v", err)
+	}
+	return err
+}
+
+func (r *Router) SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error {
+	subject := fmt.Sprintf("CliniSense — Organización '%s' creada", orgName)
+	body := fmt.Sprintf(
+		"Hola %s,\n\nTu organización '%s' ha sido creada exitosamente en CliniSense.\n\nYa puedes comenzar a agregar doctores, asistentes y pacientes desde el panel de administración.\n\nBienvenido a CliniSense.",
+		adminName, orgName,
+	)
+	log.Printf("[notify:org-created] to=%s org=%s", toEmail, orgName)
+	if !r.sendEmail || r.ses == nil {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = os.Getenv("SES_SENDER_EMAIL")
+	}
+	if sender == "" {
+		sender = "no-reply@clinisense.aski-tech.net"
+	}
+	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(sender),
+		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
+		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+			Subject: &sestypes.Content{Data: aws.String(subject)},
+			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body)}},
+		}},
+	})
+	if err != nil {
+		log.Printf("[notify:org-created] ses send failed: %v", err)
+	}
+	return err
 }
 
 func (r *Router) SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error {

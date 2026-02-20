@@ -12,12 +12,37 @@ import (
 )
 
 type AppointmentService struct {
-	repo     store.AppointmentRepository
-	notifier notifications.Notifier
+	repo        store.AppointmentRepository
+	patientRepo store.PatientRepository
+	authRepo    store.AuthRepository
+	notifier    notifications.Notifier
 }
 
-func NewAppointmentService(repo store.AppointmentRepository, notifier notifications.Notifier) *AppointmentService {
-	return &AppointmentService{repo: repo, notifier: notifier}
+func NewAppointmentService(repo store.AppointmentRepository, notifier notifications.Notifier, opts ...func(*AppointmentService)) *AppointmentService {
+	svc := &AppointmentService{repo: repo, notifier: notifier}
+	for _, o := range opts {
+		o(svc)
+	}
+	return svc
+}
+
+func WithPatientRepo(r store.PatientRepository) func(*AppointmentService) {
+	return func(s *AppointmentService) { s.patientRepo = r }
+}
+
+func WithAuthRepo(r store.AuthRepository) func(*AppointmentService) {
+	return func(s *AppointmentService) { s.authRepo = r }
+}
+
+func (s *AppointmentService) patientEmail(ctx context.Context, patientID string) (email, name string) {
+	if s.patientRepo == nil {
+		return "", ""
+	}
+	p, err := s.patientRepo.GetByID(ctx, patientID)
+	if err != nil {
+		return "", ""
+	}
+	return p.Email, p.FirstName + " " + p.LastName
 }
 
 type CreateAppointmentInput struct {
@@ -73,7 +98,16 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 		PaymentAmount: in.PaymentAmount,
 		PaymentMethod: in.PaymentMethod,
 	}
-	return s.repo.Create(ctx, appt)
+	created, err := s.repo.Create(ctx, appt)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if s.notifier != nil {
+		if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
+			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "created", created.StartAt.In(loc), created.EndAt.In(loc))
+		}
+	}
+	return created, nil
 }
 
 func (s *AppointmentService) ListByDoctorAndDate(ctx context.Context, doctorID, date string) ([]domain.Appointment, error) {
@@ -159,6 +193,14 @@ func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, i
 	if err != nil {
 		return domain.Appointment{}, err
 	}
+	loc := time.Local
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, lerr := time.LoadLocation(tz); lerr == nil {
+			loc = l
+		}
+	}
+	prevStatus := appt.Status
+	prevStart := appt.StartAt
 	if in.StartAt != "" {
 		t, err := time.Parse(time.RFC3339, in.StartAt)
 		if err != nil {
@@ -185,7 +227,22 @@ func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, i
 	if in.PaymentMethod != "" {
 		appt.PaymentMethod = in.PaymentMethod
 	}
-	return s.repo.Update(ctx, appt)
+	updated, err := s.repo.Update(ctx, appt)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if s.notifier != nil {
+		if email, name := s.patientEmail(ctx, updated.PatientID); email != "" {
+			eventType := "updated"
+			if in.Status == "cancelled" && prevStatus != "cancelled" {
+				eventType = "cancelled"
+			} else if in.StartAt != "" && !updated.StartAt.Equal(prevStart) {
+				eventType = "moved"
+			}
+			_ = s.notifier.SendAppointmentEvent(ctx, email, name, eventType, updated.StartAt.In(loc), updated.EndAt.In(loc))
+		}
+	}
+	return updated, nil
 }
 
 func (s *AppointmentService) Delete(ctx context.Context, id string) error {
