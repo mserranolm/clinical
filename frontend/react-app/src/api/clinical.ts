@@ -18,6 +18,7 @@ export type AppointmentDTO = {
   patientId: string;
   startAt: string;
   endAt: string;
+  durationMinutes?: number;
   status: string;
   paymentAmount?: number;
   paymentMethod?: string;

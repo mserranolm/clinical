@@ -11,27 +11,47 @@ type AppointmentRow = {
   patientId: string;
   patientName?: string;
   startAt: string;
+  endAt: string;
+  durationMinutes: number;
   status: string;
   paymentAmount?: number;
 };
+
+const DURATION_BLOCKS = [
+  { label: "30 minutos", value: 30 },
+  { label: "1 hora", value: 60 },
+  { label: "1 hora 30 min", value: 90 },
+  { label: "2 horas", value: 120 },
+  { label: "2 horas 30 min", value: 150 },
+  { label: "3 horas", value: 180 },
+];
+
+function formatTimeRange(startAt: string, endAt: string): string {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  const fmt = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
 
 export function AppointmentsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
   const navigate = useNavigate();
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
+  const [duration, setDuration] = useState<number>(30);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const form = e.currentTarget;
 
+    const startAt = new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString();
     const promise = clinicalApi.createAppointment(
       {
         doctorId,
         patientId: selectedPatient?.id || '',
-        startAt: new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString(),
-        endAt: new Date(new Date(`${fd.get('date')}T${fd.get('time')}`).getTime() + 30 * 60000).toISOString(),
+        startAt,
+        durationMinutes: duration,
         treatmentPlan: String(fd.get("treatmentPlan") || ""),
         paymentAmount: Number(fd.get("paymentAmount") || 0),
         paymentMethod: String(fd.get("paymentMethod") || "")
@@ -68,6 +88,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         patientId: item.patientId,
         patientName: patientById.get(item.patientId),
         startAt: item.startAt,
+        endAt: item.endAt,
+        durationMinutes: item.durationMinutes ?? 30,
         status: item.status,
         paymentAmount: item.paymentAmount
       })));
@@ -140,9 +162,13 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                 <input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
               </div>
               <div className="input-group">
-                <label>Hora</label>
+                <label>Hora de inicio</label>
                 <select name="time" required>
                   <option value="">Seleccione una hora</option>
+                  <option value="07:00">07:00 AM</option>
+                  <option value="07:30">07:30 AM</option>
+                  <option value="08:00">08:00 AM</option>
+                  <option value="08:30">08:30 AM</option>
                   <option value="09:00">09:00 AM</option>
                   <option value="09:30">09:30 AM</option>
                   <option value="10:00">10:00 AM</option>
@@ -151,14 +177,31 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   <option value="11:30">11:30 AM</option>
                   <option value="12:00">12:00 PM</option>
                   <option value="12:30">12:30 PM</option>
+                  <option value="13:00">01:00 PM</option>
+                  <option value="13:30">01:30 PM</option>
                   <option value="14:00">02:00 PM</option>
                   <option value="14:30">02:30 PM</option>
                   <option value="15:00">03:00 PM</option>
                   <option value="15:30">03:30 PM</option>
                   <option value="16:00">04:00 PM</option>
                   <option value="16:30">04:30 PM</option>
+                  <option value="17:00">05:00 PM</option>
+                  <option value="17:30">05:30 PM</option>
+                  <option value="18:00">06:00 PM</option>
                 </select>
               </div>
+            </div>
+            <div className="input-group">
+              <label>Bloque de tiempo</label>
+              <select
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                required
+              >
+                {DURATION_BLOCKS.map((b) => (
+                  <option key={b.value} value={b.value}>{b.label}</option>
+                ))}
+              </select>
             </div>
             <button type="submit">Confirmar Espacio</button>
           </form>
@@ -200,7 +243,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   <td>
                     <strong>{row.patientName || row.patientId}</strong>
                   </td>
-                  <td>{new Date(row.startAt).toLocaleTimeString()}</td>
+                  <td>{formatTimeRange(row.startAt, row.endAt)}</td>
                   <td>
                     <span className={`badge ${isConfirmed(row.status) ? "status-confirmed" : "status-unconfirmed"}`}>
                       {isConfirmed(row.status) ? "confirmada" : "no confirmada"}

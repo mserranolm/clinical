@@ -553,18 +553,19 @@ type dynamoAppointmentRepo struct {
 func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
 	orgID := orgIDOrDefault(ctx)
 	item := map[string]types.AttributeValue{
-		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
-		"SK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", appointment.ID)},
-		"ID":             &types.AttributeValueMemberS{Value: appointment.ID},
-		"DoctorID":       &types.AttributeValueMemberS{Value: appointment.DoctorID},
-		"PatientID":      &types.AttributeValueMemberS{Value: appointment.PatientID},
-		"StartAt":        &types.AttributeValueMemberS{Value: appointment.StartAt.Format(time.RFC3339)},
-		"EndAt":          &types.AttributeValueMemberS{Value: appointment.EndAt.Format(time.RFC3339)},
-		"Status":         &types.AttributeValueMemberS{Value: appointment.Status},
-		"EvolutionNotes": &types.AttributeValueMemberS{Value: appointment.EvolutionNotes},
-		"TreatmentPlan":  &types.AttributeValueMemberS{Value: appointment.TreatmentPlan},
-		"PaymentAmount":  &types.AttributeValueMemberN{Value: fmt.Sprintf("%.2f", appointment.PaymentAmount)},
-		"PaymentMethod":  &types.AttributeValueMemberS{Value: appointment.PaymentMethod},
+		"PK":              &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+		"SK":              &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", appointment.ID)},
+		"ID":              &types.AttributeValueMemberS{Value: appointment.ID},
+		"DoctorID":        &types.AttributeValueMemberS{Value: appointment.DoctorID},
+		"PatientID":       &types.AttributeValueMemberS{Value: appointment.PatientID},
+		"StartAt":         &types.AttributeValueMemberS{Value: appointment.StartAt.Format(time.RFC3339)},
+		"EndAt":           &types.AttributeValueMemberS{Value: appointment.EndAt.Format(time.RFC3339)},
+		"DurationMinutes": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", appointment.DurationMinutes)},
+		"Status":          &types.AttributeValueMemberS{Value: appointment.Status},
+		"EvolutionNotes":  &types.AttributeValueMemberS{Value: appointment.EvolutionNotes},
+		"TreatmentPlan":   &types.AttributeValueMemberS{Value: appointment.TreatmentPlan},
+		"PaymentAmount":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%.2f", appointment.PaymentAmount)},
+		"PaymentMethod":   &types.AttributeValueMemberS{Value: appointment.PaymentMethod},
 	}
 
 	// Handle optional time fields

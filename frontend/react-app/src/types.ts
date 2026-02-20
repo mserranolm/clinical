@@ -53,7 +53,8 @@ export type CreateAppointmentInput = {
   doctorId: string;
   patientId: string;
   startAt: string;
-  endAt: string;
+  endAt?: string;
+  durationMinutes?: number;
   treatmentPlan?: string;
   paymentAmount?: number;
   paymentMethod?: string;

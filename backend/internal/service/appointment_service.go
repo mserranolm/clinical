@@ -46,26 +46,39 @@ func (s *AppointmentService) patientEmail(ctx context.Context, patientID string)
 }
 
 type CreateAppointmentInput struct {
-	DoctorID      string  `json:"doctorId"`
-	PatientID     string  `json:"patientId"`
-	StartAt       string  `json:"startAt"`
-	EndAt         string  `json:"endAt"`
-	TreatmentPlan string  `json:"treatmentPlan"`
-	PaymentAmount float64 `json:"paymentAmount"`
-	PaymentMethod string  `json:"paymentMethod"`
+	DoctorID        string  `json:"doctorId"`
+	PatientID       string  `json:"patientId"`
+	StartAt         string  `json:"startAt"`
+	EndAt           string  `json:"endAt"`
+	DurationMinutes int     `json:"durationMinutes"`
+	TreatmentPlan   string  `json:"treatmentPlan"`
+	PaymentAmount   float64 `json:"paymentAmount"`
+	PaymentMethod   string  `json:"paymentMethod"`
 }
 
 func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInput) (domain.Appointment, error) {
-	if in.DoctorID == "" || in.PatientID == "" || in.StartAt == "" || in.EndAt == "" {
-		return domain.Appointment{}, fmt.Errorf("doctorId, patientId, startAt and endAt are required")
+	if in.DoctorID == "" || in.PatientID == "" || in.StartAt == "" {
+		return domain.Appointment{}, fmt.Errorf("doctorId, patientId and startAt are required")
 	}
 	startAt, err := time.Parse(time.RFC3339, in.StartAt)
 	if err != nil {
 		return domain.Appointment{}, fmt.Errorf("invalid startAt")
 	}
-	endAt, err := time.Parse(time.RFC3339, in.EndAt)
-	if err != nil {
-		return domain.Appointment{}, fmt.Errorf("invalid endAt")
+	// Determine duration: prefer DurationMinutes, fallback to EndAt, default 30 min
+	durationMinutes := in.DurationMinutes
+	if durationMinutes <= 0 {
+		durationMinutes = 30
+	}
+	var endAt time.Time
+	if in.EndAt != "" {
+		parsed, err := time.Parse(time.RFC3339, in.EndAt)
+		if err != nil {
+			return domain.Appointment{}, fmt.Errorf("invalid endAt")
+		}
+		endAt = parsed
+		durationMinutes = int(endAt.Sub(startAt).Minutes())
+	} else {
+		endAt = startAt.Add(time.Duration(durationMinutes) * time.Minute)
 	}
 	// Resolve clinic timezone for human-friendly messages
 	loc := time.Local
@@ -88,15 +101,16 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	}
 
 	appt := domain.Appointment{
-		ID:            buildID("apt"),
-		DoctorID:      in.DoctorID,
-		PatientID:     in.PatientID,
-		StartAt:       startAt.UTC(),
-		EndAt:         endAt.UTC(),
-		Status:        "scheduled",
-		TreatmentPlan: in.TreatmentPlan,
-		PaymentAmount: in.PaymentAmount,
-		PaymentMethod: in.PaymentMethod,
+		ID:              buildID("apt"),
+		DoctorID:        in.DoctorID,
+		PatientID:       in.PatientID,
+		StartAt:         startAt.UTC(),
+		EndAt:           endAt.UTC(),
+		DurationMinutes: durationMinutes,
+		Status:          "scheduled",
+		TreatmentPlan:   in.TreatmentPlan,
+		PaymentAmount:   in.PaymentAmount,
+		PaymentMethod:   in.PaymentMethod,
 	}
 	created, err := s.repo.Create(ctx, appt)
 	if err != nil {

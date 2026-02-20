@@ -35,6 +35,7 @@ type Appointment struct {
 	PatientID           string     `json:"patientId"`
 	StartAt             time.Time  `json:"startAt"`
 	EndAt               time.Time  `json:"endAt"`
+	DurationMinutes     int        `json:"durationMinutes"`
 	Status              string     `json:"status"`
 	EvolutionNotes      string     `json:"evolutionNotes"`
 	TreatmentPlan       string     `json:"treatmentPlan"`
