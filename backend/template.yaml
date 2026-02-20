@@ -58,12 +58,12 @@ Resources:
       - ClinicalApiFunction
     Properties:
       UsagePlanName: !Sub "${AWS::StackName}-usage-plan"
-      Description: Clinical API usage plan - 100 requests per day
+      Description: Clinical API usage plan - 5000 requests per day
       Throttle:
-        RateLimit: 10
-        BurstLimit: 20
+        RateLimit: 50
+        BurstLimit: 100
       Quota:
-        Limit: 100
+        Limit: 5000
         Period: DAY
           
   # Asociar API Key con Usage Plan
