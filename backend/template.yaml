@@ -51,14 +51,17 @@ Resources:
       Description: API Key for Clinical frontend
       Enabled: true
       
-  # Usage Plan con límite de 100 llamadas diarias
+  # Usage Plan con límite de llamadas diarias
   ClinicalUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
     DependsOn:
-      - ClinicalApiFunction
+      - ClinicalRestApiprodStage
     Properties:
       UsagePlanName: !Sub "${AWS::StackName}-usage-plan"
       Description: Clinical API usage plan - 5000 requests per day
+      ApiStages:
+        - ApiId: !Ref ClinicalRestApi
+          Stage: prod
       Throttle:
         RateLimit: 50
         BurstLimit: 100
