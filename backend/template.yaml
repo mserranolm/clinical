@@ -58,15 +58,15 @@ Resources:
       - ClinicalRestApiprodStage
     Properties:
       UsagePlanName: !Sub "${AWS::StackName}-usage-plan"
-      Description: Clinical API usage plan - 5000 requests per day
+      Description: Clinical API usage plan - 50000 requests per day
       ApiStages:
         - ApiId: !Ref ClinicalRestApi
           Stage: prod
       Throttle:
-        RateLimit: 50
-        BurstLimit: 100
+        RateLimit: 100
+        BurstLimit: 500
       Quota:
-        Limit: 5000
+        Limit: 50000
         Period: DAY
           
   # Asociar API Key con Usage Plan
