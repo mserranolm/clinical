@@ -29,6 +29,8 @@ type DashboardAppointmentRow = {
 export function DashboardLayout({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const location = useLocation();
   const isPlatformAdmin = session.role === "platform_admin";
+  // Doctors scope patients/appointments to themselves; admin and assistant see the full org
+  const scopedDoctorId = session.role === "doctor" ? session.userId : "";
 
   const [appointmentsDate, setAppointmentsDate] = useState(new Date().toISOString().slice(0, 10));
   const [appointmentRows, setAppointmentRows] = useState<DashboardAppointmentRow[]>([]);
@@ -64,8 +66,8 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     setError("");
     try {
       const [appointmentsRes, patientsRes] = await Promise.all([
-        clinicalApi.listAppointments(session.userId, appointmentsDate, session.token),
-        clinicalApi.listPatients(session.userId, session.token)
+        clinicalApi.listAppointments(scopedDoctorId, appointmentsDate, session.token),
+        clinicalApi.listPatients(scopedDoctorId, session.token)
       ]);
 
       const patientById = new Map(
@@ -116,11 +118,11 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
           <Routes>
             <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} />} />
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
-            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={session.userId} session={session} />} />
-            <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={session.userId} session={session} />} />
-            <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={session.userId} />} />
-            <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={session.userId} />} />
-            <Route path="planes" element={<PlansPage token={session.token} doctorId={session.userId} />} />
+            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
+            <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
+            <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={scopedDoctorId} />} />
+            <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={scopedDoctorId} />} />
+            <Route path="planes" element={<PlansPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="usuarios" element={<UsersAdminPage session={session} />} />
             <Route path="testing" element={<ServiceTester session={session} onSessionChange={() => onLogout()} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
