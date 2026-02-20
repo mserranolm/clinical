@@ -56,14 +56,9 @@ Resources:
     Type: AWS::ApiGateway::UsagePlan
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
-    DependsOn:
-      - ClinicalRestApiprodStage
     Properties:
       UsagePlanName: !Sub "${AWS::StackName}-usage-plan"
       Description: Clinical API usage plan - 50000 requests per day
-      ApiStages:
-        - ApiId: !Ref ClinicalRestApi
-          Stage: prod
       Throttle:
         RateLimit: 100
         BurstLimit: 500

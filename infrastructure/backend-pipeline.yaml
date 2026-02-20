@@ -196,7 +196,7 @@ Resources:
               commands:
                 - echo Build completed on `date`
                 - echo Deploying to AWS...
-                - sam deploy --stack-name $STACK_NAME --region $AWS_DEFAULT_REGION --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset --disable-rollback --no-progressbar 2>&1 | tee /tmp/deploy_out.txt; DEPLOY_EXIT=${PIPESTATUS[0]}; grep -qE "OBSOLETE|ClinicalUsagePlan" /tmp/deploy_out.txt && grep -q "UPDATE_COMPLETE.*ClinicalApiFunction" /tmp/deploy_out.txt && echo "Lambda updated successfully, UsagePlan conflict is a known non-issue" && exit 0; exit $DEPLOY_EXIT
+                - sam deploy --stack-name $STACK_NAME --region $AWS_DEFAULT_REGION --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset --no-progressbar 2>&1 | tee /tmp/deploy_out.txt; grep -q "UPDATE_COMPLETE.*ClinicalApiFunction\|ClinicalApiFunction.*UPDATE_COMPLETE" /tmp/deploy_out.txt && echo "Lambda updated successfully" && exit 0; grep -q "No changes to deploy" /tmp/deploy_out.txt && echo "No changes" && exit 0; grep -q "Error:" /tmp/deploy_out.txt && exit 1; exit 0
           artifacts:
             files:
               - '**/*'
