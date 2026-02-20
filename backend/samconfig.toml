@@ -7,7 +7,6 @@ parallel = true
 [default.deploy.parameters]
 stack_name = "clinical-backend"
 region = "us-east-1"
-profile = "aski"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-j79kilfzke5b"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
