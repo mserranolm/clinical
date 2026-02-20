@@ -276,6 +276,16 @@ type CreateOrgAdminInput struct {
 	Password string `json:"password"`
 }
 
+type CreateOrgUserInput struct {
+	OrgID    string `json:"orgId"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+	Address  string `json:"address"`
+	Role     string `json:"role"`
+	Password string `json:"password"`
+}
+
 func (s *AuthService) BootstrapPlatformAdmin(ctx context.Context, in BootstrapPlatformAdminInput) (BootstrapPlatformAdminOutput, error) {
 	secret := strings.TrimSpace(os.Getenv("BOOTSTRAP_SECRET"))
 	if secret == "" {
@@ -538,6 +548,52 @@ func (s *AuthService) CreateOrgAdmin(ctx context.Context, in CreateOrgAdminInput
 		CreatedAt:    time.Now().UTC(),
 	}
 	return s.repo.CreateUser(ctx, user)
+}
+
+func (s *AuthService) CreateOrgUser(ctx context.Context, in CreateOrgUserInput) (UserDTO, error) {
+	if strings.TrimSpace(in.OrgID) == "" {
+		return UserDTO{}, fmt.Errorf("orgId is required")
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		return UserDTO{}, fmt.Errorf("name is required")
+	}
+	if strings.TrimSpace(in.Email) == "" {
+		return UserDTO{}, fmt.Errorf("email is required")
+	}
+	if len(in.Password) < 8 {
+		return UserDTO{}, fmt.Errorf("password must have at least 8 characters")
+	}
+	validRoles := map[string]bool{"admin": true, "doctor": true, "assistant": true, "patient": true}
+	if !validRoles[in.Role] {
+		return UserDTO{}, fmt.Errorf("invalid role")
+	}
+	if _, err := s.repo.GetOrganization(ctx, in.OrgID); err != nil {
+		return UserDTO{}, fmt.Errorf("organization not found")
+	}
+	if err := s.checkRoleLimit(ctx, in.OrgID, in.Role); err != nil {
+		return UserDTO{}, err
+	}
+	user := store.AuthUser{
+		ID:           buildID("usr"),
+		OrgID:        in.OrgID,
+		Name:         strings.TrimSpace(in.Name),
+		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
+		Phone:        strings.TrimSpace(in.Phone),
+		Address:      strings.TrimSpace(in.Address),
+		Role:         in.Role,
+		Status:       "active",
+		PasswordHash: hashPassword(in.Password),
+		CreatedAt:    time.Now().UTC(),
+	}
+	created, err := s.repo.CreateUser(ctx, user)
+	if err != nil {
+		return UserDTO{}, err
+	}
+	return UserDTO{
+		ID: created.ID, OrgID: created.OrgID, Name: created.Name,
+		Email: created.Email, Phone: created.Phone, Address: created.Address,
+		Role: created.Role, Status: created.Status, CreatedAt: created.CreatedAt,
+	}, nil
 }
 
 type UserDTO struct {

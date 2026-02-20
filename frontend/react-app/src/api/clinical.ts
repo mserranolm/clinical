@@ -224,6 +224,11 @@ export const clinicalApi = {
       `/orgs/${orgId}/users/${userId}`, { method: "PATCH", body: data, token }
     ),
 
+  createOrgUser: (orgId: string, data: { name: string; email: string; phone?: string; address?: string; role: string; password: string }, token: string) =>
+    request<{ id: string; name: string; email: string; phone: string; address: string; role: string; status: string }>(
+      `/orgs/${orgId}/users`, { method: "POST", body: data, token }
+    ),
+
   inviteUser: (orgId: string, data: { email: string; role: string }, token: string) =>
     request<{ token: string; email: string; role: string; expiresAt: string }>(
       `/orgs/${orgId}/invitations`, { method: "POST", body: data, token }

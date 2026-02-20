@@ -229,6 +229,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/orgs/"), "/users")
 				resp, err = r.listOrgUsers(actx, orgID)
 			}
+		case method == "POST" && strings.HasPrefix(path, "/orgs/") && strings.HasSuffix(path, "/users"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				orgID := strings.TrimSuffix(strings.TrimPrefix(path, "/orgs/"), "/users")
+				resp, err = r.createOrgUser(actx, orgID, req)
+			}
 		case method == "PATCH" && strings.Contains(path, "/users/") && strings.HasPrefix(path, "/orgs/"):
 			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
 				resp, err = deny, nil
@@ -581,6 +588,19 @@ func (r *Router) listOrganizations(ctx context.Context) (events.APIGatewayV2HTTP
 		return response(500, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]interface{}{"items": orgs})
+}
+
+func (r *Router) createOrgUser(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.CreateOrgUserInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	in.OrgID = orgID
+	user, err := r.auth.CreateOrgUser(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, user)
 }
 
 func (r *Router) createOrgAdmin(ctx context.Context, orgID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

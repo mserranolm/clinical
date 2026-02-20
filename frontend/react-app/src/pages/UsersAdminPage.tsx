@@ -5,7 +5,6 @@ import type { AuthSession } from "../types";
 type OrgUser = { id: string; name: string; email: string; phone?: string; address?: string; role: string; status: string; createdAt: string };
 
 const ROLE_LABELS: Record<string, string> = { admin: "Admin", doctor: "Doctor", assistant: "Asistente", patient: "Paciente" };
-const ROLE_LIMITS: Record<string, number> = { admin: 2, doctor: 5, assistant: 2 };
 
 const roleBadge = (role: string) => {
   const colors: Record<string, { bg: string; text: string }> = {
@@ -26,6 +25,12 @@ const statusBadge = (status: string) => (
   }}>{status === "active" ? "Activo" : "Deshabilitado"}</span>
 );
 
+const inp: React.CSSProperties = { width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box", fontSize: "0.875rem" };
+const lbl: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 };
+
+const EMPTY_CREATE = { name: "", email: "", phone: "", address: "", role: "doctor", password: "", confirm: "" };
+const EMPTY_INVITE = { email: "", role: "doctor" };
+
 export function UsersAdminPage({ session }: { session: AuthSession }) {
   const orgId = session.orgId ?? "";
   const token = session.token;
@@ -35,9 +40,12 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [showInvite, setShowInvite] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ email: "", role: "doctor" });
-  const [inviting, setInviting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "invite">("create");
+
+  const [createForm, setCreateForm] = useState(EMPTY_CREATE);
+  const [inviteForm, setInviteForm] = useState(EMPTY_INVITE);
+  const [submitting, setSubmitting] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
 
   const [editUser, setEditUser] = useState<OrgUser | null>(null);
@@ -62,21 +70,54 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
 
   const countByRole = (role: string) => users.filter(u => u.role === role && u.status === "active").length;
 
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (createForm.password !== createForm.confirm) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+    if (createForm.password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    setSubmitting(true);
+    setError(""); setSuccess("");
+    try {
+      await clinicalApi.createOrgUser(orgId, {
+        name: createForm.name,
+        email: createForm.email,
+        phone: createForm.phone,
+        address: createForm.address,
+        role: createForm.role,
+        password: createForm.password,
+      }, token);
+      setSuccess(`Usuario ${createForm.name} creado correctamente como ${ROLE_LABELS[createForm.role]}`);
+      setCreateForm(EMPTY_CREATE);
+      setShowForm(false);
+      loadUsers();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error creando usuario");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    setInviting(true);
+    setSubmitting(true);
     setError(""); setSuccess(""); setInviteLink("");
     try {
       const res = await clinicalApi.inviteUser(orgId, inviteForm, token);
       const base = window.location.origin;
-      setInviteLink(`${base}/accept-invitation?token=${res.token}`);
-      setSuccess(`Invitación creada para ${res.email} (${ROLE_LABELS[res.role] ?? res.role}). Expira: ${new Date(res.expiresAt).toLocaleString()}`);
-      setInviteForm({ email: "", role: "doctor" });
-      setShowInvite(false);
+      const link = `${base}/accept-invitation?token=${res.token}`;
+      setInviteLink(link);
+      setSuccess(`Invitación enviada a ${res.email} (${ROLE_LABELS[res.role] ?? res.role}). Expira: ${new Date(res.expiresAt).toLocaleString()}`);
+      setInviteForm(EMPTY_INVITE);
+      setShowForm(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error enviando invitación");
     } finally {
-      setInviting(false);
+      setSubmitting(false);
     }
   }
 
@@ -112,32 +153,38 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
     }
   }
 
+  const orgLimits = { maxDoctors: 5, maxAssistants: 2, maxPatients: 20 };
+
   if (!orgId) {
     return <div style={{ padding: "2rem" }}><p style={{ color: "#6b7280" }}>No hay organización asociada a tu cuenta.</p></div>;
   }
 
   return (
     <div style={{ padding: "2rem", maxWidth: 900, margin: "0 auto" }}>
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.25rem" }}>Usuarios y permisos</h1>
           <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>Org: <code style={{ background: "#f3f4f6", padding: "1px 6px", borderRadius: 4 }}>{orgId}</code></p>
         </div>
-        <button onClick={() => { setShowInvite(!showInvite); setInviteLink(""); }}
-          style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 500 }}>
-          + Invitar usuario
+        <button onClick={() => { setShowForm(!showForm); setError(""); setSuccess(""); }}
+          style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>
+          + Agregar usuario
         </button>
       </div>
 
       {/* Contadores por rol */}
       <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        {(["admin", "doctor", "assistant"] as const).map(role => {
+        {([
+          { role: "admin", limit: orgLimits.maxDoctors, label: "Admin" },
+          { role: "doctor", limit: orgLimits.maxDoctors, label: "Doctor" },
+          { role: "assistant", limit: orgLimits.maxAssistants, label: "Asistente" },
+        ] as const).map(({ role, limit, label }) => {
           const count = countByRole(role);
-          const limit = ROLE_LIMITS[role];
           const full = count >= limit;
           return (
             <div key={role} style={{ background: full ? "#fef2f2" : "#f9fafb", border: `1px solid ${full ? "#fca5a5" : "#e5e7eb"}`, borderRadius: 8, padding: "0.75rem 1rem", minWidth: 120 }}>
-              <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>{ROLE_LABELS[role]}</div>
+              <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>{label}</div>
               <div style={{ fontSize: "1.25rem", fontWeight: 700, color: full ? "#dc2626" : "#111827" }}>{count}<span style={{ fontSize: "0.875rem", fontWeight: 400, color: "#6b7280" }}>/{limit}</span></div>
               {full && <div style={{ fontSize: "0.7rem", color: "#dc2626", marginTop: "0.25rem" }}>Límite alcanzado</div>}
             </div>
@@ -145,7 +192,7 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         })}
         <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "0.75rem 1rem", minWidth: 120 }}>
           <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>Pacientes</div>
-          <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>{countByRole("patient")}<span style={{ fontSize: "0.875rem", fontWeight: 400, color: "#6b7280" }}>/∞</span></div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>{countByRole("patient")}<span style={{ fontSize: "0.875rem", fontWeight: 400, color: "#6b7280" }}>/{orgLimits.maxPatients}</span></div>
         </div>
       </div>
 
@@ -163,44 +210,111 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         </div>
       )}
 
-      {showInvite && (
-        <form onSubmit={handleInvite} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "1.25rem", marginBottom: "1.5rem" }}>
+      {/* Formulario principal */}
+      {showForm && (
+        <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "1.25rem", marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Invitar nuevo usuario</h3>
-            <button type="button" onClick={() => setShowInvite(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem", color: "#6b7280" }}>✕</button>
+            <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Agregar usuario</h3>
+            <button type="button" onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem", color: "#6b7280" }}>✕</button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>Email *</label>
-              <input required type="email" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="doctor@clinica.com"
-                style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>Rol *</label>
-              <select value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}
-                style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}>
-                <option value="doctor">Doctor</option>
-                <option value="assistant">Asistente</option>
-                <option value="admin">Admin</option>
-                <option value="patient">Paciente</option>
-              </select>
-            </div>
-          </div>
-          <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "0.75rem", marginBottom: "0.75rem" }}>
-            📧 Se enviará un email de invitación. El usuario completará su nombre, teléfono y dirección al aceptar.
-          </p>
-          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-            <button type="button" onClick={() => setShowInvite(false)}
-              style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
-              Cancelar
+
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.75rem" }}>
+            <button type="button" onClick={() => setFormMode("create")}
+              style={{ padding: "0.4rem 1rem", borderRadius: 6, border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem", background: formMode === "create" ? "#2563eb" : "#f3f4f6", color: formMode === "create" ? "#fff" : "#374151" }}>
+              👤 Crear directamente
             </button>
-            <button type="submit" disabled={inviting}
-              style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
-              {inviting ? "Enviando..." : "Enviar invitación"}
+            <button type="button" onClick={() => setFormMode("invite")}
+              style={{ padding: "0.4rem 1rem", borderRadius: 6, border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem", background: formMode === "invite" ? "#2563eb" : "#f3f4f6", color: formMode === "invite" ? "#fff" : "#374151" }}>
+              ✉️ Invitar por email
             </button>
           </div>
-        </form>
+
+          {/* Modo: Crear directamente */}
+          {formMode === "create" && (
+            <form onSubmit={handleCreate}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label style={lbl}>Nombre completo *</label>
+                  <input required style={inp} value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} placeholder="Dr. Juan Pérez" />
+                </div>
+                <div>
+                  <label style={lbl}>Email *</label>
+                  <input required type="email" style={inp} value={createForm.email} onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))} placeholder="doctor@clinica.com" />
+                </div>
+                <div>
+                  <label style={lbl}>Teléfono</label>
+                  <input type="tel" style={inp} value={createForm.phone} onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))} placeholder="+57 300 000 0000" />
+                </div>
+                <div>
+                  <label style={lbl}>Rol *</label>
+                  <select required style={inp} value={createForm.role} onChange={e => setCreateForm(f => ({ ...f, role: e.target.value }))}>
+                    <option value="doctor">Doctor</option>
+                    <option value="assistant">Asistente</option>
+                    <option value="admin">Admin</option>
+                    <option value="patient">Paciente</option>
+                  </select>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={lbl}>Dirección</label>
+                  <input style={inp} value={createForm.address} onChange={e => setCreateForm(f => ({ ...f, address: e.target.value }))} placeholder="Calle 10 # 5-20, Ciudad" />
+                </div>
+                <div>
+                  <label style={lbl}>Contraseña * (mín. 8 caracteres)</label>
+                  <input required type="password" style={inp} value={createForm.password} onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
+                </div>
+                <div>
+                  <label style={lbl}>Confirmar contraseña *</label>
+                  <input required type="password" style={inp} value={createForm.confirm} onChange={e => setCreateForm(f => ({ ...f, confirm: e.target.value }))} placeholder="••••••••" />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowForm(false)}
+                  style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={submitting}
+                  style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+                  {submitting ? "Creando..." : "Crear usuario"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Modo: Invitar por email */}
+          {formMode === "invite" && (
+            <form onSubmit={handleInvite}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={lbl}>Email *</label>
+                  <input required type="email" style={inp} value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))} placeholder="doctor@clinica.com" />
+                </div>
+                <div>
+                  <label style={lbl}>Rol *</label>
+                  <select style={inp} value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}>
+                    <option value="doctor">Doctor</option>
+                    <option value="assistant">Asistente</option>
+                    <option value="admin">Admin</option>
+                    <option value="patient">Paciente</option>
+                  </select>
+                </div>
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+                📧 Se enviará un email con el link de invitación. El usuario completará su nombre, teléfono y dirección al aceptar.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowForm(false)}
+                  style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={submitting}
+                  style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+                  {submitting ? "Enviando..." : "Enviar invitación"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       )}
 
       {/* Modal editar rol */}
@@ -217,9 +331,9 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
             </select>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button type="button" onClick={() => setEditUser(null)}
-                style={{ background: "#f3f4f6", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer" }}>Cancelar</button>
+                style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
               <button type="submit" disabled={saving}
-                style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer" }}>
+                style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }}>
                 {saving ? "Guardando..." : "Guardar"}
               </button>
             </div>
@@ -227,7 +341,8 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         </div>
       )}
 
-      <h2 style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Miembros ({users.length})</h2>
+      {/* Lista de miembros */}
+      <h2 style={{ fontWeight: 700, marginBottom: "0.75rem", fontSize: "1rem" }}>Miembros ({users.length})</h2>
       {loading ? (
         <p style={{ color: "#6b7280" }}>Cargando...</p>
       ) : users.length === 0 ? (
