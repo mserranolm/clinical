@@ -15,7 +15,7 @@ export function UserTable({ users, session, onUpdate, onError, onSuccess }: User
   const [editUser, setEditUser] = useState<OrgUser | null>(null);
   const [editRole, setEditRole] = useState("");
   const [editInfoUser, setEditInfoUser] = useState<OrgUser | null>(null);
-  const [editInfo, setEditInfo] = useState({ name: "", phone: "", address: "" });
+  const [editInfo, setEditInfo] = useState({ name: "", email: "", phone: "", address: "" });
   const [confirmDelete, setConfirmDelete] = useState<OrgUser | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,12 +44,13 @@ export function UserTable({ users, session, onUpdate, onError, onSuccess }: User
     try {
       await clinicalApi.updateOrgUser(orgId, editInfoUser.id, {
         name: editInfo.name,
+        email: editInfo.email,
         phone: editInfo.phone,
         address: editInfo.address,
       }, token);
       onSuccess("Información actualizada correctamente");
       setEditInfoUser(null);
-      setEditInfo({ name: "", phone: "", address: "" });
+      setEditInfo({ name: "", email: "", phone: "", address: "" });
       onUpdate();
     } catch (e: unknown) {
       onError(e instanceof Error ? e.message : "Error actualizando información");
@@ -156,7 +157,7 @@ export function UserTable({ users, session, onUpdate, onError, onSuccess }: User
                 <td style={{ padding: "1rem" }}>
                   <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center" }}>
                     <button
-                      onClick={() => { setEditInfoUser(user); setEditInfo({ name: user.name, phone: user.phone || "", address: user.address || "" }); }}
+                      onClick={() => { setEditInfoUser(user); setEditInfo({ name: user.name, email: user.email || "", phone: user.phone || "", address: user.address || "" }); }}
                       style={{ padding: "0.25rem 0.5rem", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 4, fontSize: "0.75rem", cursor: "pointer" }}
                     >
                       Editar
@@ -196,6 +197,15 @@ export function UserTable({ users, session, onUpdate, onError, onSuccess }: User
                 />
               </div>
               <div>
+                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>Correo electrónico</label>
+                <input
+                  type="email"
+                  value={editInfo.email}
+                  onChange={(e) => setEditInfo({ ...editInfo, email: e.target.value })}
+                  style={{ width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: 6 }}
+                />
+              </div>
+              <div>
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>Teléfono</label>
                 <input
                   value={editInfo.phone}
@@ -213,7 +223,7 @@ export function UserTable({ users, session, onUpdate, onError, onSuccess }: User
               </div>
               <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                 <button
-                  onClick={() => { setEditInfoUser(null); setEditInfo({ name: "", phone: "", address: "" }); }}
+                  onClick={() => { setEditInfoUser(null); setEditInfo({ name: "", email: "", phone: "", address: "" }); }}
                   style={{ padding: "0.5rem 1rem", background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
                 >
                   Cancelar

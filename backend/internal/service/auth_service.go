@@ -688,6 +688,7 @@ type UpdateOrgUserInput struct {
 	OrgID   string `json:"orgId"`
 	UserID  string `json:"userId"`
 	Name    string `json:"name,omitempty"`
+	Email   string `json:"email,omitempty"`
 	Phone   string `json:"phone,omitempty"`
 	Address string `json:"address,omitempty"`
 	Role    string `json:"role,omitempty"`
@@ -745,6 +746,15 @@ func (s *AuthService) UpdateOrgUser(ctx context.Context, in UpdateOrgUserInput) 
 	}
 	if in.Name != "" {
 		user.Name = strings.TrimSpace(in.Name)
+	}
+	if in.Email != "" {
+		newEmail := strings.ToLower(strings.TrimSpace(in.Email))
+		if newEmail != user.Email {
+			if existing, err := s.repo.GetUserByEmail(ctx, newEmail); err == nil && existing.ID != user.ID {
+				return UserDTO{}, fmt.Errorf("email already in use")
+			}
+			user.Email = newEmail
+		}
 	}
 	if in.Phone != "" {
 		user.Phone = strings.TrimSpace(in.Phone)

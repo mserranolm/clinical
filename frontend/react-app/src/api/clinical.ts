@@ -219,7 +219,7 @@ export const clinicalApi = {
       `/orgs/${orgId}/users`, { token }
     ),
 
-  updateOrgUser: (orgId: string, userId: string, data: { role?: string; status?: string; name?: string; phone?: string; address?: string }, token: string) =>
+  updateOrgUser: (orgId: string, userId: string, data: { role?: string; status?: string; name?: string; email?: string; phone?: string; address?: string }, token: string) =>
     request<{ id: string; name: string; email: string; phone: string; address: string; role: string; status: string }>(
       `/orgs/${orgId}/users/${userId}`, { method: "PATCH", body: data, token }
     ),
