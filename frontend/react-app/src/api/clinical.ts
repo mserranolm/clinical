@@ -108,6 +108,12 @@ export const clinicalApi = {
       }
     ),
 
+  getAppointment: (appointmentId: string, token?: string) =>
+    request<AppointmentDTO>(endpointCatalog.getAppointment(appointmentId), {
+      method: "GET",
+      token
+    }),
+
   confirmAppointment: (appointmentId: string, token?: string) =>
     request<AppointmentDTO>(endpointCatalog.confirmAppointment(appointmentId), {
       method: "POST",

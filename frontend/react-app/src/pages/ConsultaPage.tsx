@@ -87,6 +87,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("efectivo");
   const [activeTab, setActiveTab] = useState<"historia" | "odontograma" | "evolucion">("historia");
+  const [appointmentStatus, setAppointmentStatus] = useState<string>("scheduled");
+  const [appointmentDate, setAppointmentDate] = useState<string>("");
+
+  const isClosed = appointmentStatus === "completed";
 
   useEffect(() => {
     if (!patientId) { navigate("/dashboard/citas"); return; }
@@ -96,16 +100,35 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   async function loadAll() {
     setLoading(true);
     try {
-      const [pat, odnResult] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         clinicalApi.getPatient(patientId, token),
         clinicalApi.getOdontogramByPatient(patientId, token),
+        appointmentId ? clinicalApi.getAppointment(appointmentId, token) : Promise.reject("no-id"),
       ]);
+
+      const [pat, odnResult, apptResult] = results;
 
       if (pat.status === "fulfilled") {
         const p = pat.value as PatientData;
         setPatient(p);
-        const h = patientToHistory(p);
-        setHistory(h);
+        setHistory(patientToHistory(p));
+      }
+
+      if (apptResult.status === "fulfilled") {
+        const appt = apptResult.value as {
+          status: string;
+          startAt?: string;
+          evolutionNotes?: string;
+          treatmentPlan?: string;
+          paymentAmount?: number;
+          paymentMethod?: string;
+        };
+        setAppointmentStatus(appt.status ?? "scheduled");
+        setAppointmentDate(appt.startAt ?? "");
+        if (appt.evolutionNotes) setEvolutionNotes(appt.evolutionNotes);
+        if (appt.treatmentPlan) setTreatmentPlan(appt.treatmentPlan);
+        if (appt.paymentAmount) setPaymentAmount(appt.paymentAmount);
+        if (appt.paymentMethod) setPaymentMethod(appt.paymentMethod);
       }
 
       if (odnResult.status === "fulfilled") {
@@ -118,7 +141,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
               const surfMap: Record<Surface, string> = { O: "none", V: "none", L: "none", M: "none", D: "none" };
               t.surfaces.forEach(s => {
                 const surf = s.surface.charAt(0).toUpperCase() as Surface;
-                surfMap[surf] = s.condition === "caries" ? "caries" : s.condition === "filled" ? "restored" : s.condition === "healthy" ? "none" : "none";
+                surfMap[surf] = s.condition === "caries" ? "caries" : s.condition === "filled" ? "restored" : "none";
               });
               states[t.toothNumber] = surfMap;
             }
@@ -134,6 +157,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   }
 
   function handleToothClick(toothNum: number, surface: Surface) {
+    if (isClosed) return;
     setToothStates(prev => {
       const current = prev[toothNum] ?? { O: "none", V: "none", L: "none", M: "none", D: "none" };
       const cycle = ["none", "caries", "restored", "completed"];
@@ -143,7 +167,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   }
 
   async function saveHistoria() {
-    if (!patient) return;
+    if (!patient || isClosed) return;
     setSaving(true);
     try {
       await clinicalApi.updatePatient(patient.id, { medicalBackgrounds: historyToBackgrounds(history) }, token);
@@ -156,6 +180,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   }
 
   async function saveOdontogram() {
+    if (isClosed) return;
     setSaving(true);
     try {
       let currentId = odontogramId?.trim() || null;
@@ -179,6 +204,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
       notify.error("Notas requeridas", "Agrega notas de evolución antes de finalizar.");
       return;
     }
+    if (isClosed) return;
     setSaving(true);
     try {
       await clinicalApi.closeAppointmentDay(appointmentId, {
@@ -220,6 +246,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
     ? Math.floor((Date.now() - new Date(patient.birthDate).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
 
+  const apptDateLabel = appointmentDate
+    ? new Date(appointmentDate).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
+
   return (
     <div className="consulta-page">
       {/* Header del paciente */}
@@ -241,11 +271,22 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
             </div>
           </div>
           <div className="consulta-appointment-badge">
-            <span className="badge status-confirmed">Consulta en curso</span>
-            {appointmentId && <small className="mono">{appointmentId.slice(0, 20)}...</small>}
+            {isClosed ? (
+              <span className="badge status-completed">✓ Consulta finalizada</span>
+            ) : (
+              <span className="badge status-confirmed">Consulta en curso</span>
+            )}
+            {apptDateLabel && <small style={{ color: "#64748b", fontSize: "0.72rem" }}>{apptDateLabel}</small>}
           </div>
         </div>
       </div>
+
+      {/* Banner de consulta cerrada */}
+      {isClosed && (
+        <div className="consulta-closed-banner">
+          🔒 Esta consulta ya fue finalizada y no puede modificarse. Solo lectura.
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="consulta-tabs">
@@ -274,17 +315,19 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         <div className="consulta-section card elite-card">
           <div className="consulta-section-header">
             <h3>Historial Médico</h3>
-            <span className="consulta-hint" style={{margin:0}}>Actualiza los antecedentes del paciente</span>
+            <span className="consulta-hint" style={{ margin: 0 }}>
+              {isClosed ? "Solo lectura — consulta finalizada" : "Antecedentes permanentes del paciente"}
+            </span>
           </div>
 
           <div className="historia-grid">
-            {/* Fila 1: Medicamentos y alergias */}
             <div className="historia-field-group">
               <div className="historia-check-field">
                 <label className="historia-check-label">
                   <input
                     type="checkbox"
                     checked={history.medication}
+                    disabled={isClosed}
                     onChange={e => setHistory(h => ({ ...h, medication: e.target.checked }))}
                   />
                   <span>¿Toma algún medicamento?</span>
@@ -294,6 +337,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     className="historia-detail-input"
                     placeholder="¿Cuál(es)?"
                     value={history.medicationDetail}
+                    disabled={isClosed}
                     onChange={e => setHistory(h => ({ ...h, medicationDetail: e.target.value }))}
                   />
                 )}
@@ -304,6 +348,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   <input
                     type="checkbox"
                     checked={history.allergyMed}
+                    disabled={isClosed}
                     onChange={e => setHistory(h => ({ ...h, allergyMed: e.target.checked }))}
                   />
                   <span>¿Alergia a algún medicamento?</span>
@@ -313,6 +358,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     className="historia-detail-input"
                     placeholder="¿A cuál(es)?"
                     value={history.allergyMedDetail}
+                    disabled={isClosed}
                     onChange={e => setHistory(h => ({ ...h, allergyMedDetail: e.target.value }))}
                   />
                 )}
@@ -323,6 +369,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   <input
                     type="checkbox"
                     checked={history.allergies}
+                    disabled={isClosed}
                     onChange={e => setHistory(h => ({ ...h, allergies: e.target.checked }))}
                   />
                   <span>Alergias generales</span>
@@ -332,13 +379,13 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     className="historia-detail-input"
                     placeholder="Especificar..."
                     value={history.allergiesDetail}
+                    disabled={isClosed}
                     onChange={e => setHistory(h => ({ ...h, allergiesDetail: e.target.value }))}
                   />
                 )}
               </div>
             </div>
 
-            {/* Fila 2: Patologías */}
             <div className="historia-pathologies">
               <p className="historia-subtitle">Antecedentes patológicos</p>
               <div className="pathologies-grid">
@@ -349,10 +396,11 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   ["hypertension", "Hipertensión"],
                   ["cholesterol", "Colesterol"],
                 ] as [keyof MedicalHistory, string][]).map(([key, label]) => (
-                  <label key={key} className={`pathology-chip ${history[key] ? "active" : ""}`}>
+                  <label key={key} className={`pathology-chip ${history[key] ? "active" : ""} ${isClosed ? "disabled" : ""}`}>
                     <input
                       type="checkbox"
                       checked={!!history[key]}
+                      disabled={isClosed}
                       onChange={e => setHistory(h => ({ ...h, [key]: e.target.checked }))}
                     />
                     {label}
@@ -369,15 +417,18 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
               placeholder="Describa otras condiciones relevantes..."
               value={history.otherPathology}
               rows={3}
+              disabled={isClosed}
               onChange={e => setHistory(h => ({ ...h, otherPathology: e.target.value }))}
             />
           </div>
 
-          <div className="consulta-actions">
-            <button className="action-btn action-btn-confirm" onClick={saveHistoria} disabled={saving}>
-              💾 Guardar Historial
-            </button>
-          </div>
+          {!isClosed && (
+            <div className="consulta-actions">
+              <button className="action-btn action-btn-confirm" onClick={saveHistoria} disabled={saving}>
+                💾 Guardar Historial
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -393,15 +444,21 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
               <span className="odon-dot" style={{ background: "#10b981" }} /> Terminado
             </div>
           </div>
-          <p className="consulta-hint">Haz clic en cada superficie del diente para marcar su condición. Cada clic cicla entre los estados.</p>
+          <p className="consulta-hint">
+            {isClosed
+              ? "Solo lectura — el odontograma de esta consulta no puede modificarse."
+              : "Haz clic en cada superficie del diente para marcar su condición. Cada clic cicla entre los estados."}
+          </p>
 
-          <OdontogramChart toothStates={toothStates} onToothClick={handleToothClick} />
+          <OdontogramChart toothStates={toothStates} onToothClick={isClosed ? undefined : handleToothClick} />
 
-          <div className="consulta-actions" style={{ marginTop: 24 }}>
-            <button className="action-btn action-btn-confirm" onClick={saveOdontogram} disabled={saving}>
-              💾 Guardar Odontograma
-            </button>
-          </div>
+          {!isClosed && (
+            <div className="consulta-actions" style={{ marginTop: 24 }}>
+              <button className="action-btn action-btn-confirm" onClick={saveOdontogram} disabled={saving}>
+                💾 Guardar Odontograma
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -410,16 +467,18 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         <div className="consulta-section card elite-card">
           <div className="consulta-section-header">
             <h3>Evolución de la Consulta</h3>
+            {apptDateLabel && <span className="consulta-hint" style={{ margin: 0 }}>📅 {apptDateLabel}</span>}
           </div>
 
           <div className="evolucion-grid">
             <div className="input-group">
-              <label>Notas de evolución <span className="required">*</span></label>
+              <label>Notas de evolución {!isClosed && <span className="required">*</span>}</label>
               <textarea
                 className="historia-textarea evolucion-textarea"
                 placeholder="Describe el motivo de consulta, hallazgos clínicos, procedimientos realizados y observaciones..."
                 value={evolutionNotes}
                 rows={6}
+                disabled={isClosed}
                 onChange={e => setEvolutionNotes(e.target.value)}
               />
             </div>
@@ -431,6 +490,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                 placeholder="Indica el plan de tratamiento acordado con el paciente para próximas visitas..."
                 value={treatmentPlan}
                 rows={4}
+                disabled={isClosed}
                 onChange={e => setTreatmentPlan(e.target.value)}
               />
             </div>
@@ -446,6 +506,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   min={0}
                   step={0.01}
                   value={paymentAmount}
+                  disabled={isClosed}
                   onChange={e => setPaymentAmount(Number(e.target.value))}
                   className="elite-input"
                   placeholder="0.00"
@@ -455,6 +516,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                 <label>Método de pago</label>
                 <select
                   value={paymentMethod}
+                  disabled={isClosed}
                   onChange={e => setPaymentMethod(e.target.value)}
                   className="elite-input"
                 >
@@ -469,16 +531,24 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
           </div>
 
           <div className="consulta-actions finalizar-actions">
-            <button
-              className="action-btn action-btn-treat finalizar-btn"
-              onClick={finalizarConsulta}
-              disabled={saving || !evolutionNotes.trim()}
-            >
-              {saving ? <><span className="auth-spinner" /> Guardando...</> : "✅ Finalizar Consulta"}
-            </button>
-            <button className="action-btn" onClick={() => navigate("/dashboard/citas")}>
-              Cancelar
-            </button>
+            {isClosed ? (
+              <div className="consulta-closed-note">
+                ✓ Consulta finalizada — registro guardado
+              </div>
+            ) : (
+              <>
+                <button
+                  className="action-btn action-btn-treat finalizar-btn"
+                  onClick={finalizarConsulta}
+                  disabled={saving || !evolutionNotes.trim()}
+                >
+                  {saving ? <><span className="auth-spinner" /> Guardando...</> : "✅ Finalizar Consulta"}
+                </button>
+                <button className="action-btn" onClick={() => navigate("/dashboard/citas")}>
+                  Cancelar
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -122,6 +122,20 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   }
 
   const isConfirmed = (status: string) => status === "confirmed";
+  const isCompleted = (status: string) => status === "completed";
+
+  const statusLabel: Record<string, string> = {
+    scheduled: "pendiente",
+    confirmed: "confirmada",
+    completed: "finalizada",
+    cancelled: "cancelada",
+  };
+  const statusClass: Record<string, string> = {
+    scheduled: "status-unconfirmed",
+    confirmed: "status-confirmed",
+    completed: "status-completed",
+    cancelled: "status-cancelled",
+  };
 
   const goToTreatment = (row: AppointmentRow) => {
     navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
@@ -341,38 +355,49 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   </td>
                   <td>{formatTimeRange(row.startAt, row.endAt)}</td>
                   <td>
-                    <span className={`badge ${isConfirmed(row.status) ? "status-confirmed" : "status-unconfirmed"}`}>
-                      {isConfirmed(row.status) ? "confirmada" : "no confirmada"}
+                    <span className={`badge ${statusClass[row.status] ?? "status-unconfirmed"}`}>
+                      {statusLabel[row.status] ?? row.status}
                     </span>
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {canWriteAppointments(session) && row.status !== "cancelled" && (
+                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn" onClick={() => openEdit(row)}>
                           <span className="icon">✏️</span>
                           <span>Editar</span>
                         </button>
                       )}
-                      {canWriteAppointments(session) && !isConfirmed(row.status) && row.status !== "cancelled" && (
+                      {canWriteAppointments(session) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
                           <span className="icon">✓</span>
                           <span>Confirmar</span>
                         </button>
                       )}
-                      {canWriteAppointments(session) && row.status !== "cancelled" && (
+                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn" onClick={() => onCancel(row.id)}>
                           <span className="icon">✕</span>
                           <span>Cancelar</span>
                         </button>
                       )}
-                      {canWriteAppointments(session) && (
+                      {canWriteAppointments(session) && !isCompleted(row.status) && (
                         <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
                           <span className="icon">✉️</span>
                           <span>Reenviar</span>
                         </button>
                       )}
-                      {canManageTreatments(session) && (
-                        <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
+                      {canManageTreatments(session) && isCompleted(row.status) && (
+                        <button type="button" className="action-btn" style={{ opacity: 0.5, cursor: "not-allowed" }} disabled title="Consulta ya finalizada">
+                          <span>✓ Finalizada</span>
+                        </button>
+                      )}
+                      {canManageTreatments(session) && !isCompleted(row.status) && (
+                        <button
+                          type="button"
+                          className="action-btn action-btn-treat"
+                          onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
+                          title={isConfirmed(row.status) ? "Atender paciente" : "La cita debe estar confirmada para atender"}
+                          style={!isConfirmed(row.status) ? { opacity: 0.55 } : {}}
+                        >
                           <span>Atender</span>
                           <span className="icon">→</span>
                         </button>

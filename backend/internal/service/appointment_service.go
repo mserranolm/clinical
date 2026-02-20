@@ -124,6 +124,10 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	return created, nil
 }
 
+func (s *AppointmentService) GetByID(ctx context.Context, id string) (domain.Appointment, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
 func (s *AppointmentService) ListByDoctorAndDate(ctx context.Context, doctorID, date string) ([]domain.Appointment, error) {
 	day := time.Now().UTC()
 	if date != "" {
@@ -144,7 +148,22 @@ func (s *AppointmentService) Confirm(ctx context.Context, appointmentID string) 
 	now := time.Now().UTC()
 	item.Status = "confirmed"
 	item.PatientConfirmedAt = &now
-	return s.repo.Update(ctx, item)
+	updated, err := s.repo.Update(ctx, item)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if s.notifier != nil {
+		loc := time.Local
+		if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+			if l, lerr := time.LoadLocation(tz); lerr == nil {
+				loc = l
+			}
+		}
+		if email, name := s.patientEmail(ctx, updated.PatientID); email != "" {
+			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "confirmed", updated.StartAt.In(loc), updated.EndAt.In(loc))
+		}
+	}
+	return updated, nil
 }
 
 func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appointmentID, evolutionNotes string, paymentAmount float64, paymentMethod string) (domain.Appointment, error) {
@@ -162,7 +181,22 @@ func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appoint
 	if paymentMethod != "" {
 		item.PaymentMethod = paymentMethod
 	}
-	return s.repo.Update(ctx, item)
+	updated, err := s.repo.Update(ctx, item)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if s.notifier != nil {
+		loc := time.Local
+		if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+			if l, lerr := time.LoadLocation(tz); lerr == nil {
+				loc = l
+			}
+		}
+		if email, name := s.patientEmail(ctx, updated.PatientID); email != "" {
+			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "completed", updated.StartAt.In(loc), updated.EndAt.In(loc))
+		}
+	}
+	return updated, nil
 }
 
 func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID, channel string) error {

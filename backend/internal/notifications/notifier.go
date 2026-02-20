@@ -122,6 +122,8 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 		"created":   "Cita agendada",
 		"moved":     "Cita reprogramada",
 		"cancelled": "Cita cancelada",
+		"confirmed": "Cita confirmada",
+		"completed": "Consulta finalizada",
 		"updated":   "Actualización de cita",
 	}
 	title := titles[eventType]
@@ -146,6 +148,20 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 			startAt.Format("02/01/2006"),
 			startAt.Format("15:04"),
 			endAt.Format("15:04"),
+		)
+	case "confirmed":
+		body = fmt.Sprintf(
+			"Hola %s,\n\nTu cita del %s de %s a %s ha sido CONFIRMADA.\n\nTe esperamos puntualmente. Si necesitas cancelar, contáctanos con anticipación.",
+			patientName,
+			startAt.Format("02/01/2006"),
+			startAt.Format("15:04"),
+			endAt.Format("15:04"),
+		)
+	case "completed":
+		body = fmt.Sprintf(
+			"Hola %s,\n\nTu consulta del %s ha sido registrada exitosamente.\n\nGracias por tu visita. Recuerda seguir las indicaciones de tu doctor y no olvides tu próxima cita.",
+			patientName,
+			startAt.Format("02/01/2006"),
 		)
 	default:
 		body = fmt.Sprintf(

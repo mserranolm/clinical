@@ -344,6 +344,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.listAppointments(actx, req)
 			}
+		case method == "GET" && strings.HasPrefix(path, "/appointments/"):
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/appointments/")
+				resp, err = r.getAppointment(actx, id)
+			}
 		case method == "POST" && strings.HasSuffix(path, "/confirm") && strings.HasPrefix(path, "/appointments/"):
 			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
 				resp, err = deny, nil
@@ -780,6 +787,14 @@ func (r *Router) listAppointments(ctx context.Context, req events.APIGatewayV2HT
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]any{"items": items})
+}
+
+func (r *Router) getAppointment(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
+	item, err := r.appointments.GetByID(ctx, id)
+	if err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, item)
 }
 
 func (r *Router) deleteAppointment(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {

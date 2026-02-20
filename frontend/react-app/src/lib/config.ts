@@ -17,6 +17,7 @@ export const endpointCatalog = {
   deletePatient: (patientId: string) => `/patients/${patientId}`,
   createAppointment: "/appointments",
   listAppointments: "/appointments",
+  getAppointment: (appointmentId: string) => `/appointments/${appointmentId}`,
   updateAppointment: (appointmentId: string) => `/appointments/${appointmentId}`,
   deleteAppointment: (appointmentId: string) => `/appointments/${appointmentId}`,
   resendAppointmentConfirmation: (appointmentId: string) => `/appointments/${appointmentId}/resend-confirmation`,
