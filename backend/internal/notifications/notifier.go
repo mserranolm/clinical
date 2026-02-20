@@ -23,7 +23,7 @@ type Notifier interface {
 	SendAppointmentReminder(ctx context.Context, patientID, channel, message string) error
 	SendConsentRequest(ctx context.Context, patientID, channel, message string) error
 	SendDoctorDailySummary(ctx context.Context, doctorID, channel, message string) error
-	SendInvitation(ctx context.Context, toEmail, inviteURL, role string) error
+	SendInvitation(ctx context.Context, toEmail, inviteURL, role, tempPassword string) error
 }
 
 type Router struct {
@@ -113,7 +113,7 @@ func (r *Router) SendDoctorDailySummary(_ context.Context, doctorID, channel, me
 	return nil
 }
 
-func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role string) error {
+func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, tempPassword string) error {
 	roleLabel := map[string]string{
 		"admin": "Administrador", "doctor": "Doctor",
 		"assistant": "Asistente", "patient": "Paciente",
@@ -122,10 +122,18 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role st
 	if label == "" {
 		label = role
 	}
-	subject := fmt.Sprintf("Invitación a CliniSense como %s", label)
+	subject := fmt.Sprintf("Invitación a CliniSense — Acceso como %s", label)
 	body := fmt.Sprintf(
-		"Has sido invitado a unirte a CliniSense como %s.\n\nAccede al siguiente enlace para crear tu cuenta (válido 72 horas):\n\n%s\n\nSi no esperabas esta invitación, ignora este mensaje.",
-		label, inviteURL,
+		"Has sido invitado a unirte a CliniSense como %s.\n\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+			"Tu contraseña temporal es:\n\n"+
+			"   %s\n\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
+			"Haz clic en el siguiente enlace para activar tu cuenta y crear una nueva contraseña (válido 72 horas):\n\n"+
+			"%s\n\n"+
+			"IMPORTANTE: Al ingresar por primera vez deberás establecer una nueva contraseña.\n\n"+
+			"Si no esperabas esta invitación, ignora este mensaje.",
+		label, tempPassword, inviteURL,
 	)
 	log.Printf("[notify:invitation] to=%s role=%s url=%s", toEmail, role, inviteURL)
 	if !r.sendEmail || r.ses == nil {

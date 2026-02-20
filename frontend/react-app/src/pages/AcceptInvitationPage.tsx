@@ -60,8 +60,8 @@ export function AcceptInvitationPage({ onSuccess }: { onSuccess: (session: AuthS
       <div style={{ background: "#fff", borderRadius: 12, padding: "2rem", maxWidth: 420, width: "100%", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
           <span style={{ fontSize: "2rem" }}>🦷</span>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem" }}>Crear tu cuenta</h1>
-          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>Has sido invitado a CliniSense. Completa tu registro.</p>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem" }}>Activa tu cuenta</h1>
+          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>Recibiste una contraseña temporal por email. Aquí debes crear tu contraseña definitiva.</p>
         </div>
 
         {error && (

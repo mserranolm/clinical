@@ -1157,15 +1157,16 @@ func (r *dynamoAuthRepo) DeleteSession(ctx context.Context, token string) error 
 
 func (r *dynamoAuthRepo) CreateInvitation(ctx context.Context, inv UserInvitation) (UserInvitation, error) {
 	item := map[string]types.AttributeValue{
-		"PK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("INVITE#%s", inv.Token)},
-		"SK":        &types.AttributeValueMemberS{Value: "INVITE"},
-		"Token":     &types.AttributeValueMemberS{Value: inv.Token},
-		"OrgID":     &types.AttributeValueMemberS{Value: inv.OrgID},
-		"Email":     &types.AttributeValueMemberS{Value: strings.ToLower(strings.TrimSpace(inv.Email))},
-		"Role":      &types.AttributeValueMemberS{Value: inv.Role},
-		"InvitedBy": &types.AttributeValueMemberS{Value: inv.InvitedBy},
-		"ExpiresAt": &types.AttributeValueMemberS{Value: inv.ExpiresAt.Format(time.RFC3339)},
-		"Used":      &types.AttributeValueMemberBOOL{Value: inv.Used},
+		"PK":           &types.AttributeValueMemberS{Value: fmt.Sprintf("INVITE#%s", inv.Token)},
+		"SK":           &types.AttributeValueMemberS{Value: "INVITE"},
+		"Token":        &types.AttributeValueMemberS{Value: inv.Token},
+		"OrgID":        &types.AttributeValueMemberS{Value: inv.OrgID},
+		"Email":        &types.AttributeValueMemberS{Value: strings.ToLower(strings.TrimSpace(inv.Email))},
+		"Role":         &types.AttributeValueMemberS{Value: inv.Role},
+		"InvitedBy":    &types.AttributeValueMemberS{Value: inv.InvitedBy},
+		"TempPassword": &types.AttributeValueMemberS{Value: inv.TempPassword},
+		"ExpiresAt":    &types.AttributeValueMemberS{Value: inv.ExpiresAt.Format(time.RFC3339)},
+		"Used":         &types.AttributeValueMemberBOOL{Value: inv.Used},
 	}
 	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{TableName: aws.String(r.tableName), Item: item})
 	return inv, err

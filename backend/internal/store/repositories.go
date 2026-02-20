@@ -55,13 +55,14 @@ type AuthSession struct {
 }
 
 type UserInvitation struct {
-	Token     string
-	OrgID     string
-	Email     string
-	Role      string
-	InvitedBy string
-	ExpiresAt time.Time
-	Used      bool
+	Token        string
+	OrgID        string
+	Email        string
+	Role         string
+	InvitedBy    string
+	TempPassword string
+	ExpiresAt    time.Time
+	Used         bool
 }
 
 type OrgLimits struct {

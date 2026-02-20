@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -729,6 +730,19 @@ func (s *AuthService) checkRoleLimit(ctx context.Context, orgID, role string) er
 	return nil
 }
 
+func generateTempPassword() (string, error) {
+	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#"
+	b := make([]byte, 12)
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = chars[n.Int64()]
+	}
+	return string(b), nil
+}
+
 func (s *AuthService) InviteUser(ctx context.Context, in InviteUserInput) (InviteUserOutput, error) {
 	if strings.TrimSpace(in.OrgID) == "" || strings.TrimSpace(in.Email) == "" || strings.TrimSpace(in.Role) == "" {
 		return InviteUserOutput{}, fmt.Errorf("orgId, email and role are required")
@@ -740,19 +754,24 @@ func (s *AuthService) InviteUser(ctx context.Context, in InviteUserInput) (Invit
 	if err := s.checkRoleLimit(ctx, in.OrgID, in.Role); err != nil {
 		return InviteUserOutput{}, err
 	}
+	tempPassword, err := generateTempPassword()
+	if err != nil {
+		return InviteUserOutput{}, err
+	}
 	token, err := randomToken(32)
 	if err != nil {
 		return InviteUserOutput{}, err
 	}
 	expiresAt := time.Now().UTC().Add(72 * time.Hour)
 	inv := store.UserInvitation{
-		Token:     token,
-		OrgID:     in.OrgID,
-		Email:     strings.ToLower(strings.TrimSpace(in.Email)),
-		Role:      in.Role,
-		InvitedBy: in.InvitedBy,
-		ExpiresAt: expiresAt,
-		Used:      false,
+		Token:        token,
+		OrgID:        in.OrgID,
+		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
+		Role:         in.Role,
+		InvitedBy:    in.InvitedBy,
+		TempPassword: hashPassword(tempPassword),
+		ExpiresAt:    expiresAt,
+		Used:         false,
 	}
 	created, err := s.repo.CreateInvitation(ctx, inv)
 	if err != nil {
@@ -764,7 +783,7 @@ func (s *AuthService) InviteUser(ctx context.Context, in InviteUserInput) (Invit
 			base = os.Getenv("FRONTEND_BASE_URL")
 		}
 		inviteURL := fmt.Sprintf("%s/accept-invitation?token=%s", strings.TrimRight(base, "/"), created.Token)
-		_ = s.notifier.SendInvitation(ctx, created.Email, inviteURL, created.Role)
+		_ = s.notifier.SendInvitation(ctx, created.Email, inviteURL, created.Role, tempPassword)
 	}
 	return InviteUserOutput{Token: created.Token, Email: created.Email, Role: created.Role, ExpiresAt: created.ExpiresAt}, nil
 }
