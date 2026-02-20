@@ -615,18 +615,34 @@ func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.
 
 func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error) {
 	orgID := orgIDOrDefault(ctx)
-	// Use Scan with FilterExpression since we don't have a GSI for doctor+date
 	dayStr := day.Format("2006-01-02")
 
-	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
-		TableName:        aws.String(r.tableName),
-		FilterExpression: aws.String("PK = :pk AND DoctorID = :doctorID AND begins_with(StartAt, :dayStr)"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
-			":doctorID": &types.AttributeValueMemberS{Value: doctorID},
-			":dayStr":   &types.AttributeValueMemberS{Value: dayStr},
-		},
-	})
+	var scanInput *dynamodb.ScanInput
+	if doctorID == "" {
+		// Admin/assistant: return all appointments of the org for that day
+		scanInput = &dynamodb.ScanInput{
+			TableName:        aws.String(r.tableName),
+			FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND begins_with(StartAt, :dayStr)"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+				":skPrefix": &types.AttributeValueMemberS{Value: "APPOINTMENT#"},
+				":dayStr":   &types.AttributeValueMemberS{Value: dayStr},
+			},
+		}
+	} else {
+		// Doctor: filter by their own doctorID
+		scanInput = &dynamodb.ScanInput{
+			TableName:        aws.String(r.tableName),
+			FilterExpression: aws.String("PK = :pk AND DoctorID = :doctorID AND begins_with(StartAt, :dayStr)"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+				":doctorID": &types.AttributeValueMemberS{Value: doctorID},
+				":dayStr":   &types.AttributeValueMemberS{Value: dayStr},
+			},
+		}
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
 
 	if err != nil {
 		return nil, err

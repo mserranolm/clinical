@@ -16,21 +16,32 @@ type OrgStats = {
   maxPatients: number;
 };
 
-const STAT_CARDS = [
-  { key: "totalAdmins",    label: "Admins",     max: "maxDoctors"    },
-  { key: "totalDoctors",   label: "Doctores",   max: "maxDoctors"    },
-  { key: "totalAssistants",label: "Asistentes", max: "maxAssistants" },
-  { key: "totalPatients",  label: "Pacientes",  max: "maxPatients"   },
-] as const;
+const STAT_CARDS: { key: keyof OrgStats; label: string; maxKey?: keyof OrgStats }[] = [
+  { key: "totalAdmins",     label: "Admins"     },
+  { key: "totalDoctors",    label: "Doctores",   maxKey: "maxDoctors"    },
+  { key: "totalAssistants", label: "Asistentes", maxKey: "maxAssistants" },
+  { key: "totalPatients",   label: "Pacientes",  maxKey: "maxPatients"   },
+];
+
+function statsFromUsers(users: OrgUser[]): Partial<OrgStats> {
+  const active = users.filter(u => u.status === "active");
+  return {
+    totalAdmins:     active.filter(u => u.role === "admin").length,
+    totalDoctors:    active.filter(u => u.role === "doctor").length,
+    totalAssistants: active.filter(u => u.role === "assistant").length,
+    totalUsers:      active.length,
+    totalPatients:   0,
+  };
+}
 
 export function UsersAdminPage({ session }: { session: AuthSession }) {
   const orgId = session.orgId ?? "";
   const token = session.token;
 
-  const [users, setUsers]   = useState<OrgUser[]>([]);
-  const [stats, setStats]   = useState<OrgStats | null>(null);
+  const [users, setUsers]     = useState<OrgUser[]>([]);
+  const [stats, setStats]     = useState<Partial<OrgStats>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState("");
+  const [error, setError]     = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
 
@@ -39,12 +50,17 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
     setLoading(true);
     setError("");
     try {
-      const [usersRes, statsRes] = await Promise.all([
-        clinicalApi.listOrgUsers(orgId, token),
-        clinicalApi.getOrgStats(orgId, token),
-      ]);
-      setUsers(usersRes.items ?? []);
-      setStats(statsRes);
+      const usersRes = await clinicalApi.listOrgUsers(orgId, token);
+      const userList = usersRes.items ?? [];
+      setUsers(userList);
+
+      // Try the new stats endpoint; fall back to counting from user list if not deployed yet
+      try {
+        const statsRes = await clinicalApi.getOrgStats(orgId, token);
+        setStats(statsRes);
+      } catch {
+        setStats(statsFromUsers(userList));
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error cargando datos");
     } finally {
@@ -65,16 +81,16 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         </p>
       </div>
 
-      {/* Stats Cards — datos reales del backend */}
+      {/* Stats Cards */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
         gap: "1rem",
         marginBottom: "2rem"
       }}>
-        {STAT_CARDS.map(({ key, label, max }) => {
-          const value = stats ? stats[key] : 0;
-          const maxVal = stats && key !== "totalAdmins" ? stats[max] : null;
+        {STAT_CARDS.map(({ key, label, maxKey }) => {
+          const value  = stats[key] ?? 0;
+          const maxVal = maxKey ? stats[maxKey] : undefined;
           return (
             <div key={key} style={{
               background: "#fff", padding: "1.5rem", borderRadius: 12,
@@ -86,7 +102,7 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
               <div style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.25rem" }}>
                 {label}
               </div>
-              {maxVal !== null && (
+              {maxVal !== undefined && (
                 <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem" }}>
                   Límite: {maxVal}
                 </div>
@@ -118,7 +134,6 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
         </button>
       </div>
 
-      {/* Mensajes */}
       {error && (
         <div style={{
           background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8,

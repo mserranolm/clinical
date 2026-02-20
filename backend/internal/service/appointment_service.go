@@ -111,9 +111,6 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 }
 
 func (s *AppointmentService) ListByDoctorAndDate(ctx context.Context, doctorID, date string) ([]domain.Appointment, error) {
-	if doctorID == "" {
-		return nil, fmt.Errorf("doctorId required")
-	}
 	day := time.Now().UTC()
 	if date != "" {
 		parsed, err := time.Parse("2006-01-02", date)
