@@ -29,7 +29,8 @@ Globals:
         SEND_EMAIL: 'true'
         USE_DYNAMODB: 'true'
         CLINIC_TZ: America/Caracas
-        SES_SENDER_EMAIL: no-reply@vozlyai.aski-tech.net
+        SES_SENDER_EMAIL: no-reply@clinisense.aski-tech.net
+        FRONTEND_BASE_URL: https://clinisense.aski-tech.net
 Resources:
   ClinicalRestApi:
     Type: AWS::Serverless::Api
@@ -102,7 +103,7 @@ Resources:
           Action:
           - ses:SendEmail
           - ses:SendRawEmail
-          Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
+          Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
       - Statement:
         - Effect: Allow
           Action:
@@ -144,7 +145,7 @@ Resources:
           Action:
           - ses:SendEmail
           - ses:SendRawEmail
-          Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
+          Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
       Events:
         Every15Minutes:
           Type: Schedule
@@ -173,7 +174,7 @@ Resources:
           Action:
           - ses:SendEmail
           - ses:SendRawEmail
-          Resource: arn:aws:ses:us-east-1:975738006503:identity/vozlyai.aski-tech.net
+          Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
       Events:
         DailyClose:
           Type: Schedule
