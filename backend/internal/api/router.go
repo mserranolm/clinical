@@ -780,11 +780,25 @@ func (r *Router) createAppointment(ctx context.Context, req events.APIGatewayV2H
 }
 
 func (r *Router) listAppointments(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	patientID := req.QueryStringParameters["patientId"]
+	if patientID != "" {
+		items, err := r.appointments.ListByPatient(ctx, patientID)
+		if err != nil {
+			return response(400, map[string]string{"error": err.Error()})
+		}
+		if items == nil {
+			items = []domain.Appointment{}
+		}
+		return response(200, map[string]any{"items": items})
+	}
 	doctorID := req.QueryStringParameters["doctorId"]
 	date := req.QueryStringParameters["date"]
 	items, err := r.appointments.ListByDoctorAndDate(ctx, doctorID, date)
 	if err != nil {
 		return response(400, map[string]string{"error": err.Error()})
+	}
+	if items == nil {
+		items = []domain.Appointment{}
 	}
 	return response(200, map[string]any{"items": items})
 }

@@ -14,6 +14,30 @@ type PatientRow = {
   birthDate?: string;
 };
 
+type ConsultaHistorial = {
+  id: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  evolutionNotes?: string;
+  treatmentPlan?: string;
+  paymentAmount?: number;
+  paymentMethod?: string;
+};
+
+const statusLabel: Record<string, string> = {
+  scheduled: "Pendiente",
+  confirmed: "Confirmada",
+  completed: "Finalizada",
+  cancelled: "Cancelada",
+};
+const statusClass: Record<string, string> = {
+  scheduled: "status-unconfirmed",
+  confirmed: "status-confirmed",
+  completed: "status-completed",
+  cancelled: "status-cancelled",
+};
+
 export function PatientsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
   const [rows, setRows] = useState<PatientRow[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -23,6 +47,10 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
   const [loading, setLoading] = useState(true);
   const [editingPatient, setEditingPatient] = useState<PatientRow | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
+  const [historial, setHistorial] = useState<ConsultaHistorial[]>([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   const closeModal = () => {
     setShowModal(false);
@@ -53,6 +81,22 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
     loadPatients();
   }, [doctorId, token]);
 
+  async function openHistorial(patient: PatientRow) {
+    setSelectedPatient(patient);
+    setHistorial([]);
+    setLoadingHistorial(true);
+    try {
+      const result = await clinicalApi.listAppointmentsByPatient(patient.id, token);
+      const items = (result.items ?? []) as ConsultaHistorial[];
+      items.sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
+      setHistorial(items);
+    } catch {
+      notify.error("Error al cargar historial");
+    } finally {
+      setLoadingHistorial(false);
+    }
+  }
+
   async function onSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -74,7 +118,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
     notify.promise(promise, {
       loading: editingPatient ? "Actualizando paciente..." : "Registrando paciente...",
       success: () => {
-        loadPatients(); // Recargar la lista
+        loadPatients();
         setShowModal(false);
         setEditingPatient(null);
         formRef.current?.reset();
@@ -162,81 +206,171 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
         </div>
       </div>
 
-      {/* Tabla de pacientes */}
-      <article className="card elite-card">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Cédula / ID</th>
-                <th>Nombre Completo</th>
-                <th>Email</th>
-                <th>Teléfono</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="skeleton-row">
-                    <td><div className="skeleton-cell" /></td>
-                    <td><div className="skeleton-cell" /></td>
-                    <td><div className="skeleton-cell" /></td>
-                    <td><div className="skeleton-cell" /></td>
-                    <td><div className="skeleton-cell" /></td>
-                  </tr>
-                ))
-              )}
-              {!loading && rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <div className="patient-id-cell">
-                      <div className="patient-avatar-sm">
-                        {row.firstName[0]}{row.lastName[0]}
-                      </div>
-                      <span className="mono">{row.documentId || row.id}</span>
-                    </div>
-                  </td>
-                  <td><strong>{row.firstName} {row.lastName}</strong></td>
-                  <td>{row.email || <span className="text-muted-sm">—</span>}</td>
-                  <td>{row.phone || <span className="text-muted-sm">—</span>}</td>
-                  <td><span className="badge status-confirmed">Activo</span></td>
-                  <td>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {canWritePatients(session) && (
-                        <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
-                          <span className="icon">✏️</span>
-                          <span>Editar</span>
-                        </button>
-                      )}
-                      {canDeletePatients(session) && (
-                        <button type="button" className="action-btn action-btn-delete" onClick={() => handleDelete(row)}>
-                          <span className="icon">🗑️</span>
-                          <span>Eliminar</span>
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    <div className="empty-state-content">
-                      <span className="empty-icon">👥</span>
-                      <strong>{query ? `Sin resultados para "${query}"` : "Sin pacientes registrados"}</strong>
-                      <p>{query ? "Intenta con otro dato de búsqueda." : "Usa el botón \"Nuevo Paciente\" para agregar el primer expediente."}</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </article>
+      {/* Layout principal: tabla + drawer */}
+      <div className={`patients-layout ${selectedPatient ? "with-drawer" : ""}`}>
 
-      {/* Modal de registro */}
+        {/* Tabla de pacientes */}
+        <article className="card elite-card patients-table-card">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cédula / ID</th>
+                  <th>Nombre Completo</th>
+                  <th>Email</th>
+                  <th>Teléfono</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="skeleton-row">
+                      <td><div className="skeleton-cell" /></td>
+                      <td><div className="skeleton-cell" /></td>
+                      <td><div className="skeleton-cell" /></td>
+                      <td><div className="skeleton-cell" /></td>
+                      <td><div className="skeleton-cell" /></td>
+                    </tr>
+                  ))
+                )}
+                {!loading && rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={`patient-row-clickable ${selectedPatient?.id === row.id ? "patient-row-active" : ""}`}
+                    onClick={() => openHistorial(row)}
+                    title="Ver historial de consultas"
+                  >
+                    <td>
+                      <div className="patient-id-cell">
+                        <div className="patient-avatar-sm">
+                          {row.firstName[0]}{row.lastName[0]}
+                        </div>
+                        <span className="mono">{row.documentId || row.id}</span>
+                      </div>
+                    </td>
+                    <td><strong>{row.firstName} {row.lastName}</strong></td>
+                    <td>{row.email || <span className="text-muted-sm">—</span>}</td>
+                    <td>{row.phone || <span className="text-muted-sm">—</span>}</td>
+                    <td><span className="badge status-confirmed">Activo</span></td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {canWritePatients(session) && (
+                          <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
+                            <span className="icon">✏️</span>
+                            <span>Editar</span>
+                          </button>
+                        )}
+                        {canDeletePatients(session) && (
+                          <button type="button" className="action-btn action-btn-delete" onClick={() => handleDelete(row)}>
+                            <span className="icon">🗑️</span>
+                            <span>Eliminar</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!loading && rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="empty-state">
+                      <div className="empty-state-content">
+                        <span className="empty-icon">👥</span>
+                        <strong>{query ? `Sin resultados para "${query}"` : "Sin pacientes registrados"}</strong>
+                        <p>{query ? "Intenta con otro dato de búsqueda." : "Usa el botón \"Nuevo Paciente\" para agregar el primer expediente."}</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        {/* Drawer de historial */}
+        {selectedPatient && (
+          <aside className="historial-drawer">
+            <div className="historial-drawer-header">
+              <div className="historial-drawer-title">
+                <div className="patient-avatar-sm" style={{ width: 36, height: 36, fontSize: "0.9rem" }}>
+                  {selectedPatient.firstName[0]}{selectedPatient.lastName[0]}
+                </div>
+                <div>
+                  <strong>{selectedPatient.firstName} {selectedPatient.lastName}</strong>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>Historial de consultas</p>
+                </div>
+              </div>
+              <button className="historial-drawer-close" onClick={() => setSelectedPatient(null)}>✕</button>
+            </div>
+
+            <div className="historial-drawer-body">
+              {loadingHistorial && (
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <div className="auth-spinner" style={{ margin: "0 auto" }} />
+                  <p style={{ color: "#94a3b8", marginTop: 12, fontSize: "0.85rem" }}>Cargando historial...</p>
+                </div>
+              )}
+
+              {!loadingHistorial && historial.length === 0 && (
+                <div className="historial-empty">
+                  <span style={{ fontSize: "2rem" }}>📋</span>
+                  <p>Sin consultas registradas</p>
+                  <small>Las consultas finalizadas aparecerán aquí</small>
+                </div>
+              )}
+
+              {!loadingHistorial && historial.map((cita) => {
+                const fecha = new Date(cita.startAt);
+                const fechaLabel = fecha.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+                const horaLabel = fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <div key={cita.id} className={`historial-item ${cita.status === "completed" ? "historial-item-completed" : ""}`}>
+                    <div className="historial-item-header">
+                      <div>
+                        <span className="historial-fecha">{fechaLabel}</span>
+                        <span className="historial-hora"> · {horaLabel}</span>
+                      </div>
+                      <span className={`badge ${statusClass[cita.status] ?? "status-unconfirmed"}`} style={{ fontSize: "0.65rem" }}>
+                        {statusLabel[cita.status] ?? cita.status}
+                      </span>
+                    </div>
+
+                    {cita.evolutionNotes && (
+                      <div className="historial-field">
+                        <span className="historial-field-label">📝 Evolución</span>
+                        <p className="historial-field-value">{cita.evolutionNotes}</p>
+                      </div>
+                    )}
+
+                    {cita.treatmentPlan && (
+                      <div className="historial-field">
+                        <span className="historial-field-label">🦷 Plan de tratamiento</span>
+                        <p className="historial-field-value">{cita.treatmentPlan}</p>
+                      </div>
+                    )}
+
+                    {cita.paymentAmount != null && cita.paymentAmount > 0 && (
+                      <div className="historial-field">
+                        <span className="historial-field-label">💰 Pago</span>
+                        <p className="historial-field-value">
+                          ${cita.paymentAmount.toFixed(2)} · {cita.paymentMethod ?? "—"}
+                        </p>
+                      </div>
+                    )}
+
+                    {!cita.evolutionNotes && !cita.treatmentPlan && (
+                      <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "4px 0 0" }}>Sin notas registradas</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* Modal de registro/edición */}
       {showModal && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">

@@ -114,6 +114,12 @@ export const clinicalApi = {
       token
     }),
 
+  listAppointmentsByPatient: (patientId: string, token?: string) =>
+    request<{ items: AppointmentDTO[] }>(
+      `${endpointCatalog.listAppointments}?patientId=${encodeURIComponent(patientId)}`,
+      { method: "GET", token }
+    ),
+
   confirmAppointment: (appointmentId: string, token?: string) =>
     request<AppointmentDTO>(endpointCatalog.confirmAppointment(appointmentId), {
       method: "POST",

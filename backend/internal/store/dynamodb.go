@@ -661,6 +661,31 @@ func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID
 	return appointments, nil
 }
 
+func (r *dynamoAppointmentRepo) ListByPatient(ctx context.Context, patientID string) ([]domain.Appointment, error) {
+	orgID := orgIDOrDefault(ctx)
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND PatientID = :patientID AND begins_with(SK, :skPrefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":        &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":patientID": &types.AttributeValueMemberS{Value: patientID},
+			":skPrefix":  &types.AttributeValueMemberS{Value: "APPOINTMENT#"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var appointments []domain.Appointment
+	for _, item := range result.Items {
+		var a domain.Appointment
+		if err := attributevalue.UnmarshalMap(item, &a); err != nil {
+			continue
+		}
+		appointments = append(appointments, a)
+	}
+	return appointments, nil
+}
+
 func (r *dynamoAppointmentRepo) Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
 	return r.Create(ctx, appointment)
 }

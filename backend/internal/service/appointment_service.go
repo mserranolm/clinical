@@ -128,6 +128,10 @@ func (s *AppointmentService) GetByID(ctx context.Context, id string) (domain.App
 	return s.repo.GetByID(ctx, id)
 }
 
+func (s *AppointmentService) ListByPatient(ctx context.Context, patientID string) ([]domain.Appointment, error) {
+	return s.repo.ListByPatient(ctx, patientID)
+}
+
 func (s *AppointmentService) ListByDoctorAndDate(ctx context.Context, doctorID, date string) ([]domain.Appointment, error) {
 	day := time.Now().UTC()
 	if date != "" {

@@ -24,6 +24,7 @@ type AppointmentRepository interface {
 	Create(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error)
 	GetByID(ctx context.Context, id string) (domain.Appointment, error)
 	ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error)
+	ListByPatient(ctx context.Context, patientID string) ([]domain.Appointment, error)
 	Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -283,6 +284,18 @@ func (r *memoryAppointmentRepo) ListByDoctorAndDay(_ context.Context, doctorID s
 		}
 		iy, im, id := item.StartAt.Date()
 		if iy == y && im == m && id == d {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (r *memoryAppointmentRepo) ListByPatient(_ context.Context, patientID string) ([]domain.Appointment, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.Appointment
+	for _, item := range r.items {
+		if item.PatientID == patientID {
 			out = append(out, item)
 		}
 	}
