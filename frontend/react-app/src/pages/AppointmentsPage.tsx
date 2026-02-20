@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { PatientSearch } from "../modules/appointments/components/PatientSearch";
@@ -37,6 +37,7 @@ function formatTimeRange(startAt: string, endAt: string): string {
 
 export function AppointmentsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
@@ -88,6 +89,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   }, [canSelectDoctor, session.orgId]);
 
   const effectiveDoctorId = isDoctor ? doctorId : selectedDoctorId;
+
+  useEffect(() => {
+    if (effectiveDoctorId) loadAppointments();
+  }, [location.key, effectiveDoctorId, date]);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
