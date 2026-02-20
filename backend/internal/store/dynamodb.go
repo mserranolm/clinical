@@ -662,10 +662,6 @@ func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID
 }
 
 func (r *dynamoAppointmentRepo) Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
-	_, err := r.GetByID(ctx, appointment.ID)
-	if err != nil {
-		return domain.Appointment{}, err
-	}
 	return r.Create(ctx, appointment)
 }
 

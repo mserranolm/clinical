@@ -116,7 +116,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
         <Topbar session={session} onLogout={onLogout} title={currentLabel} />
         <div className="page-content">
           <Routes>
-            <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} />} />
+            <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} />} />
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />

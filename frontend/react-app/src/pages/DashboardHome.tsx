@@ -67,15 +67,18 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   async function saveEdit() {
     if (!editRow || !editDate || !editTime) return;
     setSaving(true);
-    const startAt = new Date(`${editDate}T${editTime}`).toISOString();
-    const endAt = new Date(new Date(`${editDate}T${editTime}`).getTime() + editDuration * 60000).toISOString();
-    const promise = clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, user.token);
-    notify.promise(promise, {
-      loading: "Guardando cambios...",
-      success: () => { setEditRow(null); onRefresh?.(); return "Cita actualizada"; },
-      error: "Error al actualizar",
-    });
-    promise.finally(() => setSaving(false));
+    try {
+      const startAt = new Date(`${editDate}T${editTime}`).toISOString();
+      const endAt = new Date(new Date(`${editDate}T${editTime}`).getTime() + editDuration * 60000).toISOString();
+      await clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, user.token);
+      notify.success("Cita actualizada");
+      setEditRow(null);
+      onRefresh?.();
+    } catch (err) {
+      notify.error("Error al actualizar", err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   const isConfirmed = (status: string) => status === "confirmed";
