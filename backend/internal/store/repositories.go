@@ -38,6 +38,8 @@ type AuthUser struct {
 	OrgID        string
 	Name         string
 	Email        string
+	Phone        string
+	Address      string
 	Role         string
 	Status       string
 	PasswordHash string

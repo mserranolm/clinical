@@ -545,6 +545,8 @@ type UserDTO struct {
 	OrgID     string    `json:"orgId"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Address   string    `json:"address"`
 	Role      string    `json:"role"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -574,6 +576,8 @@ type InviteUserOutput struct {
 type AcceptInvitationInput struct {
 	Token    string `json:"token"`
 	Name     string `json:"name"`
+	Phone    string `json:"phone"`
+	Address  string `json:"address"`
 	Password string `json:"password"`
 }
 
@@ -589,7 +593,8 @@ func (s *AuthService) ListOrgUsers(ctx context.Context, orgID string) ([]UserDTO
 	for _, u := range users {
 		result = append(result, UserDTO{
 			ID: u.ID, OrgID: u.OrgID, Name: u.Name,
-			Email: u.Email, Role: u.Role, Status: u.Status, CreatedAt: u.CreatedAt,
+			Email: u.Email, Phone: u.Phone, Address: u.Address,
+			Role: u.Role, Status: u.Status, CreatedAt: u.CreatedAt,
 		})
 	}
 	return result, nil
@@ -627,7 +632,8 @@ func (s *AuthService) UpdateOrgUser(ctx context.Context, in UpdateOrgUserInput) 
 	}
 	return UserDTO{
 		ID: updated.ID, OrgID: updated.OrgID, Name: updated.Name,
-		Email: updated.Email, Role: updated.Role, Status: updated.Status, CreatedAt: updated.CreatedAt,
+		Email: updated.Email, Phone: updated.Phone, Address: updated.Address,
+		Role: updated.Role, Status: updated.Status, CreatedAt: updated.CreatedAt,
 	}, nil
 }
 
@@ -726,6 +732,8 @@ func (s *AuthService) AcceptInvitation(ctx context.Context, in AcceptInvitationI
 		OrgID:        inv.OrgID,
 		Name:         strings.TrimSpace(in.Name),
 		Email:        inv.Email,
+		Phone:        strings.TrimSpace(in.Phone),
+		Address:      strings.TrimSpace(in.Address),
 		Role:         inv.Role,
 		Status:       "active",
 		PasswordHash: hashPassword(in.Password),

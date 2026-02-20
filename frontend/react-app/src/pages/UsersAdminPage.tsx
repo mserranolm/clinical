@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { clinicalApi } from "../api/clinical";
 import type { AuthSession } from "../types";
 
-type OrgUser = { id: string; name: string; email: string; role: string; status: string; createdAt: string };
+type OrgUser = { id: string; name: string; email: string; phone?: string; address?: string; role: string; status: string; createdAt: string };
 
 const ROLE_LABELS: Record<string, string> = { admin: "Admin", doctor: "Doctor", assistant: "Asistente", patient: "Paciente" };
 const ROLE_LIMITS: Record<string, number> = { admin: 2, doctor: 5, assistant: 2 };
@@ -164,21 +164,40 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
       )}
 
       {showInvite && (
-        <form onSubmit={handleInvite} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "1rem", marginBottom: "1.5rem" }}>
-          <h3 style={{ marginBottom: "0.75rem", fontWeight: 600 }}>Invitar nuevo usuario</h3>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <input required type="email" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
-              placeholder="Email del usuario" style={{ flex: 2, minWidth: 200, padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6 }} />
-            <select value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}
-              style={{ flex: 1, minWidth: 140, padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6 }}>
-              <option value="doctor">Doctor</option>
-              <option value="assistant">Asistente</option>
-              <option value="admin">Admin</option>
-              <option value="patient">Paciente</option>
-            </select>
+        <form onSubmit={handleInvite} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "1.25rem", marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Invitar nuevo usuario</h3>
+            <button type="button" onClick={() => setShowInvite(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem", color: "#6b7280" }}>✕</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>Email *</label>
+              <input required type="email" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="doctor@clinica.com"
+                style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>Rol *</label>
+              <select value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}
+                style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}>
+                <option value="doctor">Doctor</option>
+                <option value="assistant">Asistente</option>
+                <option value="admin">Admin</option>
+                <option value="patient">Paciente</option>
+              </select>
+            </div>
+          </div>
+          <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "0.75rem", marginBottom: "0.75rem" }}>
+            📧 Se enviará un email de invitación. El usuario completará su nombre, teléfono y dirección al aceptar.
+          </p>
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+            <button type="button" onClick={() => setShowInvite(false)}
+              style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+              Cancelar
+            </button>
             <button type="submit" disabled={inviting}
-              style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1rem", cursor: "pointer" }}>
-              {inviting ? "Enviando..." : "Invitar"}
+              style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.25rem", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+              {inviting ? "Enviando..." : "Enviar invitación"}
             </button>
           </div>
         </form>
@@ -214,39 +233,34 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
       ) : users.length === 0 ? (
         <p style={{ color: "#6b7280" }}>No hay usuarios en esta organización aún.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-          <thead>
-            <tr style={{ background: "#f3f4f6" }}>
-              <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid #e5e7eb" }}>Nombre</th>
-              <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid #e5e7eb" }}>Email</th>
-              <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid #e5e7eb" }}>Rol</th>
-              <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid #e5e7eb" }}>Estado</th>
-              <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid #e5e7eb" }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id} style={{ borderBottom: "1px solid #f3f4f6", opacity: u.status === "disabled" ? 0.6 : 1 }}>
-                <td style={{ padding: "0.5rem 0.75rem", fontWeight: 500 }}>{u.name || "—"}</td>
-                <td style={{ padding: "0.5rem 0.75rem", color: "#6b7280" }}>{u.email}</td>
-                <td style={{ padding: "0.5rem 0.75rem" }}>{roleBadge(u.role)}</td>
-                <td style={{ padding: "0.5rem 0.75rem" }}>{statusBadge(u.status)}</td>
-                <td style={{ padding: "0.5rem 0.75rem" }}>
-                  <div style={{ display: "flex", gap: "0.4rem" }}>
-                    <button onClick={() => { setEditUser(u); setEditRole(u.role); }}
-                      style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: "0.75rem" }}>
-                      Rol
-                    </button>
-                    <button onClick={() => handleToggleStatus(u)} disabled={saving}
-                      style={{ background: u.status === "active" ? "#fef2f2" : "#f0fdf4", color: u.status === "active" ? "#dc2626" : "#16a34a", border: `1px solid ${u.status === "active" ? "#fca5a5" : "#86efac"}`, borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: "0.75rem" }}>
-                      {u.status === "active" ? "Deshabilitar" : "Habilitar"}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ display: "grid", gap: "0.5rem" }}>
+          {users.map(u => (
+            <div key={u.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: "0.875rem 1rem", opacity: u.status === "disabled" ? 0.6 : 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{u.name || <span style={{ color: "#9ca3af", fontStyle: "italic" }}>Sin nombre</span>}</span>
+                  {roleBadge(u.role)}
+                  {statusBadge(u.status)}
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "#6b7280", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                  <span>✉️ {u.email}</span>
+                  {u.phone && <span>📞 {u.phone}</span>}
+                  {u.address && <span>📍 {u.address}</span>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                <button onClick={() => { setEditUser(u); setEditRole(u.role); }}
+                  style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600 }}>
+                  Rol
+                </button>
+                <button onClick={() => handleToggleStatus(u)} disabled={saving}
+                  style={{ background: u.status === "active" ? "#fef2f2" : "#f0fdf4", color: u.status === "active" ? "#dc2626" : "#16a34a", border: `1px solid ${u.status === "active" ? "#fca5a5" : "#86efac"}`, borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600 }}>
+                  {u.status === "active" ? "Deshabilitar" : "Habilitar"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

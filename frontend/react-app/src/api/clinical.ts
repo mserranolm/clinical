@@ -229,7 +229,7 @@ export const clinicalApi = {
       `/orgs/${orgId}/invitations`, { method: "POST", body: data, token }
     ),
 
-  acceptInvitation: (invToken: string, data: { name: string; password: string }) =>
+  acceptInvitation: (invToken: string, data: { name: string; phone?: string; address?: string; password: string }) =>
     request<{ accessToken: string; userId: string; orgId: string; name: string; email: string; role: string }>(
       "/auth/accept-invitation", { method: "POST", body: { token: invToken, ...data } }
     ),

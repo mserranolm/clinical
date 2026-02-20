@@ -8,7 +8,7 @@ export function AcceptInvitationPage({ onSuccess }: { onSuccess: (session: AuthS
   const token = params.get("token") ?? "";
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ name: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", password: "", confirm: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,7 +25,7 @@ export function AcceptInvitationPage({ onSuccess }: { onSuccess: (session: AuthS
     setSubmitting(true);
     setError("");
     try {
-      const res = await clinicalApi.acceptInvitation(token, { name: form.name, password: form.password });
+      const res = await clinicalApi.acceptInvitation(token, { name: form.name, phone: form.phone, address: form.address, password: form.password });
       onSuccess({
         token: res.accessToken,
         userId: res.userId,
@@ -72,17 +72,36 @@ export function AcceptInvitationPage({ onSuccess }: { onSuccess: (session: AuthS
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.75rem" }}>
           <div>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Nombre completo</label>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Nombre completo *</label>
             <input
               required
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Tu nombre"
+              placeholder="Tu nombre completo"
               style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
             />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Contraseña</label>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Teléfono</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder="+57 300 000 0000"
+              style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Dirección</label>
+            <input
+              value={form.address}
+              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+              placeholder="Calle 10 # 5-20, Ciudad"
+              style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Contraseña *</label>
             <input
               required
               type="password"
@@ -93,7 +112,7 @@ export function AcceptInvitationPage({ onSuccess }: { onSuccess: (session: AuthS
             />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Confirmar contraseña</label>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>Confirmar contraseña *</label>
             <input
               required
               type="password"
