@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { MedicalHistoryForm } from "../modules/treatment/components/MedicalHistoryForm";
@@ -10,6 +10,7 @@ type WizardStep = 1 | 2;
 
 export function TreatmentWizard({ token }: { token: string; doctorId: string }) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>(1);
   const [cedula, setCedula] = useState("");
   const [patient, setPatient] = useState<any>(null);
@@ -19,29 +20,9 @@ export function TreatmentWizard({ token }: { token: string; doctorId: string }) 
 
   useEffect(() => {
     const patientId = searchParams.get("patientId");
-    if (!patientId) {
-      return;
-    }
-
-    setCedula(patientId);
-    setSearching(true);
-    clinicalApi
-      .getPatient(patientId, token)
-      .then(async (patientResult) => {
-        setPatient(patientResult);
-        try {
-          const odnResult = await clinicalApi.getOdontogramByPatient(patientResult.id, token);
-          setOdontogramData(odnResult);
-        } catch {
-          setOdontogramData(null);
-        }
-        setStep(2);
-      })
-      .catch(() => {
-        notify.error("No se pudo cargar el paciente seleccionado", "Verifica el identificador del paciente e intenta nuevamente.");
-      })
-      .finally(() => setSearching(false));
-  }, [searchParams, token]);
+    if (!patientId) return;
+    navigate(`/dashboard/consulta?patientId=${encodeURIComponent(patientId)}`, { replace: true });
+  }, [searchParams, navigate]);
 
   async function handleSearch() {
     if (!cedula.trim()) return;
