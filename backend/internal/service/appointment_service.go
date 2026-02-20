@@ -227,14 +227,15 @@ func (s *AppointmentService) SendDoctorCloseDayReminder(ctx context.Context, doc
 }
 
 type UpdateAppointmentInput struct {
-	DoctorID      string  `json:"doctorId"`
-	PatientID     string  `json:"patientId"`
-	StartAt       string  `json:"startAt"`
-	EndAt         string  `json:"endAt"`
-	Status        string  `json:"status"`
-	TreatmentPlan string  `json:"treatmentPlan"`
-	PaymentAmount float64 `json:"paymentAmount"`
-	PaymentMethod string  `json:"paymentMethod"`
+	DoctorID      string   `json:"doctorId"`
+	PatientID     string   `json:"patientId"`
+	StartAt       string   `json:"startAt"`
+	EndAt         string   `json:"endAt"`
+	Status        string   `json:"status"`
+	TreatmentPlan string   `json:"treatmentPlan"`
+	PaymentAmount float64  `json:"paymentAmount"`
+	PaymentMethod string   `json:"paymentMethod"`
+	ImageKeys     []string `json:"imageKeys"`
 }
 
 func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, in UpdateAppointmentInput) (domain.Appointment, error) {
@@ -275,6 +276,9 @@ func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, i
 	}
 	if in.PaymentMethod != "" {
 		appt.PaymentMethod = in.PaymentMethod
+	}
+	if len(in.ImageKeys) > 0 {
+		appt.ImageKeys = append(appt.ImageKeys, in.ImageKeys...)
 	}
 	updated, err := s.repo.Update(ctx, appt)
 	if err != nil {

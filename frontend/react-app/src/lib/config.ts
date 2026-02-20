@@ -23,6 +23,7 @@ export const endpointCatalog = {
   resendAppointmentConfirmation: (appointmentId: string) => `/appointments/${appointmentId}/resend-confirmation`,
   confirmAppointment: (appointmentId: string) => `/appointments/${appointmentId}/confirm`,
   closeAppointmentDay: (appointmentId: string) => `/appointments/${appointmentId}/close-day`,
+  appointmentUploadUrl: (appointmentId: string) => `/appointments/${appointmentId}/upload-url`,
   createConsent: "/consents",
   verifyConsent: (consentId: string) => `/consents/verify/${consentId}`,
   createOdontogram: "/odontograms",

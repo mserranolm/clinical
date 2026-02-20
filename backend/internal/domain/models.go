@@ -41,6 +41,7 @@ type Appointment struct {
 	TreatmentPlan       string     `json:"treatmentPlan"`
 	PaymentAmount       float64    `json:"paymentAmount"`
 	PaymentMethod       string     `json:"paymentMethod"`
+	ImageKeys           []string   `json:"imageKeys,omitempty"`
 	ReminderSentAt      *time.Time `json:"reminderSentAt,omitempty"`
 	PatientConfirmedAt  *time.Time `json:"patientConfirmedAt,omitempty"`
 	DoctorDailyClosedAt *time.Time `json:"doctorDailyClosedAt,omitempty"`

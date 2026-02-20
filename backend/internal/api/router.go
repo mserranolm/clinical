@@ -344,6 +344,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.listAppointments(actx, req)
 			}
+		case method == "POST" && strings.HasSuffix(path, "/upload-url") && strings.HasPrefix(path, "/appointments/"):
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/upload-url")
+				resp, err = r.getAppointmentUploadURL(actx, id, req)
+			}
 		case method == "GET" && strings.HasPrefix(path, "/appointments/"):
 			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
 				resp, err = deny, nil

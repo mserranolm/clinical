@@ -26,6 +26,7 @@ Globals:
         CLINIC_TZ: America/Caracas
         SES_SENDER_EMAIL: no-reply@clinisense.aski-tech.net
         FRONTEND_BASE_URL: https://clinisense.aski-tech.net
+        IMAGES_BUCKET: !Ref AppointmentImagesBucket
 
 Resources:
 
@@ -99,6 +100,8 @@ Resources:
             TableName: !Ref TreatmentPlansTable
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - S3CrudPolicy:
+            BucketName: !Ref AppointmentImagesBucket
         - Statement:
           - Effect: Allow
             Action:
@@ -173,6 +176,23 @@ Resources:
             Schedule: cron(0 22 * * ? *)
             Name: clinical-end-day-reminder
 
+
+  AppointmentImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "clinical-appointment-images-${AWS::AccountId}"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: ["PUT", "GET"]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
 
   AppointmentsTable:
     Type: AWS::DynamoDB::Table

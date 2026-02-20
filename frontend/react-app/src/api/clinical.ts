@@ -126,7 +126,7 @@ export const clinicalApi = {
       token
     }),
 
-  updateAppointment: (appointmentId: string, data: Partial<{ doctorId: string; patientId: string; startAt: string; endAt: string; status: string; treatmentPlan: string; paymentAmount: number; paymentMethod: string }>, token?: string) =>
+  updateAppointment: (appointmentId: string, data: Partial<{ doctorId: string; patientId: string; startAt: string; endAt: string; status: string; treatmentPlan: string; paymentAmount: number; paymentMethod: string; imageKeys: string[] }>, token?: string) =>
     request<AppointmentDTO>(endpointCatalog.updateAppointment(appointmentId), {
       method: "PUT",
       body: data,
@@ -155,6 +155,12 @@ export const clinicalApi = {
       body: payload,
       token
     }),
+
+  getAppointmentUploadUrl: (appointmentId: string, filename: string, contentType: string, token?: string) =>
+    request<{ uploadUrl: string; key: string; imageUrl: string }>(
+      `${endpointCatalog.appointmentUploadUrl(appointmentId)}?filename=${encodeURIComponent(filename)}&contentType=${encodeURIComponent(contentType)}`,
+      { method: "POST", token }
+    ),
 
   createConsent: (input: CreateConsentInput, token?: string) =>
     request<{ id: string; status: string; title: string; patientId: string }>(endpointCatalog.createConsent, {

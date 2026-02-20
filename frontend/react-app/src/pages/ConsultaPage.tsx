@@ -86,9 +86,11 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   const [treatmentPlan, setTreatmentPlan] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("efectivo");
-  const [activeTab, setActiveTab] = useState<"historia" | "odontograma" | "evolucion">("historia");
+  const [activeTab, setActiveTab] = useState<"historia" | "odontograma" | "evolucion" | "imagenes">("historia");
   const [appointmentStatus, setAppointmentStatus] = useState<string>("scheduled");
   const [appointmentDate, setAppointmentDate] = useState<string>("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const isClosed = appointmentStatus === "completed";
 
@@ -129,6 +131,12 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         if (appt.treatmentPlan) setTreatmentPlan(appt.treatmentPlan);
         if (appt.paymentAmount) setPaymentAmount(appt.paymentAmount);
         if (appt.paymentMethod) setPaymentMethod(appt.paymentMethod);
+        if ((appt as { imageKeys?: string[] }).imageKeys?.length) {
+          const bucket = (appt as { imageKeys?: string[] }).imageKeys!;
+          setImageUrls(bucket.map(k =>
+            k.startsWith("http") ? k : `https://clinical-appointment-images-975738006503.s3.amazonaws.com/${k}`
+          ));
+        }
       }
 
       if (odnResult.status === "fulfilled") {
@@ -196,6 +204,64 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
       notify.error("Error guardando odontograma", err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function compressImage(file: File, maxWidthPx = 1200, qualityJpeg = 0.82): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxWidthPx / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("canvas context unavailable"));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("compression failed")), "image/jpeg", qualityJpeg);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  async function uploadImages(files: FileList) {
+    const MAX_MB = 8;
+    const newKeys: string[] = [];
+    const newUrls: string[] = [];
+    setUploadingImages(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) {
+          notify.error("Archivo no válido", `${file.name} no es una imagen.`);
+          continue;
+        }
+        if (file.size > MAX_MB * 1024 * 1024) {
+          notify.error("Imagen muy grande", `${file.name} supera ${MAX_MB}MB. Se comprimirá automáticamente.`);
+        }
+        const compressed = await compressImage(file);
+        const { uploadUrl, key, imageUrl } = await clinicalApi.getAppointmentUploadUrl(
+          appointmentId, file.name, "image/jpeg", token
+        );
+        await fetch(uploadUrl, {
+          method: "PUT",
+          body: compressed,
+          headers: { "Content-Type": "image/jpeg" },
+        });
+        newKeys.push(key);
+        newUrls.push(imageUrl);
+      }
+      if (newKeys.length > 0) {
+        await clinicalApi.updateAppointment(appointmentId, { imageKeys: newKeys }, token);
+        setImageUrls(prev => [...prev, ...newUrls]);
+        notify.success(`${newKeys.length} imagen${newKeys.length > 1 ? "es" : ""} guardada${newKeys.length > 1 ? "s" : ""}`);
+      }
+    } catch (err) {
+      notify.error("Error subiendo imagen", err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploadingImages(false);
     }
   }
 
@@ -308,7 +374,68 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         >
           📝 Evolución y Cierre
         </button>
+        <button
+          className={`consulta-tab ${activeTab === "imagenes" ? "active" : ""}`}
+          onClick={() => setActiveTab("imagenes")}
+        >
+          🖼️ Imágenes {imageUrls.length > 0 && <span className="tab-count">{imageUrls.length}</span>}
+        </button>
       </div>
+
+      {/* Tab: Imágenes */}
+      {activeTab === "imagenes" && (
+        <div className="consulta-section card elite-card">
+          <div className="consulta-section-header">
+            <h3>Imágenes de la Consulta</h3>
+            <span className="consulta-hint" style={{ margin: 0 }}>
+              {isClosed ? `${imageUrls.length} imagen${imageUrls.length !== 1 ? "es" : ""} — solo lectura` : "Sube fotos clínicas (JPEG/PNG, máx. 8MB por imagen)"}
+            </span>
+          </div>
+
+          {!isClosed && (
+            <label className="image-upload-zone">
+              <input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                multiple
+                style={{ display: "none" }}
+                disabled={uploadingImages}
+                onChange={e => e.target.files && uploadImages(e.target.files)}
+              />
+              {uploadingImages ? (
+                <div className="image-upload-uploading">
+                  <span className="auth-spinner" style={{ margin: "0 auto" }} />
+                  <p>Comprimiendo y subiendo...</p>
+                </div>
+              ) : (
+                <div className="image-upload-prompt">
+                  <span style={{ fontSize: "2.5rem" }}>📷</span>
+                  <p><strong>Haz clic o arrastra imágenes aquí</strong></p>
+                  <small>JPEG · PNG · WebP · máx. 8MB · se comprimen automáticamente</small>
+                </div>
+              )}
+            </label>
+          )}
+
+          {imageUrls.length === 0 && !uploadingImages && (
+            <div className="image-empty">
+              <span style={{ fontSize: "2rem" }}>🖼️</span>
+              <p>Sin imágenes registradas</p>
+            </div>
+          )}
+
+          {imageUrls.length > 0 && (
+            <div className="image-gallery">
+              {imageUrls.map((url, i) => (
+                <a key={i} href={url} target="_blank" rel="noreferrer" className="image-thumb-link">
+                  <img src={url} alt={`Imagen ${i + 1}`} className="image-thumb" />
+                  <span className="image-thumb-label">Ver original</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab: Historial Médico */}
       {activeTab === "historia" && (
