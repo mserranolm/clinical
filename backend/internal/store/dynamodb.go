@@ -465,7 +465,26 @@ func (r *dynamoPatientRepo) ListByDoctor(ctx context.Context, doctorID string) (
 }
 
 func (r *dynamoPatientRepo) ListAll(ctx context.Context) ([]domain.Patient, error) {
-	return r.ListByDoctor(ctx, "")
+	input := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":sk": &types.AttributeValueMemberS{Value: "PATIENT#"},
+		},
+	}
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("scan all patients: %w", err)
+	}
+	var patients []domain.Patient
+	for _, item := range result.Items {
+		var p domain.Patient
+		if err := attributevalue.UnmarshalMap(item, &p); err != nil {
+			continue
+		}
+		patients = append(patients, p)
+	}
+	return patients, nil
 }
 
 func (r *dynamoPatientRepo) SearchByQuery(ctx context.Context, doctorID, query string) ([]domain.Patient, error) {
