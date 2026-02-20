@@ -755,6 +755,11 @@ p {
   flex-shrink: 0;
 }
 
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-card { background: white; border-radius: var(--border-radius-lg); padding: 32px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: grid; gap: 16px; }
+.modal-card h3 { font-size: 1.25rem; font-weight: 700; color: var(--clinical-blue); }
+
 /* UI Components */
 .card { background: white; padding: 32px; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-soft); }
 .elite-card { border: 1px solid rgba(15, 41, 83, 0.05); }

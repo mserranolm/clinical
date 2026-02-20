@@ -40,6 +40,33 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
   const [duration, setDuration] = useState<number>(30);
+  const [editRow, setEditRow] = useState<AppointmentRow | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editDuration, setEditDuration] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  function openEdit(row: AppointmentRow) {
+    const d = new Date(row.startAt);
+    setEditRow(row);
+    setEditDate(d.toISOString().slice(0, 10));
+    setEditTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+    setEditDuration(row.durationMinutes || 30);
+  }
+
+  async function saveEdit() {
+    if (!editRow || !editDate || !editTime) return;
+    setSaving(true);
+    const startAt = new Date(`${editDate}T${editTime}`).toISOString();
+    const endAt = new Date(new Date(`${editDate}T${editTime}`).getTime() + editDuration * 60000).toISOString();
+    const promise = clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, token);
+    notify.promise(promise, {
+      loading: "Guardando cambios...",
+      success: () => { setEditRow(null); loadAppointments(); return "Cita actualizada"; },
+      error: "Error al actualizar",
+    });
+    promise.finally(() => setSaving(false));
+  }
 
   const isDoctor = session.role === "doctor";
   const canSelectDoctor = session.role === "admin" || session.role === "assistant";
@@ -167,6 +194,42 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
 
   return (
     <section className="page-section">
+      {editRow && (
+        <div className="modal-overlay" onClick={() => setEditRow(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
+            <div className="input-group">
+              <label>Fecha</label>
+              <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Hora de inicio</label>
+              <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
+                <option value="">Seleccione una hora</option>
+                {["07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
+                  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
+                  "15:00","15:30","16:00","16:30","17:00","17:30","18:00"].map((s) => {
+                  const [h, m] = s.split(":").map(Number);
+                  const ampm = h >= 12 ? "PM" : "AM";
+                  const h12 = h % 12 || 12;
+                  const label = `${String(h12).padStart(2,"0")}:${String(m).padStart(2,"0")} ${ampm}`;
+                  return <option key={s} value={s}>{label}</option>;
+                })}
+              </select>
+            </div>
+            <div className="input-group">
+              <label>Bloque de tiempo</label>
+              <select value={editDuration} onChange={(e) => setEditDuration(Number(e.target.value))}>
+                {DURATION_BLOCKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button type="button" className="action-btn action-btn-confirm" onClick={saveEdit} disabled={saving}>Guardar</button>
+              <button type="button" className="action-btn" onClick={() => setEditRow(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid-2-cols">
         <article className="card elite-card">
           <header className="card-header">
@@ -282,6 +345,12 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {canWriteAppointments(session) && row.status !== "cancelled" && (
+                        <button type="button" className="action-btn" onClick={() => openEdit(row)}>
+                          <span className="icon">✏️</span>
+                          <span>Editar</span>
+                        </button>
+                      )}
                       {canWriteAppointments(session) && !isConfirmed(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
                           <span className="icon">✓</span>

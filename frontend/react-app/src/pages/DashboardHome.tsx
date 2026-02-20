@@ -3,7 +3,27 @@ import { useNavigate } from "react-router-dom";
 import type { AuthSession } from "../types";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
-import { canManageTreatments } from "../lib/rbac";
+import { canManageTreatments, canWriteAppointments } from "../lib/rbac";
+
+const TIME_SLOTS = [
+  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
+  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
+  "15:00","15:30","16:00","16:30","17:00","17:30","18:00",
+];
+const DURATION_BLOCKS = [
+  { label: "30 minutos", value: 30 },
+  { label: "1 hora", value: 60 },
+  { label: "1 hora 30 min", value: 90 },
+  { label: "2 horas", value: 120 },
+  { label: "2 horas 30 min", value: 150 },
+  { label: "3 horas", value: 180 },
+];
+function fmtTime(slot: string): string {
+  const [h, m] = slot.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+}
 
 type AppointmentRow = {
   id: string;
@@ -14,16 +34,48 @@ type AppointmentRow = {
   paymentAmount?: number;
 };
 
-export function DashboardHome({ user, rows, loading, error, date, onDateChange }: { 
+export function DashboardHome({ user, rows, loading, error, date, onDateChange, onRefresh }: { 
   user: AuthSession; 
   rows: AppointmentRow[]; 
   loading: boolean;
   error: string;
   date: string;
   onDateChange: (date: string) => void;
+  onRefresh?: () => void;
 }) {
   const navigate = useNavigate();
   const [showPatientsBreakdown, setShowPatientsBreakdown] = useState(false);
+  const [editRow, setEditRow] = useState<AppointmentRow | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editDuration, setEditDuration] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  function openEdit(row: AppointmentRow) {
+    const d = new Date(row.startAt);
+    const dateStr = d.toISOString().slice(0, 10);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const timeStr = `${hh}:${mm}`;
+    setEditRow(row);
+    setEditDate(dateStr);
+    setEditTime(timeStr);
+    setEditDuration(30);
+  }
+
+  async function saveEdit() {
+    if (!editRow || !editDate || !editTime) return;
+    setSaving(true);
+    const startAt = new Date(`${editDate}T${editTime}`).toISOString();
+    const endAt = new Date(new Date(`${editDate}T${editTime}`).getTime() + editDuration * 60000).toISOString();
+    const promise = clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, user.token);
+    notify.promise(promise, {
+      loading: "Guardando cambios...",
+      success: () => { setEditRow(null); onRefresh?.(); return "Cita actualizada"; },
+      error: "Error al actualizar",
+    });
+    promise.finally(() => setSaving(false));
+  }
 
   const isConfirmed = (status: string) => status === "confirmed";
   const confirmedRows = useMemo(() => rows.filter((r) => isConfirmed(r.status)), [rows]);
@@ -50,6 +102,15 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange }
 
   // Removed duplicate create appointment button from header
 
+  const onConfirm = (id: string) => {
+    const promise = clinicalApi.confirmAppointment(id, user.token);
+    notify.promise(promise, {
+      loading: "Confirmando cita...",
+      success: () => { onRefresh?.(); return "Cita confirmada"; },
+      error: "Error al confirmar",
+    });
+  };
+
   const onResend = (id: string) => {
     const promise = clinicalApi.resendAppointmentConfirmation(id, user.token);
     notify.promise(promise, {
@@ -61,6 +122,34 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange }
 
   return (
     <section className="page-section">
+      {editRow && (
+        <div className="modal-overlay" onClick={() => setEditRow(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
+            <div className="input-group">
+              <label>Fecha</label>
+              <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Hora de inicio</label>
+              <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
+                <option value="">Seleccione una hora</option>
+                {TIME_SLOTS.map((s) => <option key={s} value={s}>{fmtTime(s)}</option>)}
+              </select>
+            </div>
+            <div className="input-group">
+              <label>Bloque de tiempo</label>
+              <select value={editDuration} onChange={(e) => setEditDuration(Number(e.target.value))}>
+                {DURATION_BLOCKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="action-btn action-btn-confirm" onClick={saveEdit} disabled={saving}>Guardar</button>
+              <button className="action-btn" onClick={() => setEditRow(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="stats-grid">
         {kpis.map((card) => (
           <article key={card.label} className="stat-card elite-card">
@@ -139,7 +228,19 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange }
                     <span className={`badge ${statusClass(row.status)}`}>{isConfirmed(row.status) ? "confirmada" : "no confirmada"}</span>
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {canWriteAppointments(user) && row.status !== "cancelled" && (
+                        <button type="button" className="action-btn" onClick={() => openEdit(row)}>
+                          <span className="icon">✏️</span>
+                          <span>Editar</span>
+                        </button>
+                      )}
+                      {canWriteAppointments(user) && !isConfirmed(row.status) && row.status !== "cancelled" && (
+                        <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
+                          <span className="icon">✓</span>
+                          <span>Confirmar</span>
+                        </button>
+                      )}
                       {canManageTreatments(user) && (
                         <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
                           <span>Atender</span>
