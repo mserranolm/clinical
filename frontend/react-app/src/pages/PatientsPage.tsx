@@ -23,6 +23,11 @@ type ConsultaHistorial = {
   treatmentPlan?: string;
   paymentAmount?: number;
   paymentMethod?: string;
+  imageKeys?: string[];
+};
+
+type PatientDetail = PatientRow & {
+  medicalBackgrounds?: Array<{ type: string; description: string }>;
 };
 
 const statusLabel: Record<string, string> = {
@@ -49,6 +54,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
   const formRef = useRef<HTMLFormElement>(null);
 
   const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
+  const [patientDetail, setPatientDetail] = useState<PatientDetail | null>(null);
   const [historial, setHistorial] = useState<ConsultaHistorial[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [detailCita, setDetailCita] = useState<ConsultaHistorial | null>(null);
@@ -84,13 +90,22 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
   async function openHistorial(patient: PatientRow) {
     setSelectedPatient(patient);
+    setPatientDetail(null);
     setHistorial([]);
     setLoadingHistorial(true);
     try {
-      const result = await clinicalApi.listAppointmentsByPatient(patient.id, token);
-      const items = (result.items ?? []) as ConsultaHistorial[];
-      items.sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
-      setHistorial(items);
+      const [apptResult, patResult] = await Promise.allSettled([
+        clinicalApi.listAppointmentsByPatient(patient.id, token),
+        clinicalApi.getPatient(patient.id, token),
+      ]);
+      if (apptResult.status === "fulfilled") {
+        const items = (apptResult.value.items ?? []) as ConsultaHistorial[];
+        items.sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
+        setHistorial(items);
+      }
+      if (patResult.status === "fulfilled") {
+        setPatientDetail(patResult.value as PatientDetail);
+      }
     } catch {
       notify.error("Error al cargar historial");
     } finally {
@@ -378,89 +393,152 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
         )}
       </div>
 
-      {/* Modal de detalle de consulta */}
-      {detailCita && selectedPatient && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDetailCita(null)}>
-          <div className="modal-card" style={{ maxWidth: 560 }}>
-            <div className="modal-header">
-              <div>
-                <h3>Detalle de Consulta</h3>
-                <p>
-                  {new Date(detailCita.startAt).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                  {" · "}
-                  {new Date(detailCita.startAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  {" – "}
-                  {new Date(detailCita.endAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </p>
+      {/* Modal de detalle completo de consulta */}
+      {detailCita && selectedPatient && (() => {
+        const bgs = patientDetail?.medicalBackgrounds ?? [];
+        const has = (t: string) => bgs.some(b => b.type === t);
+        const detail = (t: string) => bgs.find(b => b.type === t)?.description ?? "";
+        const imageUrls = (detailCita.imageKeys ?? []).map(k =>
+          k.startsWith("http") ? k : `https://clinical-appointment-images-975738006503.s3.amazonaws.com/${k}`
+        );
+        return (
+          <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDetailCita(null)}>
+            <div className="modal-card detalle-consulta-modal" style={{ maxWidth: 680 }}>
+              <div className="modal-header">
+                <div>
+                  <h3>Detalle de Consulta</h3>
+                  <p>
+                    {new Date(detailCita.startAt).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    {" · "}
+                    {new Date(detailCita.startAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {" – "}
+                    {new Date(detailCita.endAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <button className="modal-close" onClick={() => setDetailCita(null)}>✕</button>
               </div>
-              <button className="modal-close" onClick={() => setDetailCita(null)}>✕</button>
-            </div>
 
-            <div style={{ padding: "0 28px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+              <div className="detalle-consulta-body">
 
-              {/* Paciente y estado */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div className="patient-avatar-sm">{selectedPatient.firstName[0]}{selectedPatient.lastName[0]}</div>
-                  <div>
-                    <strong style={{ fontSize: "0.95rem" }}>{selectedPatient.firstName} {selectedPatient.lastName}</strong>
-                    {selectedPatient.documentId && <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>{selectedPatient.documentId}</p>}
+                {/* Paciente y estado */}
+                <div className="detalle-paciente-row">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="patient-avatar-sm">{selectedPatient.firstName[0]}{selectedPatient.lastName[0]}</div>
+                    <div>
+                      <strong>{selectedPatient.firstName} {selectedPatient.lastName}</strong>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>
+                        {selectedPatient.documentId && <span>🪪 {selectedPatient.documentId} · </span>}
+                        {selectedPatient.phone && <span>📞 {selectedPatient.phone} · </span>}
+                        {selectedPatient.email && <span>✉️ {selectedPatient.email}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`badge ${statusClass[detailCita.status] ?? "status-unconfirmed"}`}>
+                    {statusLabel[detailCita.status] ?? detailCita.status}
+                  </span>
+                </div>
+
+                {/* ── Historial Médico ── */}
+                <div className="detalle-seccion">
+                  <h4 className="detalle-seccion-titulo">📋 Historial Médico</h4>
+                  <div className="detalle-grid-2">
+                    {has("medication") && (
+                      <div className="detalle-campo">
+                        <span className="detalle-campo-label">Medicamentos</span>
+                        <span>{detail("medication") || "Sí"}</span>
+                      </div>
+                    )}
+                    {has("allergy_med") && (
+                      <div className="detalle-campo">
+                        <span className="detalle-campo-label">Alergia medicamentos</span>
+                        <span>{detail("allergy_med") || "Sí"}</span>
+                      </div>
+                    )}
+                    {has("allergies") && (
+                      <div className="detalle-campo">
+                        <span className="detalle-campo-label">Alergias</span>
+                        <span>{detail("allergies") || "Sí"}</span>
+                      </div>
+                    )}
+                    {(["anemia","hepatitis","diabetes","hypertension","cholesterol"] as const).filter(has).length > 0 && (
+                      <div className="detalle-campo" style={{ gridColumn: "1 / -1" }}>
+                        <span className="detalle-campo-label">Antecedentes patológicos</span>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                          {(["anemia","hepatitis","diabetes","hypertension","cholesterol"] as const).filter(has).map(p => (
+                            <span key={p} className="badge status-unconfirmed" style={{ fontSize: "0.7rem" }}>
+                              {p.charAt(0).toUpperCase() + p.slice(1)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {has("notes") && (
+                      <div className="detalle-campo" style={{ gridColumn: "1 / -1" }}>
+                        <span className="detalle-campo-label">Otras observaciones</span>
+                        <span>{detail("notes")}</span>
+                      </div>
+                    )}
+                    {bgs.length === 0 && (
+                      <p style={{ color: "#94a3b8", fontSize: "0.82rem", margin: 0 }}>Sin antecedentes registrados</p>
+                    )}
                   </div>
                 </div>
-                <span className={`badge ${statusClass[detailCita.status] ?? "status-unconfirmed"}`}>
-                  {statusLabel[detailCita.status] ?? detailCita.status}
-                </span>
-              </div>
 
-              {/* Notas de evolución */}
-              <div className="input-group">
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>📝</span> Notas de Evolución
-                </label>
-                <textarea
-                  readOnly
-                  rows={4}
-                  value={detailCita.evolutionNotes || "Sin notas de evolución registradas."}
-                  style={{ resize: "none", background: "#f8fafc", cursor: "default" }}
-                />
-              </div>
-
-              {/* Plan de tratamiento */}
-              <div className="input-group">
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>🦷</span> Plan de Tratamiento
-                </label>
-                <textarea
-                  readOnly
-                  rows={3}
-                  value={detailCita.treatmentPlan || "Sin plan de tratamiento registrado."}
-                  style={{ resize: "none", background: "#f8fafc", cursor: "default" }}
-                />
-              </div>
-
-              {/* Pago */}
-              {detailCita.paymentAmount != null && detailCita.paymentAmount > 0 && (
-                <div style={{ display: "flex", gap: 16 }}>
-                  <div className="input-group" style={{ flex: 1 }}>
-                    <label>💰 Monto pagado</label>
-                    <input readOnly value={`$${detailCita.paymentAmount.toFixed(2)}`} style={{ background: "#f8fafc", cursor: "default" }} />
+                {/* ── Evolución ── */}
+                <div className="detalle-seccion">
+                  <h4 className="detalle-seccion-titulo">📝 Evolución de la Consulta</h4>
+                  <div className="detalle-campo">
+                    <span className="detalle-campo-label">Notas de evolución</span>
+                    <p className="detalle-texto">{detailCita.evolutionNotes || "Sin notas registradas."}</p>
                   </div>
-                  <div className="input-group" style={{ flex: 1 }}>
-                    <label>💳 Método de pago</label>
-                    <input readOnly value={detailCita.paymentMethod ?? "—"} style={{ background: "#f8fafc", cursor: "default" }} />
+                  <div className="detalle-campo" style={{ marginTop: 10 }}>
+                    <span className="detalle-campo-label">Plan de tratamiento</span>
+                    <p className="detalle-texto">{detailCita.treatmentPlan || "Sin plan registrado."}</p>
                   </div>
                 </div>
-              )}
 
-              <div className="modal-actions">
-                <button type="button" onClick={() => setDetailCita(null)}>
-                  Cerrar
-                </button>
+                {/* ── Pago ── */}
+                {detailCita.paymentAmount != null && detailCita.paymentAmount > 0 && (
+                  <div className="detalle-seccion">
+                    <h4 className="detalle-seccion-titulo">💰 Pago</h4>
+                    <div className="detalle-grid-2">
+                      <div className="detalle-campo">
+                        <span className="detalle-campo-label">Monto cobrado</span>
+                        <span style={{ fontWeight: 700, fontSize: "1.05rem", color: "#10b981" }}>${detailCita.paymentAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="detalle-campo">
+                        <span className="detalle-campo-label">Método de pago</span>
+                        <span style={{ textTransform: "capitalize" }}>{detailCita.paymentMethod ?? "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Imágenes ── */}
+                <div className="detalle-seccion">
+                  <h4 className="detalle-seccion-titulo">🖼️ Imágenes ({imageUrls.length})</h4>
+                  {imageUrls.length === 0 ? (
+                    <p style={{ color: "#94a3b8", fontSize: "0.82rem", margin: 0 }}>Sin imágenes registradas</p>
+                  ) : (
+                    <div className="image-gallery" style={{ marginTop: 8 }}>
+                      {imageUrls.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noreferrer" className="image-thumb-link">
+                          <img src={url} alt={`Imagen ${i + 1}`} className="image-thumb" />
+                          <span className="image-thumb-label">Ver original</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" onClick={() => setDetailCita(null)}>Cerrar</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal de registro/edición */}
       {showModal && (

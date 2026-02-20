@@ -2460,4 +2460,77 @@ button.ghost:hover { border-color: var(--clinical-blue); background: #f8fafc; }
 }
 .image-empty p { margin: 0; font-weight: 600; color: #64748b; }
 
+/* ── Modal detalle completo de consulta ─────────────────────── */
+.detalle-consulta-modal {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.detalle-consulta-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.detalle-paciente-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+.detalle-seccion {
+  border-top: 1px solid #f1f5f9;
+  padding: 16px 0;
+}
+.detalle-seccion:last-of-type {
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 20px;
+}
+.detalle-seccion-titulo {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+}
+.detalle-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.detalle-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.detalle-campo-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+}
+.detalle-campo span:not(.detalle-campo-label) {
+  font-size: 0.88rem;
+  color: #1e293b;
+}
+.detalle-texto {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #334155;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #f1f5f9;
+}
+
 /* auth-spinner defined above in login section */
