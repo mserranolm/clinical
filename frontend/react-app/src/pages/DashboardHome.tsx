@@ -82,8 +82,9 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   }
 
   const isConfirmed = (status: string) => status === "confirmed";
+  const isCompleted = (status: string) => status === "completed";
   const confirmedRows = useMemo(() => rows.filter((r) => isConfirmed(r.status)), [rows]);
-  const unconfirmedRows = useMemo(() => rows.filter((r) => !isConfirmed(r.status)), [rows]);
+  const unconfirmedRows = useMemo(() => rows.filter((r) => !isConfirmed(r.status) && !isCompleted(r.status) && r.status !== "cancelled"), [rows]);
 
   const kpis = useMemo(() => {
     const total = rows.length;
@@ -96,7 +97,18 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
     ];
   }, [confirmedRows.length, loading, rows.length, unconfirmedRows.length]);
 
-  const statusClass = (status: string) => (isConfirmed(status) ? "status-confirmed" : "status-unconfirmed");
+  const statusClass = (status: string) => {
+    if (status === "confirmed") return "status-confirmed";
+    if (status === "completed") return "status-completed";
+    if (status === "cancelled") return "status-cancelled";
+    return "status-unconfirmed";
+  };
+  const statusLabel = (status: string) => {
+    if (status === "confirmed") return "Confirmada";
+    if (status === "completed") return "Finalizada";
+    if (status === "cancelled") return "Cancelada";
+    return "No confirmada";
+  };
 
   const patientLabel = (row: AppointmentRow) => row.patientName || row.patientId;
 
@@ -227,32 +239,45 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                   <td><strong>{patientLabel(row)}</strong></td>
                   <td>{new Date(row.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                   <td>
-                    <span className={`badge ${statusClass(row.status)}`}>{isConfirmed(row.status) ? "confirmada" : "no confirmada"}</span>
+                    <span className={`badge ${statusClass(row.status)}`}>{statusLabel(row.status)}</span>
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {canWriteAppointments(user) && row.status !== "cancelled" && (
+                      {canWriteAppointments(user) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn" onClick={() => openEdit(row)}>
                           <span className="icon">✏️</span>
                           <span>Editar</span>
                         </button>
                       )}
-                      {canWriteAppointments(user) && !isConfirmed(row.status) && row.status !== "cancelled" && (
+                      {canWriteAppointments(user) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
                           <span className="icon">✓</span>
                           <span>Confirmar</span>
                         </button>
                       )}
-                      {canManageTreatments(user) && (
-                        <button type="button" className="action-btn action-btn-treat" onClick={() => goToTreatment(row)}>
+                      {canManageTreatments(user) && !isCompleted(row.status) && (
+                        <button
+                          type="button"
+                          className="action-btn action-btn-treat"
+                          onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
+                          title={isConfirmed(row.status) ? "Atender paciente" : "La cita debe estar confirmada"}
+                          style={!isConfirmed(row.status) ? { opacity: 0.55 } : {}}
+                        >
                           <span>Atender</span>
                           <span className="icon">→</span>
                         </button>
                       )}
-                      <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
-                        <span className="icon">✉️</span>
-                        <span>Reenviar</span>
-                      </button>
+                      {isCompleted(row.status) && (
+                        <button type="button" className="action-btn" disabled style={{ opacity: 0.5 }}>
+                          <span>✓ Finalizada</span>
+                        </button>
+                      )}
+                      {!isCompleted(row.status) && row.status !== "cancelled" && (
+                        <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
+                          <span className="icon">✉️</span>
+                          <span>Reenviar</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
