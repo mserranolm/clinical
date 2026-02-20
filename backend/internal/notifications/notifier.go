@@ -75,7 +75,7 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 		}
 		sender := os.Getenv("SES_SENDER_EMAIL")
 		if sender == "" {
-			sender = "no-reply@vozlyai.aski-tech.net"
+			sender = "no-reply@clinisense.aski-tech.net"
 		}
 		subject := "Confirmación de cita"
 		_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
@@ -136,7 +136,7 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role st
 		sender = os.Getenv("SES_SENDER_EMAIL")
 	}
 	if sender == "" {
-		sender = "no-reply@vozlyai.aski-tech.net"
+		sender = "no-reply@clinisense.aski-tech.net"
 	}
 	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
 		FromEmailAddress: aws.String(sender),
