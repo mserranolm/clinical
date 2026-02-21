@@ -145,6 +145,12 @@ export const clinicalApi = {
       token
     }),
 
+  registerPayment: (appointmentId: string, payload: { paid: boolean; paymentMethod: string; paymentAmount: number }, token?: string) =>
+    request<{ id: string; paymentPaid: boolean; paymentMethod: string; paymentAmount: number }>(
+      `/appointments/${encodeURIComponent(appointmentId)}/payment`,
+      { method: "PATCH", body: payload, token }
+    ),
+
   closeAppointmentDay: (
     appointmentId: string,
     payload: { evolutionNotes: string; paymentAmount: number; paymentMethod: string },

@@ -307,3 +307,27 @@ func (s *AppointmentService) Delete(ctx context.Context, id string) error {
 	}
 	return s.repo.Delete(ctx, id)
 }
+
+type RegisterPaymentInput struct {
+	Paid          bool    `json:"paid"`
+	PaymentMethod string  `json:"paymentMethod"`
+	PaymentAmount float64 `json:"paymentAmount"`
+}
+
+func (s *AppointmentService) RegisterPayment(ctx context.Context, id string, in RegisterPaymentInput) (domain.Appointment, error) {
+	appt, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Appointment{}, fmt.Errorf("appointment not found")
+	}
+	if appt.Status != "completed" {
+		return domain.Appointment{}, fmt.Errorf("solo se puede registrar pago en consultas finalizadas")
+	}
+	appt.PaymentPaid = in.Paid
+	if in.PaymentMethod != "" {
+		appt.PaymentMethod = in.PaymentMethod
+	}
+	if in.PaymentAmount > 0 {
+		appt.PaymentAmount = in.PaymentAmount
+	}
+	return s.repo.Update(ctx, appt)
+}

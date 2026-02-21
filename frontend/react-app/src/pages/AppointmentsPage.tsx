@@ -30,6 +30,10 @@ const DURATION_BLOCKS = [
   { label: "3 horas", value: 180 },
 ];
 
+function localToUTC(dateStr: string, timeStr: string): string {
+  return `${dateStr}T${timeStr}:00-04:00`;
+}
+
 function formatTimeRange(startAt: string, endAt: string): string {
   const start = new Date(startAt);
   const end = new Date(endAt);
@@ -53,9 +57,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
 
   function openEdit(row: AppointmentRow) {
     const d = new Date(row.startAt);
+    const vzla = new Date(d.toLocaleString("en-US", { timeZone: "America/Caracas" }));
     setEditRow(row);
-    setEditDate(d.toISOString().slice(0, 10));
-    setEditTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+    setEditDate(`${vzla.getFullYear()}-${String(vzla.getMonth()+1).padStart(2,"0")}-${String(vzla.getDate()).padStart(2,"0")}`);
+    setEditTime(`${String(vzla.getHours()).padStart(2, "0")}:${String(vzla.getMinutes()).padStart(2, "0")}`);
     setEditDuration(row.durationMinutes || 30);
   }
 
@@ -63,8 +68,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     if (!editRow || !editDate || !editTime) return;
     setSaving(true);
     try {
-      const startAt = new Date(`${editDate}T${editTime}`).toISOString();
-      const endAt = new Date(new Date(`${editDate}T${editTime}`).getTime() + editDuration * 60000).toISOString();
+      const startAt = localToUTC(editDate, editTime);
+      const endAt = new Date(new Date(startAt).getTime() + editDuration * 60000).toISOString();
       await clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, token);
       notify.success("Cita actualizada");
       setEditRow(null);
@@ -112,7 +117,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       notify.error("Selecciona un doctor", "Debes asignar un doctor a la cita.");
       return;
     }
-    const startAt = new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString();
+    const startAt = localToUTC(String(fd.get('date')), String(fd.get('time')));
     const promise = clinicalApi.createAppointment(
       {
         doctorId: effectiveDoctorId,

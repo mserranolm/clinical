@@ -85,7 +85,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   const [evolutionNotes, setEvolutionNotes] = useState("");
   const [treatmentPlan, setTreatmentPlan] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState("efectivo");
   const [activeTab, setActiveTab] = useState<"historia" | "odontograma" | "evolucion">("historia");
   const [appointmentStatus, setAppointmentStatus] = useState<string>("scheduled");
   const [appointmentDate, setAppointmentDate] = useState<string>("");
@@ -130,7 +129,6 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         if (appt.evolutionNotes) setEvolutionNotes(appt.evolutionNotes);
         if (appt.treatmentPlan) setTreatmentPlan(appt.treatmentPlan);
         if (appt.paymentAmount) setPaymentAmount(appt.paymentAmount);
-        if (appt.paymentMethod) setPaymentMethod(appt.paymentMethod);
         if ((appt as { imageKeys?: string[] }).imageKeys?.length) {
           const bucket = (appt as { imageKeys?: string[] }).imageKeys!;
           setImageUrls(bucket.map(k =>
@@ -276,7 +274,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
       await clinicalApi.closeAppointmentDay(appointmentId, {
         evolutionNotes,
         paymentAmount,
-        paymentMethod,
+        paymentMethod: "",
       }, token);
       if (treatmentPlan.trim()) {
         await clinicalApi.updateAppointment(appointmentId, { treatmentPlan }, token);
@@ -609,10 +607,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
           </div>
 
           <div className="pago-section">
-            <h4>Registro de Pago</h4>
-            <div className="pago-grid">
+            <h4>Monto de la Consulta</h4>
+            <div className="pago-grid" style={{ gridTemplateColumns: "1fr" }}>
               <div className="input-group">
-                <label>Monto cobrado</label>
+                <label>Valor cobrado</label>
                 <input
                   type="number"
                   min={0}
@@ -623,21 +621,11 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   className="elite-input"
                   placeholder="0.00"
                 />
-              </div>
-              <div className="input-group">
-                <label>Método de pago</label>
-                <select
-                  value={paymentMethod}
-                  disabled={isClosed}
-                  onChange={e => setPaymentMethod(e.target.value)}
-                  className="elite-input"
-                >
-                  <option value="efectivo">Efectivo</option>
-                  <option value="transferencia">Transferencia</option>
-                  <option value="tarjeta">Tarjeta</option>
-                  <option value="zelle">Zelle</option>
-                  <option value="otro">Otro</option>
-                </select>
+                {!isClosed && (
+                  <small style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                    El método de pago y confirmación se registran desde la agenda después de finalizar.
+                  </small>
+                )}
               </div>
             </div>
           </div>

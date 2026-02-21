@@ -134,6 +134,18 @@ func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, r
 	return response(200, map[string]string{"status": "reminder_resent"})
 }
 
+func (r *Router) registerPayment(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.RegisterPaymentInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	appt, err := r.appointments.RegisterPayment(ctx, id, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, appt)
+}
+
 func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler) *Router {
 	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram}
 }
@@ -392,6 +404,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				id := strings.TrimPrefix(path, "/appointments/")
 				resp, err = r.deleteAppointment(actx, id)
+			}
+		case method == "PATCH" && strings.HasSuffix(path, "/payment") && strings.HasPrefix(path, "/appointments/"):
+			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimSuffix(strings.TrimPrefix(path, "/appointments/"), "/payment")
+				resp, err = r.registerPayment(actx, id, req)
 			}
 		case method == "PUT" && strings.HasPrefix(path, "/appointments/"):
 			if actx, deny, ok := r.require(ctx, req, permAppointmentsWrite); !ok {
