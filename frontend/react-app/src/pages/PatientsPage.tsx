@@ -3,6 +3,7 @@ import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canWritePatients, canDeletePatients } from "../lib/rbac";
 import { DatePicker } from "../components/ui/DatePicker";
+import { Modal } from "../components/Modal";
 import type { AuthSession } from "../types";
 
 type PatientRow = {
@@ -675,60 +676,58 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
       {/* Modal de registro/edición */}
       {showModal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
-          <div className="modal-card modal-card-with-datepicker">
-            <div className="modal-header">
-              <div>
-                <h3>{editingPatient ? "Editar Paciente" : "Registrar Nuevo Paciente"}</h3>
-                <p>Complete los datos del expediente clínico</p>
+        <Modal onClose={closeModal}>
+          <div className="modal-header">
+            <div>
+              <h3>{editingPatient ? "Editar Paciente" : "Registrar Nuevo Paciente"}</h3>
+              <p style={{ color: "#64748b", fontSize: "0.85rem", margin: 0 }}>Complete los datos del expediente clínico</p>
+            </div>
+            <button className="modal-close" onClick={closeModal}>✕</button>
+          </div>
+
+          <form ref={formRef} className="card-form modal-form" onSubmit={onSave}>
+            <div className="row-inputs">
+              <div className="input-group">
+                <label>Nombre(s) <span className="required">*</span></label>
+                <input name="firstName" placeholder="Juan" required defaultValue={editingPatient?.firstName} />
               </div>
-              <button className="modal-close" onClick={closeModal}>✕</button>
+              <div className="input-group">
+                <label>Apellido(s) <span className="required">*</span></label>
+                <input name="lastName" placeholder="Pérez" required defaultValue={editingPatient?.lastName} />
+              </div>
             </div>
 
-            <form ref={formRef} className="card-form modal-form" onSubmit={onSave}>
-              <div className="row-inputs">
-                <div className="input-group">
-                  <label>Nombre(s) <span className="required">*</span></label>
-                  <input name="firstName" placeholder="Juan" required defaultValue={editingPatient?.firstName} />
-                </div>
-                <div className="input-group">
-                  <label>Apellido(s) <span className="required">*</span></label>
-                  <input name="lastName" placeholder="Pérez" required defaultValue={editingPatient?.lastName} />
-                </div>
-              </div>
+            <div className="input-group">
+              <label>Cédula / Documento de Identidad</label>
+              <input name="documentId" placeholder="V-12345678" defaultValue={editingPatient?.documentId} />
+            </div>
 
+            <div className="row-inputs">
               <div className="input-group">
-                <label>Cédula / Documento de Identidad</label>
-                <input name="documentId" placeholder="V-12345678" defaultValue={editingPatient?.documentId} />
+                <label>Email de contacto</label>
+                <input name="email" type="email" placeholder="paciente@email.com" defaultValue={editingPatient?.email} />
               </div>
-
-              <div className="row-inputs">
-                <div className="input-group">
-                  <label>Email de contacto</label>
-                  <input name="email" type="email" placeholder="paciente@email.com" defaultValue={editingPatient?.email} />
-                </div>
-                <div className="input-group">
-                  <label>Teléfono</label>
-                  <input name="phone" placeholder="+58 414 000 0000" defaultValue={editingPatient?.phone} />
-                </div>
-              </div>
-
               <div className="input-group">
-                <label>Fecha de Nacimiento</label>
-                <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" />
+                <label>Teléfono</label>
+                <input name="phone" placeholder="+58 414 000 0000" defaultValue={editingPatient?.phone} />
               </div>
+            </div>
 
-              <div className="modal-actions">
-                <button type="button" className="ghost" onClick={closeModal}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={saving}>
-                  {saving ? <><span className="auth-spinner" />Guardando...</> : (editingPatient ? 'Guardar Cambios' : 'Registrar Paciente')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="input-group">
+              <label>Fecha de Nacimiento</label>
+              <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" />
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="ghost" onClick={closeModal}>
+                Cancelar
+              </button>
+              <button type="submit" disabled={saving}>
+                {saving ? <><span className="auth-spinner" />Guardando...</> : (editingPatient ? 'Guardar Cambios' : 'Registrar Paciente')}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </section>
   );
