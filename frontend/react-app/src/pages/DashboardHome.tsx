@@ -317,88 +317,114 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
         </article>
       ) : null}
 
-      <article className="chart-card elite-card">
-        <header className="card-header">
-          <div className="header-copy">
-            <h3>Citas de la Jornada</h3>
-            <p>Vista detallada de la agenda seleccionada.</p>
+      <article className="agenda-card">
+        {/* ── Header ── */}
+        <div className="agenda-header">
+          <div className="agenda-header-left">
+            <div className="agenda-header-icon">
+              <CalendarCheck size={18} strokeWidth={1.5} />
+            </div>
+            <div>
+              <h3 className="agenda-title">Citas de la Jornada</h3>
+              <p className="agenda-subtitle">
+                {rows.length > 0
+                  ? `${rows.length} cita${rows.length !== 1 ? "s" : ""} programada${rows.length !== 1 ? "s" : ""}`
+                  : "Sin citas para esta fecha"}
+              </p>
+            </div>
           </div>
-          <div className="header-actions">
+          <div className="agenda-header-right">
             <DatePicker value={date} onChange={onDateChange} />
           </div>
-        </header>
-        
-        {error ? <div className="auth-error">{error}</div> : null}
-        
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Referencia</th>
-                <th>Paciente</th>
-                <th>Horario</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="mono">{row.id.split("-")[0]}...</td>
-                  <td><strong>{patientLabel(row)}</strong></td>
-                  <td>{new Date(row.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                  <td>
-                    <span className={`badge ${statusClass(row.status)}`}>{statusLabel(row.status)}</span>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {canWriteAppointments(user) && !isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button type="button" className="action-btn" onClick={() => openEdit(row)}>
-                          <Pencil size={12} strokeWidth={1.5} />
-                          Editar
-                        </button>
-                      )}
-                      {canWriteAppointments(user) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
-                          <CheckCircle size={12} strokeWidth={1.5} />
-                          Confirmar
-                        </button>
-                      )}
-                      {canManageTreatments(user) && !isCompleted(row.status) && (
-                        <button
-                          type="button"
-                          className="action-btn action-btn-treat"
-                          onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
-                          title={isConfirmed(row.status) ? "Atender paciente" : "La cita debe estar confirmada"}
-                          style={!isConfirmed(row.status) ? { opacity: 0.5 } : {}}
-                        >
-                          <Stethoscope size={12} strokeWidth={1.5} />
-                          Atender
-                        </button>
-                      )}
-                      {isCompleted(row.status) && (
-                        <button type="button" className="action-btn" disabled style={{ opacity: 0.45 }}>
-                          <CheckCircle size={12} strokeWidth={1.5} />
-                          Finalizada
-                        </button>
-                      )}
-                      {!isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
-                          <Send size={12} strokeWidth={1.5} />
-                          Reenviar
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && !loading ? (
+        </div>
+
+        {error ? <div className="auth-error" style={{ margin: "0 0 16px" }}>{error}</div> : null}
+
+        {/* ── Tabla ── */}
+        <div className="agenda-table-wrap">
+          {rows.length === 0 && !loading ? (
+            <div className="agenda-empty">
+              <div className="agenda-empty-icon">
+                <CalendarCheck size={32} strokeWidth={1} />
+              </div>
+              <strong>Sin citas para esta fecha</strong>
+              <p>Selecciona otro día o crea una nueva cita.</p>
+            </div>
+          ) : (
+            <table className="agenda-table">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="empty-state">No se encontraron citas para esta fecha.</td>
+                  <th>Paciente</th>
+                  <th>Horario</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="agenda-row">
+                    <td>
+                      <div className="agenda-patient">
+                        <div className="agenda-patient-avatar">
+                          {(patientLabel(row)[0] || "?").toUpperCase()}
+                        </div>
+                        <div>
+                          <strong className="agenda-patient-name">{patientLabel(row)}</strong>
+                          <span className="agenda-patient-ref">{row.id.split("-")[0]}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="agenda-time">
+                        <Clock size={13} strokeWidth={1.5} />
+                        {new Date(row.startAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${statusClass(row.status)}`}>{statusLabel(row.status)}</span>
+                    </td>
+                    <td>
+                      <div className="agenda-actions">
+                        {canWriteAppointments(user) && !isCompleted(row.status) && row.status !== "cancelled" && (
+                          <button type="button" className="agenda-btn" onClick={() => openEdit(row)} title="Editar">
+                            <Pencil size={13} strokeWidth={1.5} />
+                          </button>
+                        )}
+                        {canWriteAppointments(user) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
+                          <button type="button" className="agenda-btn agenda-btn-confirm" onClick={() => onConfirm(row.id)} title="Confirmar cita">
+                            <CheckCircle size={13} strokeWidth={1.5} />
+                            <span>Confirmar</span>
+                          </button>
+                        )}
+                        {canManageTreatments(user) && !isCompleted(row.status) && (
+                          <button
+                            type="button"
+                            className="agenda-btn agenda-btn-treat"
+                            onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
+                            title={isConfirmed(row.status) ? "Atender paciente" : "Confirma primero"}
+                            style={!isConfirmed(row.status) ? { opacity: 0.45, cursor: "not-allowed" } : {}}
+                          >
+                            <Stethoscope size={13} strokeWidth={1.5} />
+                            <span>Atender</span>
+                          </button>
+                        )}
+                        {isCompleted(row.status) && (
+                          <span className="agenda-done-badge">
+                            <CheckCircle size={12} strokeWidth={1.5} /> Finalizada
+                          </span>
+                        )}
+                        {!isCompleted(row.status) && row.status !== "cancelled" && (
+                          <button type="button" className="agenda-btn" onClick={() => onResend(row.id)} title="Reenviar confirmación">
+                            <Send size={13} strokeWidth={1.5} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </article>
     </section>
