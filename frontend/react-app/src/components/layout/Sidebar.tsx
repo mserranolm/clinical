@@ -8,8 +8,8 @@ import {
   ClipboardList,
   ShieldCheck,
   LogOut,
-  Stethoscope,
 } from "lucide-react";
+import { Logo } from "../ui/Logo";
 
 const ROLE_LABELS: Record<string, string> = {
   platform_admin: "Super Admin",
@@ -50,13 +50,8 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
     return (
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="sidebar-logo">
-            <Stethoscope size={17} strokeWidth={1.5} color="white" />
-          </div>
-          <div>
-            <h2>Clini<span>Sense</span></h2>
-            <small>Plataforma</small>
-          </div>
+          <Logo variant="light" className="sidebar-logo-svg" />
+          <small className="sidebar-brand-tag">Plataforma</small>
         </div>
         <nav className="sidebar-nav">
           <div className="nav-group">
@@ -75,13 +70,8 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-logo">
-          <Stethoscope size={17} strokeWidth={1.5} color="white" />
-        </div>
-        <div>
-          <h2>Clini<span>Sense</span></h2>
-          <small>Medical Suite</small>
-        </div>
+        <Logo variant="light" className="sidebar-logo-svg" />
+        <small className="sidebar-brand-tag">Medical Suite</small>
       </div>
 
       <nav className="sidebar-nav">

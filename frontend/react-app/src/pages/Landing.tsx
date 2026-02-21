@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import {
-  Check, ArrowRight, Stethoscope, Calendar,
+  Check, ArrowRight, Calendar,
   FileText, BarChart3, Bell, Shield, Zap, Users,
 } from "lucide-react";
+import { Logo } from "../components/ui/Logo";
 
 const quickStats = [
   { label: "Citas / mes", value: "2.4K+" },
@@ -38,10 +39,7 @@ export function Landing() {
       <header className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
-            <div className="lp-nav-logo">
-              <Stethoscope size={16} strokeWidth={1.5} color="white" />
-            </div>
-            <span className="lp-nav-name">Clini<span>Sense</span></span>
+            <Logo variant="color" className="lp-nav-logo-svg" />
           </div>
           <div className="lp-nav-actions">
             <button className="lp-btn-ghost" onClick={() => navigate("/login")}>
