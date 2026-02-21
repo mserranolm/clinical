@@ -43,7 +43,15 @@ type AppointmentRow = {
   consentSummary?: { total: number; accepted: number };
 };
 
-export function DashboardHome({ user, rows, loading, error, date, onDateChange, onRefresh }: { 
+const AUTO_REFRESH_OPTS = [
+  { value: 0, label: "Desactivada" },
+  { value: 10, label: "Cada 10 s" },
+  { value: 15, label: "Cada 15 s" },
+  { value: 30, label: "Cada 30 s" },
+  { value: 60, label: "Cada 60 s" },
+] as const;
+
+export function DashboardHome({ user, rows, loading, error, date, onDateChange, onRefresh, autoRefreshSeconds = 0, onAutoRefreshChange }: { 
   user: AuthSession; 
   rows: AppointmentRow[]; 
   loading: boolean;
@@ -51,6 +59,8 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   date: string;
   onDateChange: (date: string) => void;
   onRefresh?: () => void;
+  autoRefreshSeconds?: number;
+  onAutoRefreshChange?: (seconds: number) => void;
 }) {
   const navigate = useNavigate();
   const [showPatientsBreakdown, setShowPatientsBreakdown] = useState(false);
@@ -338,15 +348,32 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
               </p>
             </div>
           </div>
-          <div className="agenda-header-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="agenda-header-right" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
               className="agenda-btn"
               onClick={onRefresh}
-              title="Actualizar citas"
+              title="Actualizar citas y consentimientos"
+              disabled={loading}
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
             >
               <RefreshCw size={13} strokeWidth={1.5} />
+              <span>Actualizar</span>
             </button>
+            {onAutoRefreshChange && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.875rem", color: "var(--text-secondary, #64748b)" }}>
+                <span>Auto:</span>
+                <select
+                  value={autoRefreshSeconds}
+                  onChange={(e) => onAutoRefreshChange(Number(e.target.value))}
+                  style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: "0.8rem", minWidth: 100 }}
+                >
+                  {AUTO_REFRESH_OPTS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <DatePicker value={date} onChange={onDateChange} />
           </div>
         </div>
@@ -402,7 +429,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                         row.consentSummary.accepted >= row.consentSummary.total ? (
                           <span className="badge badge-success" title="Todos los consentimientos aceptados">Completo</span>
                         ) : (
-                          <span className="badge badge-neutral" title="Pendientes de firma">Pendiente</span>
+                          <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} aceptados. El paciente debe abrir y aceptar todos los enlaces del correo.`}>Pendiente</span>
                         )
                       ) : (
                         <span className="text-muted">—</span>

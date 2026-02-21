@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
@@ -24,6 +24,14 @@ type AppointmentRow = {
   paymentMethod?: string;
   consentSummary?: { total: number; accepted: number };
 };
+
+const AUTO_REFRESH_OPTS = [
+  { value: 0, label: "Desactivada" },
+  { value: 10, label: "Cada 10 s" },
+  { value: 15, label: "Cada 15 s" },
+  { value: 30, label: "Cada 30 s" },
+  { value: 60, label: "Cada 60 s" },
+] as const;
 
 const DURATION_BLOCKS = [
   { label: "30 minutos", value: 30 },
@@ -59,6 +67,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [payMethod, setPayMethod] = useState("efectivo");
   const [payAmount, setPayAmount] = useState(0);
   const [payingSaving, setPayingSaving] = useState(false);
+  const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function openEdit(row: AppointmentRow) {
     const { date, time } = isoToLocalDateTime(row.startAt);
@@ -112,6 +122,19 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   useEffect(() => {
     loadAppointments(date, effectiveDoctorId);
   }, [location.key, effectiveDoctorId, date]);
+
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (autoRefreshSeconds > 0) {
+      intervalRef.current = setInterval(() => loadAppointments(date, effectiveDoctorId), autoRefreshSeconds * 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [autoRefreshSeconds, date, effectiveDoctorId]);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -446,12 +469,26 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       </div>
 
       <article className="card elite-card" style={{ marginTop: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
           <h3 style={{ margin: 0 }}>Calendario Diario de Atención</h3>
-          <button type="button" className="agenda-btn" onClick={() => loadAppointments(date, effectiveDoctorId)} title="Actualizar agenda">
-            <RefreshCw size={13} strokeWidth={1.5} />
-            <span>Actualizar</span>
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button type="button" className="agenda-btn" onClick={() => loadAppointments(date, effectiveDoctorId)} title="Actualizar agenda">
+              <RefreshCw size={13} strokeWidth={1.5} />
+              <span>Actualizar</span>
+            </button>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.875rem", color: "#64748b" }}>
+              <span>Auto:</span>
+              <select
+                value={autoRefreshSeconds}
+                onChange={(e) => setAutoRefreshSeconds(Number(e.target.value))}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: "0.8rem", minWidth: 100 }}
+              >
+                {AUTO_REFRESH_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
         <div className="table-wrap">
           <table>
@@ -483,7 +520,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                       row.consentSummary.accepted >= row.consentSummary.total ? (
                         <span className="badge badge-success" title="Todos firmados">Completo</span>
                       ) : (
-                        <span className="badge badge-neutral" title="Pendientes">Pendiente</span>
+                        <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} aceptados. El paciente debe abrir todos los enlaces del correo.`}>Pendiente</span>
                       )
                     ) : (
                       <span className="text-muted">—</span>

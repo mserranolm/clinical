@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { clinicalApi } from "../../api/clinical";
@@ -40,6 +40,8 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cierra el drawer al navegar
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
@@ -76,6 +78,20 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [location.pathname, appointmentsDate, session]);
+
+  // Auto-refresh Panel Principal (Citas de la Jornada)
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (!isPlatformAdmin && location.pathname === "/dashboard" && autoRefreshSeconds > 0) {
+      intervalRef.current = setInterval(() => loadDashboardData(), autoRefreshSeconds * 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [autoRefreshSeconds, location.pathname, isPlatformAdmin]);
 
   async function loadDashboardData() {
     setLoading(true);
@@ -159,7 +175,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
         <Topbar session={session} onLogout={onLogout} title={currentLabel} hamburger={hamburger} />
         <div className="page-content">
           <Routes>
-            <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} />} />
+            <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} autoRefreshSeconds={autoRefreshSeconds} onAutoRefreshChange={setAutoRefreshSeconds} />} />
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
             <Route path="consulta" element={<ConsultaPage token={session.token} doctorId={session.userId} />} />
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId="" session={session} />} />
