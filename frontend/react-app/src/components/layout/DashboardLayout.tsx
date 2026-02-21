@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import { clinicalApi } from "../../api/clinical";
 import { AuthSession } from "../../types";
 import { Sidebar } from "./Sidebar";
@@ -30,13 +31,16 @@ type DashboardAppointmentRow = {
 export function DashboardLayout({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const location = useLocation();
   const isPlatformAdmin = session.role === "platform_admin";
-  // Doctors scope patients/appointments to themselves; admin and assistant see the full org
   const scopedDoctorId = session.role === "doctor" ? session.userId : "";
 
   const [appointmentsDate, setAppointmentsDate] = useState(new Date().toISOString().slice(0, 10));
   const [appointmentRows, setAppointmentRows] = useState<DashboardAppointmentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Cierra el drawer al navegar
+  useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
 
   const platformMenu = [
     { to: "/dashboard", label: "Consola de Plataforma" },
@@ -92,13 +96,38 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     }
   }
 
-  // platform_admin: render only the platform console, no sidebar clinic menu
+  const sidebarProps = { onLogout, userName: session.name, role: session.role };
+
+  const drawerSidebar = (
+    <>
+      {/* Overlay */}
+      {drawerOpen && (
+        <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />
+      )}
+      {/* Drawer */}
+      <div className={`sidebar-drawer${drawerOpen ? " drawer-open" : ""}`}>
+        <Sidebar {...sidebarProps} />
+      </div>
+    </>
+  );
+
+  const hamburger = (
+    <button
+      className="hamburger-btn"
+      onClick={() => setDrawerOpen(o => !o)}
+      aria-label="Abrir menú"
+    >
+      {drawerOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+    </button>
+  );
+
   if (isPlatformAdmin) {
     return (
       <main className="admin-layout">
-        <Sidebar onLogout={onLogout} userName={session.name} role={session.role} />
+        {drawerSidebar}
+        <div className="sidebar-desktop"><Sidebar {...sidebarProps} /></div>
         <section className="content-area">
-          <Topbar session={session} onLogout={onLogout} title="Consola de Plataforma" />
+          <Topbar session={session} onLogout={onLogout} title="Consola de Plataforma" hamburger={hamburger} />
           <div className="page-content">
             <Routes>
               <Route index element={<AdminConsoleHome session={session} />} />
@@ -112,9 +141,10 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
 
   return (
     <main className="admin-layout">
-      <Sidebar onLogout={onLogout} userName={session.name} role={session.role} />
+      {drawerSidebar}
+      <div className="sidebar-desktop"><Sidebar {...sidebarProps} /></div>
       <section className="content-area">
-        <Topbar session={session} onLogout={onLogout} title={currentLabel} />
+        <Topbar session={session} onLogout={onLogout} title={currentLabel} hamburger={hamburger} />
         <div className="page-content">
           <Routes>
             <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} />} />

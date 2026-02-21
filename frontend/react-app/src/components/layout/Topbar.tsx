@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, CalendarDays } from "lucide-react";
 import type { AuthSession } from "../../types";
@@ -15,7 +15,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/testing": { title: "Service Tester", subtitle: "Pruebas de integración de API" },
 };
 
-export function Topbar({ session, title }: { session: AuthSession; onLogout: () => void; title: string }) {
+export function Topbar({ session, title, hamburger }: { session: AuthSession; onLogout: () => void; title: string; hamburger?: React.ReactNode }) {
   const navigate = useNavigate();
   const now = useMemo(() => {
     return new Date().toLocaleDateString("es-ES", {
@@ -40,6 +40,7 @@ export function Topbar({ session, title }: { session: AuthSession; onLogout: () 
 
   return (
     <header className="topbar">
+      {hamburger}
       <div className="topbar-left">
         <div className="topbar-page-icon">
           <CalendarDays size={18} strokeWidth={1.5} color="#0ea5e9" />

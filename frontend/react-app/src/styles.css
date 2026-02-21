@@ -3996,3 +3996,282 @@ td { border-bottom: 1px solid #f8fafc !important; }
 [data-theme="dark"] hr                 { border-color: rgba(148,163,184,0.10); }
 [data-theme="dark"] .inline-actions button { background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.15); color: #94a3b8; }
 [data-theme="dark"] .inline-actions button:hover { background: rgba(56,189,248,0.12); color: #38bdf8; }
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — Mobile-First
+   Breakpoints: 768px (md) · 1024px (lg) · 1280px (xl)
+═══════════════════════════════════════════════════════════ */
+
+/* ── Hamburger button ────────────────────────────────────── */
+.hamburger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  /* Visible solo en mobile */
+  order: -1;
+}
+.hamburger-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  transform: none;
+  box-shadow: none;
+}
+
+/* En desktop el hamburger se oculta */
+@media (min-width: 768px) {
+  .hamburger-btn { display: none; }
+}
+
+/* ── Drawer overlay ──────────────────────────────────────── */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Sidebar drawer (mobile) ─────────────────────────────── */
+.sidebar-drawer {
+  position: fixed;
+  top: 0; left: 0;
+  height: 100vh;
+  width: 260px;
+  z-index: 201;
+  transform: translateX(-100%);
+  transition: transform 0.28s cubic-bezier(0.16,1,0.3,1);
+  /* El sidebar dentro hereda su propio estilo */
+}
+.sidebar-drawer.drawer-open {
+  transform: translateX(0);
+}
+/* El sidebar dentro del drawer ocupa todo el alto */
+.sidebar-drawer .sidebar {
+  height: 100%;
+  position: relative;
+  top: auto;
+}
+
+/* ── Sidebar desktop (oculto en mobile) ──────────────────── */
+.sidebar-desktop {
+  display: none;
+}
+@media (min-width: 768px) {
+  .sidebar-desktop {
+    display: block;
+    /* El sidebar dentro es sticky por su propio CSS */
+  }
+  /* El drawer no se usa en desktop */
+  .sidebar-drawer { display: none; }
+  .drawer-overlay  { display: none; }
+}
+
+/* ── Layout principal responsive ─────────────────────────── */
+/* Mobile: 1 columna (sin sidebar en grid) */
+.admin-layout {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) {
+  .admin-layout {
+    grid-template-columns: 252px 1fr;
+  }
+}
+
+/* ── Content area responsive ─────────────────────────────── */
+.content-area {
+  min-width: 0; /* evita overflow en grid */
+}
+@media (max-width: 767px) {
+  .content-area {
+    padding: 16px;
+  }
+}
+
+/* ── Topbar responsive ───────────────────────────────────── */
+@media (max-width: 767px) {
+  .topbar {
+    padding: 10px 14px;
+    gap: 10px;
+    border-radius: var(--r-lg);
+    flex-wrap: nowrap;
+  }
+  .topbar-subtitle { display: none; }
+  .topbar-date     { display: none; }
+  .topbar-title    { font-size: 1rem; }
+  .topbar-page-icon { width: 30px; height: 30px; }
+  .user-meta strong { font-size: 0.75rem; }
+  .user-meta span   { display: none; }
+}
+
+/* ── page-content max-width para ultrawide ───────────────── */
+.page-content {
+  width: 100%;
+}
+.page-content > * {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Stat cards grid responsive ──────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 640px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Dashboard grid de 2 columnas (agenda + stats) ───────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 1024px) {
+  .dashboard-grid { grid-template-columns: 1fr 380px; }
+}
+
+/* ── Tablas: overflow horizontal en mobile ───────────────── */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--r-xl);
+}
+.table-wrap table {
+  min-width: 600px; /* fuerza scroll antes de romper */
+}
+
+/* ── Formularios responsive ──────────────────────────────── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .form-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .form-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Inputs siempre 100% en mobile */
+@media (max-width: 639px) {
+  input:not([type=checkbox]):not([type=radio]),
+  select,
+  textarea {
+    width: 100%;
+  }
+  .form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .form-row > * { width: 100%; }
+}
+
+/* ── Modal responsive ────────────────────────────────────── */
+@media (max-width: 639px) {
+  .modal-card {
+    width: calc(100vw - 32px) !important;
+    max-width: 100% !important;
+    margin: 16px;
+    padding: 20px 16px !important;
+    border-radius: var(--r-lg) !important;
+  }
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding-bottom: 0;
+  }
+}
+
+/* ── DatePicker responsive ───────────────────────────────── */
+@media (max-width: 639px) {
+  .datepicker-popover {
+    min-width: calc(100vw - 32px);
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+}
+
+/* ── Cards responsive ────────────────────────────────────── */
+@media (max-width: 639px) {
+  .card, .elite-card {
+    padding: 16px !important;
+    border-radius: var(--r-lg) !important;
+  }
+  .stat-card {
+    padding: 14px 16px !important;
+  }
+}
+
+/* ── Topbar user-badge responsive ────────────────────────── */
+@media (max-width: 480px) {
+  .user-badge { display: none; }
+  .topbar-create-btn span { display: none; }
+}
+
+/* ── Page sections responsive ────────────────────────────── */
+@media (max-width: 767px) {
+  .page-section {
+    padding: 16px !important;
+    border-radius: var(--r-lg) !important;
+  }
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .section-header .section-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* ── Odontograma responsive ──────────────────────────────── */
+@media (max-width: 767px) {
+  .odontogram-main { padding: 8px 0; }
+  .odontogram-grid { min-width: 700px; }
+  .odontogram-wrapper { overflow-x: auto; }
+}
+
+/* ── Action buttons responsive ───────────────────────────── */
+@media (max-width: 639px) {
+  .action-buttons-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .action-btn { font-size: 0.78rem; padding: 7px 10px; }
+}
+
+/* ── Dark mode: drawer overlay ───────────────────────────── */
+[data-theme="dark"] .drawer-overlay {
+  background: rgba(0,0,0,0.60);
+}
+[data-theme="dark"] .hamburger-btn {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .hamburger-btn:hover {
+  background: rgba(56,189,248,0.12);
+  border-color: rgba(56,189,248,0.25);
+  color: #38bdf8;
+}
