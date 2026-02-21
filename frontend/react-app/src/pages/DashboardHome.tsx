@@ -119,12 +119,14 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
 
   const statusClass = (status: string) => {
     if (status === "confirmed") return "status-confirmed";
+    if (status === "in_progress") return "status-in-progress";
     if (status === "completed") return "status-completed";
     if (status === "cancelled") return "status-cancelled";
     return "status-unconfirmed";
   };
   const statusLabel = (status: string) => {
     if (status === "confirmed") return "Confirmada";
+    if (status === "in_progress") return "En consulta";
     if (status === "completed") return "Finalizada";
     if (status === "cancelled") return "Cancelada";
     return "No confirmada";
@@ -132,7 +134,12 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
 
   const patientLabel = (row: AppointmentRow) => row.patientName || row.patientId;
 
-  const goToTreatment = (row: AppointmentRow) => {
+  const goToTreatment = async (row: AppointmentRow) => {
+    if (row.status !== "in_progress") {
+      try {
+        await clinicalApi.updateAppointment(row.id, { status: "in_progress" }, user.token);
+      } catch (_) { /* no bloquear si falla */ }
+    }
     navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
   };
 
@@ -398,19 +405,19 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                             <Pencil size={13} strokeWidth={1.5} />
                           </button>
                         )}
-                        {canWriteAppointments(user) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
+                        {canWriteAppointments(user) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && row.status !== "in_progress" && (
                           <button type="button" className="agenda-btn agenda-btn-confirm" onClick={() => onConfirm(row.id)} title="Confirmar cita">
                             <CheckCircle size={13} strokeWidth={1.5} />
                             <span>Confirmar</span>
                           </button>
                         )}
-                        {canManageTreatments(user) && !isCompleted(row.status) && (
+                        {canManageTreatments(user) && !isCompleted(row.status) && row.status !== "cancelled" && (
                           <button
                             type="button"
                             className="agenda-btn agenda-btn-treat"
-                            onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
-                            title={isConfirmed(row.status) ? "Atender paciente" : "Confirma primero"}
-                            style={!isConfirmed(row.status) ? { opacity: 0.45, cursor: "not-allowed" } : {}}
+                            onClick={() => (isConfirmed(row.status) || row.status === "in_progress") ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
+                            title={(isConfirmed(row.status) || row.status === "in_progress") ? "Atender paciente" : "Confirma primero"}
+                            style={!(isConfirmed(row.status) || row.status === "in_progress") ? { opacity: 0.45, cursor: "not-allowed" } : {}}
                           >
                             <Stethoscope size={13} strokeWidth={1.5} />
                             <span>Atender</span>

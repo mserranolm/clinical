@@ -153,17 +153,24 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const statusLabel: Record<string, string> = {
     scheduled: "pendiente",
     confirmed: "confirmada",
+    in_progress: "En consulta",
     completed: "finalizada",
     cancelled: "cancelada",
   };
   const statusClass: Record<string, string> = {
     scheduled: "status-unconfirmed",
     confirmed: "status-confirmed",
+    in_progress: "status-in-progress",
     completed: "status-completed",
     cancelled: "status-cancelled",
   };
 
-  const goToTreatment = (row: AppointmentRow) => {
+  const goToTreatment = async (row: AppointmentRow) => {
+    if (row.status !== "in_progress") {
+      try {
+        await clinicalApi.updateAppointment(row.id, { status: "in_progress" }, token);
+      } catch (_) { /* no bloquear si falla */ }
+    }
     navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
   };
 
@@ -504,13 +511,13 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                           <span>{row.paymentPaid ? "💰 Pagado" : "💳 Registrar Pago"}</span>
                         </button>
                       )}
-                      {canManageTreatments(session) && !isCompleted(row.status) && (
+                      {canManageTreatments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button
                           type="button"
                           className="agenda-btn agenda-btn-treat"
-                          onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
-                          title={isConfirmed(row.status) ? "Atender paciente" : "Confirma primero"}
-                          style={!isConfirmed(row.status) ? { opacity: 0.45, cursor: "not-allowed" } : {}}
+                          onClick={() => (isConfirmed(row.status) || row.status === "in_progress") ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
+                          title={(isConfirmed(row.status) || row.status === "in_progress") ? "Atender paciente" : "Confirma primero"}
+                          style={!(isConfirmed(row.status) || row.status === "in_progress") ? { opacity: 0.45, cursor: "not-allowed" } : {}}
                         >
                           <Stethoscope size={13} strokeWidth={1.5} />
                           <span>Atender</span>
