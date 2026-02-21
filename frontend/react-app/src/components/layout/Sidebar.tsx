@@ -95,7 +95,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
           ))}
         </div>
 
-        {(isAdmin || role === "doctor") && (
+        {isAdmin && (
           <div className="nav-group">
             <span className="nav-group-label">Herramientas</span>
             {extraItems.map((item) => (

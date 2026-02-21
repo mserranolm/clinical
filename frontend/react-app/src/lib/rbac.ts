@@ -61,10 +61,10 @@ export function canManageUsers(session: AuthSession | null | undefined): boolean
   return r === "platform_admin" || r === "admin";
 }
 
-// Treatments / odontogram / documentos — solo admin org y doctor
+// Treatments / odontogram / documentos — solo admin org
 export function canManageTreatments(session: AuthSession | null | undefined): boolean {
   const r = role(session);
-  return r === "admin" || r === "doctor";
+  return r === "admin";
 }
 
 // Admin org puede actuar como doctor (asignarse citas a sí mismo)
