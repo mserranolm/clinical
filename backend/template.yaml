@@ -17,6 +17,7 @@ Globals:
         APPOINTMENT_TABLE: !Ref AppointmentsTable
         PATIENT_TABLE: !Ref PatientsTable
         CONSENT_TABLE: !Ref ConsentsTable
+        CONSENT_TEMPLATE_TABLE: !Ref ConsentTemplatesTable
         ODONTOGRAM_TABLE: !Ref OdontogramsTable
         TREATMENT_PLAN_TABLE: !Ref TreatmentPlansTable
         USER_TABLE: !Ref UsersTable
@@ -151,6 +152,8 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
         - DynamoDBCrudPolicy:
+            TableName: !Ref ConsentTemplatesTable
+        - DynamoDBCrudPolicy:
             TableName: !Ref OdontogramsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref TreatmentPlansTable
@@ -262,6 +265,27 @@ Resources:
     Properties:
       BillingMode: PAY_PER_REQUEST
       TableName: clinical-patients
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
+
+  ConsentTemplatesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: clinical-consent-templates
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S

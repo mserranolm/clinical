@@ -18,14 +18,15 @@ import (
 
 // DynamoDBConfig holds DynamoDB configuration
 type DynamoDBConfig struct {
-	PatientTableName       string
-	AppointmentTableName   string
-	ConsentTableName       string
-	OdontogramTableName    string
-	TreatmentPlanTableName string
-	UserTableName          string
-	UseLocalProfile        bool
-	ProfileName            string
+	PatientTableName         string
+	AppointmentTableName     string
+	ConsentTableName         string
+	ConsentTemplateTableName string
+	OdontogramTableName      string
+	TreatmentPlanTableName   string
+	UserTableName            string
+	UseLocalProfile          bool
+	ProfileName              string
 }
 
 // DynamoDBRepositories provides all DynamoDB repositories
@@ -85,6 +86,7 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 		{cfg.PatientTableName, &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName}},
 		{cfg.AppointmentTableName, &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName}},
 		{cfg.ConsentTableName, &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName}},
+		{cfg.ConsentTemplateTableName, &dynamoConsentTemplateRepo{client: client, tableName: cfg.ConsentTemplateTableName}},
 		{cfg.UserTableName, &dynamoAuthRepo{client: client, tableName: cfg.UserTableName}},
 		{cfg.OdontogramTableName, &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName}},
 		{cfg.TreatmentPlanTableName, &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName}},
@@ -102,7 +104,7 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 		Patients:         &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName},
 		Appointments:     &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName},
 		Consents:         &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName},
-		ConsentTemplates: &dynamoConsentTemplateRepo{client: client, tableName: cfg.ConsentTableName},
+		ConsentTemplates: &dynamoConsentTemplateRepo{client: client, tableName: cfg.ConsentTemplateTableName},
 		Users:            &dynamoAuthRepo{client: client, tableName: cfg.UserTableName},
 		Odontograms:      &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName},
 		TreatmentPlans:   &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName},

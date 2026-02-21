@@ -35,14 +35,15 @@ func main() {
 		log.Printf("Initializing DynamoDB repositories (environment: %s, lambda: %t)", cfg.Environment, cfg.IsLambda)
 
 		dynamoConfig := store.DynamoDBConfig{
-			PatientTableName:       cfg.PatientTable,
-			AppointmentTableName:   cfg.AppointmentTable,
-			ConsentTableName:       cfg.ConsentTable,
-			UserTableName:          cfg.UserTable,
-			OdontogramTableName:    cfg.OdontogramTable,
-			TreatmentPlanTableName: cfg.TreatmentPlanTable,
-			UseLocalProfile:        cfg.IsLocal(),
-			ProfileName:            cfg.AWSProfile,
+			PatientTableName:         cfg.PatientTable,
+			AppointmentTableName:     cfg.AppointmentTable,
+			ConsentTableName:         cfg.ConsentTable,
+			ConsentTemplateTableName: cfg.ConsentTemplateTable,
+			UserTableName:            cfg.UserTable,
+			OdontogramTableName:      cfg.OdontogramTable,
+			TreatmentPlanTableName:   cfg.TreatmentPlanTable,
+			UseLocalProfile:          cfg.IsLocal(),
+			ProfileName:              cfg.AWSProfile,
 		}
 
 		dynamoRepos, err := store.NewDynamoDBRepositories(context.Background(), dynamoConfig)

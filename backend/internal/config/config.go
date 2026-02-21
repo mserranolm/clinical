@@ -3,22 +3,23 @@ package config
 import "os"
 
 type Config struct {
-	Environment        string
-	AppointmentTable   string
-	PatientTable       string
-	ConsentTable       string
-	UserTable          string
-	OdontogramTable    string
-	TreatmentPlanTable string
-	PlatformAdminEmail string
-	BootstrapSecret    string
-	FrontendBaseURL    string
-	SESSenderEmail     string
-	SendSMS            bool
-	SendEmail          bool
-	UseInMemory        bool
-	AWSProfile         string
-	IsLambda           bool
+	Environment          string
+	AppointmentTable     string
+	PatientTable         string
+	ConsentTable         string
+	ConsentTemplateTable string
+	UserTable            string
+	OdontogramTable      string
+	TreatmentPlanTable   string
+	PlatformAdminEmail   string
+	BootstrapSecret      string
+	FrontendBaseURL      string
+	SESSenderEmail       string
+	SendSMS              bool
+	SendEmail            bool
+	UseInMemory          bool
+	AWSProfile           string
+	IsLambda             bool
 }
 
 func Load() Config {
@@ -32,22 +33,23 @@ func Load() Config {
 	awsProfile := getEnv("AWS_PROFILE", "")
 
 	return Config{
-		Environment:        getEnv("ENVIRONMENT", "dev"),
-		AppointmentTable:   getEnv("APPOINTMENT_TABLE", "clinical-appointments"),
-		PatientTable:       getEnv("PATIENT_TABLE", "clinical-patients"),
-		ConsentTable:       getEnv("CONSENT_TABLE", "clinical-consents"),
-		UserTable:          getEnv("USER_TABLE", "clinical-users"),
-		OdontogramTable:    getEnv("ODONTOGRAM_TABLE", "clinical-odontograms"),
-		TreatmentPlanTable: getEnv("TREATMENT_PLAN_TABLE", "clinical-treatment-plans"),
-		PlatformAdminEmail: getEnv("PLATFORM_ADMIN_EMAIL", ""),
-		BootstrapSecret:    getEnv("BOOTSTRAP_SECRET", ""),
-		FrontendBaseURL:    getEnv("FRONTEND_BASE_URL", "https://localhost:5173"),
-		SESSenderEmail:     getEnv("SES_SENDER_EMAIL", "no-reply@vozlyai.aski-tech.net"),
-		SendSMS:            getEnv("SEND_SMS", "false") == "true",
-		SendEmail:          getEnv("SEND_EMAIL", "false") == "true",
-		UseInMemory:        useInMemory,
-		AWSProfile:         awsProfile,
-		IsLambda:           isLambda,
+		Environment:          getEnv("ENVIRONMENT", "dev"),
+		AppointmentTable:     getEnv("APPOINTMENT_TABLE", "clinical-appointments"),
+		PatientTable:         getEnv("PATIENT_TABLE", "clinical-patients"),
+		ConsentTable:         getEnv("CONSENT_TABLE", "clinical-consents"),
+		ConsentTemplateTable: getEnv("CONSENT_TEMPLATE_TABLE", "clinical-consent-templates"),
+		UserTable:            getEnv("USER_TABLE", "clinical-users"),
+		OdontogramTable:      getEnv("ODONTOGRAM_TABLE", "clinical-odontograms"),
+		TreatmentPlanTable:   getEnv("TREATMENT_PLAN_TABLE", "clinical-treatment-plans"),
+		PlatformAdminEmail:   getEnv("PLATFORM_ADMIN_EMAIL", ""),
+		BootstrapSecret:      getEnv("BOOTSTRAP_SECRET", ""),
+		FrontendBaseURL:      getEnv("FRONTEND_BASE_URL", "https://localhost:5173"),
+		SESSenderEmail:       getEnv("SES_SENDER_EMAIL", "no-reply@vozlyai.aski-tech.net"),
+		SendSMS:              getEnv("SEND_SMS", "false") == "true",
+		SendEmail:            getEnv("SEND_EMAIL", "false") == "true",
+		UseInMemory:          useInMemory,
+		AWSProfile:           awsProfile,
+		IsLambda:             isLambda,
 	}
 }
 
