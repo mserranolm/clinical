@@ -8,89 +8,105 @@ type Surface = 'O' | 'V' | 'L' | 'M' | 'D';
 type ViewMode = '2d' | '3d';
 type ToothKind = 'central-incisor' | 'lateral-incisor' | 'canine' | 'premolar' | 'molar';
 
-/* ── Constantes del arco dental parabólico ────────────────────── */
-const ARCH_WIDTH = 3.10; // Un poco más ancho
-const ARCH_DEPTH = 3.30; // Menos profundo, más parabólico
-const ARCH_SPAN  = Math.PI * 0.85;
-
-/** Genera puntos de un arco parabólico anatómico */
-function getArchPoint(theta: number, archRx: number, archRz: number): THREE.Vector3 {
-  const x = Math.sin(theta) * archRx;
-  // Curva de potencia para una "U" natural (parábola)
-  const z = -Math.pow(Math.abs(Math.sin(theta)), 2.0) * archRz;
+/** Genera puntos de un arco parabólico anatómico (Catenaria/Parábola) */
+function getArchPoint(t: number, scale: number = 1): THREE.Vector3 {
+  // t es la posición X aproximada a lo largo del arco (0 en el centro)
+  const x = t * scale;
+  // Parábola: z = -a * x^2
+  // Ajustamos el coeficiente para la forma de la arcada
+  const z = -0.38 * Math.pow(Math.abs(x), 2.1) * (1/scale);
   return new THREE.Vector3(x, 0, z);
 }
 
 /* ── Encía festoneada (TubeGeometry con ondulación Y) ─────────── */
 const GumArch: React.FC<{
-  archRx: number; archRz: number; archSpan: number;
+  toothPositions: { x: number, z: number, w: number }[];
   y: number; jaw: 'upper' | 'lower';
-  toothThetas: number[];
-}> = ({ archRx, archRz, archSpan, y, jaw, toothThetas }) => {
+}> = ({ toothPositions, y, jaw }) => {
   const isUpper = jaw === 'upper';
 
-  const bodyGeo = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    const waveAmp = 0.12;
+  const { curvePoints, marginPoints } = useMemo(() => {
+    if (toothPositions.length === 0) return { curvePoints: [], marginPoints: [] };
 
-    for (let i = 0; i <= 140; i++) {
-      const ratio = i / 140;
-      const theta = (ratio - 0.5) * archSpan;
+    // Crear una curva que pase por todos los dientes
+    // Ordenamos por X (aunque ya deberían venir ordenados por el cálculo de DentalArch3D)
+    // Pero DentalArch3D los calcula por cuadrantes, así que el orden en la lista puede no ser lineal de izq a der.
+    // Mejor ordenarlos por X para trazar la curva correctamente.
+    const sortedTeeth = [...toothPositions].sort((a, b) => a.x - b.x);
+
+    const points: THREE.Vector3[] = [];
+    const margins: THREE.Vector3[] = [];
+    
+    // Interpolación para suavidad: recorrer desde el primer diente hasta el último
+    const minX = sortedTeeth[0].x - 0.5;
+    const maxX = sortedTeeth[sortedTeeth.length-1].x + 0.5;
+    const totalLen = maxX - minX;
+    
+    // Usamos más puntos para una curva suave
+    for (let i = 0; i <= 200; i++) {
+      const tX = minX + (i / 200) * totalLen;
       
-      // Encontrar la distancia al centro del diente más cercano
-      let minDist = 100;
-      toothThetas.forEach(tTheta => {
-        const d = Math.abs(theta - tTheta);
-        if (d < minDist) minDist = d;
-      });
+      // Encontrar la posición Z base usando la misma función que los dientes
+      const p = getArchPoint(tX, 1);
+      
+      // Calcular ondulación (festoneado)
+      let closestDist = 100;
+      let closestToothW = 1.0;
+      
+      for (const tp of sortedTeeth) {
+        const dist = Math.abs(tX - tp.x);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestToothW = tp.w;
+        }
+      }
+      
+      // Normalizamos la distancia: 0 en centro diente, 1 en borde (w/2)
+      // Ampliamos un poco el rango (0.6 * w) para que las papilas se toquen
+      const normDist = Math.min(1, closestDist / (closestToothW * 0.5));
+      // Función de forma de festón más pronunciada (parabólica)
+      const waveShape = Math.pow(Math.sin(normDist * Math.PI * 0.5), 2.0);
+      
+      const waveAmp = 0.22; // Papilas más largas y saludables
+      
+      let waveY = y;
+      if (isUpper) {
+        // Upper: Cenit arriba (base), Papila abajo (incisal)
+        waveY = y - waveAmp * waveShape; 
+      } else {
+        // Lower: Cenit abajo (base), Papila arriba (incisal)
+        waveY = y + waveAmp * waveShape;
+      }
 
-      // El valle (punto más bajo/alto de encía) está en el centro del diente
-      // El pico (papila) está entre los dientes. 
-      // Aproximamos la ondulación basándonos en la distancia al diente más cercano.
-      // Distancia típica entre centros es aprox archSpan / toothCount
-      const avgGap = archSpan / toothThetas.length;
-      const wave = Math.cos((minDist / avgGap) * Math.PI) * waveAmp;
-      const yWavy = isUpper ? y - wave : y + wave;
-
-      const p = getArchPoint(theta, archRx, archRz);
-      pts.push(new THREE.Vector3(p.x, yWavy, p.z));
+      points.push(new THREE.Vector3(p.x, waveY, p.z));
+      margins.push(new THREE.Vector3(p.x, waveY, p.z));
     }
-    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
-    return new THREE.TubeGeometry(curve, 160, 0.82, 16, false);
-  }, [archRx, archRz, archSpan, y, isUpper, toothThetas]);
+    
+    return { curvePoints: points, marginPoints: margins };
+  }, [toothPositions, y, isUpper]);
+
+  const bodyGeo = useMemo(() => {
+    // El cuerpo alveolar está desplazado hacia la raíz para no cubrir la corona
+    // Upper: desplazar hacia arriba (+Y). Lower: hacia abajo (-Y).
+    const bodyPts = curvePoints.map(p => new THREE.Vector3(p.x, isUpper ? p.y + 0.5 : p.y - 0.5, p.z - 0.1));
+    const curve = new THREE.CatmullRomCurve3(bodyPts, false, 'catmullrom', 0.5);
+    return new THREE.TubeGeometry(curve, 200, 1, 16, false);
+  }, [curvePoints, isUpper]);
 
   const marginGeo = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    const waveAmp = 0.08;
-
-    for (let i = 0; i <= 140; i++) {
-      const ratio = i / 140;
-      const theta = (ratio - 0.5) * archSpan;
-      
-      let minDist = 100;
-      toothThetas.forEach(tTheta => {
-        const d = Math.abs(theta - tTheta);
-        if (d < minDist) minDist = d;
-      });
-
-      const avgGap = archSpan / toothThetas.length;
-      const wave = Math.cos((minDist / avgGap) * Math.PI) * waveAmp;
-      const yWavy = isUpper ? y - wave : y + wave;
-
-      const p = getArchPoint(theta, archRx, archRz);
-      pts.push(new THREE.Vector3(p.x, yWavy, p.z));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
-    return new THREE.TubeGeometry(curve, 160, 0.28, 14, false);
-  }, [archRx, archRz, archSpan, y, isUpper, toothThetas]);
+    if (marginPoints.length === 0) return new THREE.BufferGeometry();
+    const curve = new THREE.CatmullRomCurve3(marginPoints, false, 'catmullrom', 0.5);
+    // Margen fino (rodete gingival)
+    return new THREE.TubeGeometry(curve, 200, 0.12, 14, false);
+  }, [marginPoints]);
 
   return (
     <group>
-      <mesh geometry={bodyGeo} position={[0, 0, -0.22]} receiveShadow castShadow>
-        <meshStandardMaterial color={GINGIVA} roughness={0.8} metalness={0.01} />
+      <mesh geometry={bodyGeo} receiveShadow castShadow>
+        <meshStandardMaterial color={GINGIVA} roughness={0.4} metalness={0.05} />
       </mesh>
-      <mesh geometry={marginGeo} position={[0, 0, 0.02]} castShadow receiveShadow>
-        <meshStandardMaterial color={GINGIVA} roughness={0.6} metalness={0.02} />
+      <mesh geometry={marginGeo} position={[0, 0, 0.05]} castShadow receiveShadow>
+        <meshStandardMaterial color={GINGIVA} roughness={0.3} metalness={0.05} />
       </mesh>
     </group>
   );
@@ -383,7 +399,7 @@ function makeAnatomicalToothGeo(w: number, h: number, d: number, kind: ToothKind
       const liftT = (yNorm - 0.6) / 0.4;
       if (kind === 'canine') {
         const dist = Math.sqrt(x*x + z*z) / (w * 0.4);
-        y += Math.max(0, 1.0 - dist * 2.2) * liftT * 0.18;
+        y += Math.max(0, 1.0 - dist * 2.2) * liftT * 0.12;
       } else if (isInc) {
         const edgeCurve = Math.cos(x / (w * 0.55) * Math.PI * 0.5);
         y += edgeCurve * liftT * 0.06;
@@ -414,7 +430,7 @@ function makeAnatomicalToothGeo(w: number, h: number, d: number, kind: ToothKind
 
 /* ── OrganicTooth: Geometría anatómica procedural ────────────── */
 const OrganicTooth: React.FC<{
-  kind: ToothKind; w: number; d: number; crownH: number; rootH: number; toothNum: number;
+  kind: ToothKind; w: number; d: number; crownH: number; toothNum: number;
 }> = ({ kind, w, d, crownH, toothNum }) => {
   const bodyGeo = useMemo(() => makeAnatomicalToothGeo(w, crownH, d, kind, toothNum), [w, crownH, d, kind, toothNum]);
 
@@ -461,18 +477,17 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
   const ts = isTemporary ? 0.86 : 1;
 
   // Dimensiones anatómicas por tipo (en unidades de escena)
-  const dims: Record<ToothKind, { w: number; d: number; crownH: number; rootH: number }> = {
-    'central-incisor': { w: 0.94 * ts, d: 0.54 * ts, crownH: 1.10 * ts, rootH: 1.30 * ts },
-    'lateral-incisor': { w: 0.80 * ts, d: 0.48 * ts, crownH: 1.05 * ts, rootH: 1.25 * ts },
-    canine:            { w: 0.88 * ts, d: 0.64 * ts, crownH: 1.08 * ts, rootH: 1.60 * ts },
-    premolar:          { w: 0.98 * ts, d: 0.82 * ts, crownH: 0.90 * ts, rootH: 1.20 * ts },
-    molar:             { w: 1.18 * ts, d: 0.98 * ts, crownH: 0.85 * ts, rootH: 1.10 * ts },
+  const dims: Record<ToothKind, { w: number; d: number; crownH: number }> = {
+    'central-incisor': { w: 0.94 * ts, d: 0.54 * ts, crownH: 1.10 * ts },
+    'lateral-incisor': { w: 0.80 * ts, d: 0.48 * ts, crownH: 1.05 * ts },
+    canine:            { w: 0.88 * ts, d: 0.64 * ts, crownH: 1.04 * ts },
+    premolar:          { w: 0.98 * ts, d: 0.82 * ts, crownH: 0.90 * ts },
+    molar:             { w: 1.18 * ts, d: 0.98 * ts, crownH: 0.85 * ts },
   };
-  const { w, d, crownH, rootH } = dims[toothKind];
+  const { w, d, crownH } = dims[toothKind];
 
   // Posición Y de la superficie oclusal (punta de corona extruida)
-  const isInc = toothKind === 'central-incisor' || toothKind === 'lateral-incisor';
-  const topY = toothKind === 'canine' ? crownH * 0.59 : isInc ? crownH * 0.54 : crownH * 0.52;
+  const topY = toothKind === 'canine' ? crownH * 0.59 : toothKind === 'central-incisor' || toothKind === 'lateral-incisor' ? crownH * 0.54 : crownH * 0.52;
 
   const stopAndClick = (event: ThreeEvent<PointerEvent>, surface: Surface) => {
     event.stopPropagation();
@@ -483,8 +498,8 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
   const rotX = jaw === 'upper' ? Math.PI : 0;
 
   // Desplazar el diente hacia la cúspide para enterrar la base en la encía
-  // 48% de la altura queda enterrada para un nacimiento natural
-  const yOffset = crownH * 0.48;
+  // 20% de la altura queda desplazada (suficiente para que no flote, pero visible)
+  const yOffset = crownH * 0.20; 
 
   // Variación natural: cada diente tiene una ligera rotación y posición única
   const seed = number * 1.48;
@@ -499,7 +514,6 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
           kind={toothKind}
           w={w} d={d}
           crownH={crownH}
-          rootH={rootH}
           toothNum={number}
         />
 
@@ -564,72 +578,96 @@ const DentalArch3D: React.FC<{
   markMode?: boolean;
 }> = ({ numbers, y, jaw, jawOpen, isTemporary, toothStates, onToothClick, markMode }) => {
   const ts = isTemporary ? 0.86 : 1;
-  const archRx = isTemporary ? 2.3 : ARCH_WIDTH;
-  const archRz = isTemporary ? 2.4 : ARCH_DEPTH;
-  const archSpan = ARCH_SPAN;
 
-  // 1. Obtener tipos y anchos para calcular distribución natural
-  const toothData = useMemo(() => {
-    return numbers.map(n => {
-      const kind = getToothKind(n, isTemporary);
-      // Estos anchos deben coincidir con los de dims en Tooth3D
-      let w = 0;
-      if (kind === 'central-incisor') w = 0.94;
-      else if (kind === 'lateral-incisor') w = 0.80;
-      else if (kind === 'canine') w = 0.88;
-      else if (kind === 'premolar') w = 0.98;
-      else w = 1.18;
-      return { number: n, kind, w: w * ts };
-    });
-  }, [numbers, isTemporary, ts]);
-
-  // 2. Calcular posiciones (theta) basadas en anchos acumulados
-  // Queremos que los dientes se toquen, por lo que la distancia entre centros
-  // es (w1/2 + w2/2) * factor_de_contacto
-  const positions = useMemo(() => {
-    const posMap: Record<number, { theta: number; w: number }> = {};
-    const totalW = toothData.reduce((acc, t) => acc + t.w, 0);
-    // spFactor = 1.0 para que los dientes se toquen perfectamente basándose en sus anchos
-    const spFactor = 1.0; 
+  // 1. Calcular distribución natural basada en anchos reales
+  const { positions, toothPosList } = useMemo(() => {
+    const posMap: Record<number, { x: number; z: number; rotY: number; w: number; kind: ToothKind }> = {};
+    const posList: { x: number, z: number, w: number }[] = [];
     
-    let currentW = 0;
-    toothData.forEach((t) => {
-      const centerW = currentW + t.w * 0.5;
-      const ratio = centerW / totalW;
-      const theta = (ratio - 0.5) * archSpan * spFactor;
-      posMap[t.number] = { theta, w: t.w };
-      currentW += t.w;
+    // Separar por cuadrantes para calcular desde la línea media
+    // Ordenar: línea media -> atrás
+    const sortedNumbers = [...numbers].sort((a, b) => {
+      const unitA = a % 10;
+      const unitB = b % 10;
+      return unitA - unitB; // 1 (central) a 8 (molar)
     });
-    return posMap;
-  }, [toothData, archSpan]);
+
+    // Dividir en izquierda (x > 0) y derecha (x < 0)
+    // FDI: 1x, 5x (derecha paciente -> izquierda pantalla? No, ThreeJS x+)
+    // 1x, 4x, 5x, 8x -> Derecha del paciente (X negativo en mi sistema si 11 está en 0?)
+    // Vamos a asumir: 11, 21 son centrales.
+    // 1x, 5x: Derecha paciente -> X negativo
+    // 2x, 6x: Izquierda paciente -> X positivo
+    // 4x, 8x: Derecha paciente -> X negativo
+    // 3x, 7x: Izquierda paciente -> X positivo
+    
+    const leftSide = sortedNumbers.filter(n => { const q = Math.floor(n/10); return q === 2 || q === 3 || q === 6 || q === 7; });
+    const rightSide = sortedNumbers.filter(n => { const q = Math.floor(n/10); return q === 1 || q === 4 || q === 5 || q === 8; });
+
+    // Función para posicionar un lado
+    const placeSide = (teeth: number[], sign: number) => {
+      let currentX = 0.0; // Empezar en línea media
+      
+      teeth.forEach((n, idx) => {
+        const kind = getToothKind(n, isTemporary);
+        let w = 0;
+        // Anchos anatómicos
+        if (kind === 'central-incisor') w = 0.96;
+        else if (kind === 'lateral-incisor') w = 0.82;
+        else if (kind === 'canine') w = 0.90;
+        else if (kind === 'premolar') w = 0.98;
+        else w = 1.20;
+        w *= ts;
+
+        // Gap mínimo para papila (ajustado para contacto estrecho)
+        // Primer diente (central) se aleja muy poco de la línea media
+        const gap = idx === 0 ? w * 0.505 : w * 0.5; 
+        currentX += gap;
+        
+        // Posición en la curva parabólica
+        const xPos = currentX * sign;
+        const p = getArchPoint(xPos, 1); // Usamos xPos directamente como t
+        
+        // Calcular rotación basada en la tangente de la curva
+        // Derivada de z = -0.38 * x^2.1
+        // dz/dx approx -0.8 * x.
+        const dzdx = -0.38 * 2.1 * Math.sign(p.x) * Math.pow(Math.abs(p.x), 1.1);
+        const tanAngle = Math.atan(dzdx);
+        const rotY = -tanAngle; 
+
+        posMap[n] = { x: p.x, z: p.z, rotY, w, kind };
+        posList.push({ x: p.x, z: p.z, w });
+        
+        currentX += w * 0.5; // Sin espacio extra, contacto puro
+      });
+    };
+
+    placeSide(leftSide, 1);
+    placeSide(rightSide, -1);
+
+    return { positions: posMap, toothPosList: posList };
+  }, [numbers, isTemporary, ts]);
 
   const maxShift = 1.8;
   const yShift = jaw === 'upper' ? jawOpen * maxShift : -jawOpen * maxShift;
   const zShift = jaw === 'upper' ? 0.15 : 0; 
 
   const avgCrownH = isTemporary ? 0.90 * 0.86 : 0.90;
-  const toothYOffset = avgCrownH * 0.48; 
+  // La encía se posiciona ligeramente desplazada de la base calculada
   const gumY = jaw === 'upper'
-    ? y + toothYOffset + avgCrownH * 0.02
-    : y - toothYOffset - avgCrownH * 0.02;
-
-  const toothThetas = useMemo(() => Object.values(positions).map(p => p.theta), [positions]);
+    ? y + avgCrownH * 0.65 
+    : y - avgCrownH * 0.65;
 
   return (
     <group position={[0, yShift, zShift]}>
-      {/* Encía — se mueve junto con los dientes */}
       <GumArch
-        archRx={archRx}
-        archRz={archRz}
-        archSpan={archSpan}
+        toothPositions={toothPosList}
         y={gumY}
         jaw={jaw}
-        toothThetas={toothThetas}
       />
       {numbers.map((n) => {
-        const { theta } = positions[n];
-        const p = getArchPoint(theta, archRx, archRz);
-        const rotationY = -theta * 0.95;
+        const pos = positions[n];
+        if (!pos) return null;
 
         return (
           <Tooth3D
@@ -638,8 +676,8 @@ const DentalArch3D: React.FC<{
             isTemporary={isTemporary}
             conditions={toothStates[n]}
             onSurfaceClick={onToothClick}
-            position={[p.x, y, p.z]}
-            rotationY={rotationY}
+            position={[pos.x, y, pos.z]}
+            rotationY={pos.rotY}
             jaw={jaw}
             markMode={markMode}
           />
@@ -672,7 +710,7 @@ const Odontogram3D: React.FC<{
             <>
               <DentalArch3D
                 numbers={[18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]}
-                y={0.34}
+                y={0.68}
                 jaw="upper"
                 jawOpen={jawOpen}
                 toothStates={toothStates}
@@ -681,7 +719,7 @@ const Odontogram3D: React.FC<{
               />
               <DentalArch3D
                 numbers={[48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]}
-                y={-0.34}
+                y={-0.68}
                 jaw="lower"
                 jawOpen={jawOpen}
                 toothStates={toothStates}
@@ -695,7 +733,7 @@ const Odontogram3D: React.FC<{
             <>
               <DentalArch3D
                 numbers={[55, 54, 53, 52, 51, 61, 62, 63, 64, 65]}
-                y={0.28}
+                y={0.62}
                 jaw="upper"
                 jawOpen={jawOpen}
                 isTemporary
@@ -705,7 +743,7 @@ const Odontogram3D: React.FC<{
               />
               <DentalArch3D
                 numbers={[85, 84, 83, 82, 81, 71, 72, 73, 74, 75]}
-                y={-0.28}
+                y={-0.62}
                 jaw="lower"
                 jawOpen={jawOpen}
                 isTemporary
