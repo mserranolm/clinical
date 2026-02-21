@@ -111,7 +111,7 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 	return nil
 }
 
-func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentToken string) error {
+func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentLinks []ConsentLink) error {
 	frontendBase := os.Getenv("FRONTEND_BASE_URL")
 	if frontendBase == "" {
 		frontendBase = "https://clinisense.aski-tech.net"
@@ -119,17 +119,32 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
 	subject := "CliniSense — Tu cita ha sido agendada"
 	var body string
-	if consentToken != "" {
-		consentURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, consentToken)
+	if len(consentLinks) > 0 {
+		var consentBlocks string
+		for i, link := range consentLinks {
+			if link.Token == "" {
+				continue
+			}
+			consentURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, link.Token)
+			stepNum := i + 2
+			title := link.Title
+			if title == "" {
+				title = "Consentimiento informado"
+			}
+			consentBlocks += fmt.Sprintf(
+				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+					"PASO %d — %s:\n\n"+
+					"   %s\n\n",
+				stepNum, title, consentURL,
+			)
+		}
 		body = fmt.Sprintf(
 			"Hola %s,\n\n"+
 				"Tu cita ha sido agendada para el %s a las %s.\n\n"+
 				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
 				"PASO 1 — Confirma tu cita:\n\n"+
 				"   %s\n\n"+
-				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
-				"PASO 2 — Firma el consentimiento informado:\n\n"+
-				"   %s\n\n"+
+				"%s"+
 				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
 				"Si no puedes hacer clic en los enlaces, cópialos y pégalos en tu navegador.\n\n"+
 				"CliniSense",
@@ -137,7 +152,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 			appt.StartAt.Format("02/01/2006"),
 			appt.StartAt.Format("15:04"),
 			confirmURL,
-			consentURL,
+			consentBlocks,
 		)
 	} else {
 		body = fmt.Sprintf(
@@ -155,7 +170,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 			confirmURL,
 		)
 	}
-	log.Printf("[notify:appointment-created] to=%s appointmentId=%s confirmToken=%s consentToken=%s", toEmail, appt.ID, appt.ConfirmToken, consentToken)
+	log.Printf("[notify:appointment-created] to=%s appointmentId=%s confirmToken=%s consentLinks=%d", toEmail, appt.ID, appt.ConfirmToken, len(consentLinks))
 	if !r.sendEmail || r.ses == nil {
 		return nil
 	}

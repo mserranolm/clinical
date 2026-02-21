@@ -132,13 +132,17 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
 		if s.notifier != nil {
 			orgID := store.OrgIDFromContext(ctx)
-			var consentToken string
+			var consentLinks []notifications.ConsentLink
 			if s.consents != nil {
-				if c, cerr := s.consents.CreateForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc)); cerr == nil && c.AcceptToken != "" {
-					consentToken = c.AcceptToken
+				if list, cerr := s.consents.CreateConsentsForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc)); cerr == nil {
+					for _, c := range list {
+						if c.AcceptToken != "" {
+							consentLinks = append(consentLinks, notifications.ConsentLink{Title: c.Title, Token: c.AcceptToken})
+						}
+					}
 				}
 			}
-			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, consentToken)
+			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, consentLinks)
 		}
 	}
 	return created, nil
@@ -237,9 +241,23 @@ func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID,
 	if time.Until(item.StartAt).Hours() > 24.1 || time.Until(item.StartAt).Hours() < 23.9 {
 		return fmt.Errorf("appointment is not in 24h window")
 	}
-	msg := fmt.Sprintf("Recordatorio de cita médica el %s. Responde para confirmar.", item.StartAt.Format(time.RFC1123))
-	if err := s.notifier.SendAppointmentReminder(ctx, item.PatientID, channel, msg); err != nil {
-		return err
+	// Mismo email que creación/reenvío: confirmación + todos los consentimientos (asistencia y tratamiento)
+	if s.notifier != nil {
+		email, name := s.patientEmail(ctx, item.PatientID)
+		if email != "" {
+			orgID := store.OrgIDFromContext(ctx)
+			var consentLinks []notifications.ConsentLink
+			if s.consents != nil {
+				if list, cerr := s.consents.CreateConsentsForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil {
+					for _, c := range list {
+						if c.AcceptToken != "" {
+							consentLinks = append(consentLinks, notifications.ConsentLink{Title: c.Title, Token: c.AcceptToken})
+						}
+					}
+				}
+			}
+			_ = s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks)
+		}
 	}
 	now := time.Now().UTC()
 	item.ReminderSentAt = &now

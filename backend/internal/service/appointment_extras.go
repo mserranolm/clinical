@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"clinical-backend/internal/notifications"
 	"clinical-backend/internal/store"
 )
 
@@ -35,14 +36,18 @@ func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmen
 		if email == "" {
 			return fmt.Errorf("el paciente no tiene email registrado")
 		}
-		var consentToken string
+		var consentLinks []notifications.ConsentLink
 		if s.consents != nil {
 			orgID := store.OrgIDFromContext(ctx)
-			if c, cerr := s.consents.CreateForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil && c.AcceptToken != "" {
-				consentToken = c.AcceptToken
+			if list, cerr := s.consents.CreateConsentsForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil {
+				for _, c := range list {
+					if c.AcceptToken != "" {
+						consentLinks = append(consentLinks, notifications.ConsentLink{Title: c.Title, Token: c.AcceptToken})
+					}
+				}
 			}
 		}
-		if err := s.notifier.SendAppointmentCreated(ctx, email, name, item, consentToken); err != nil {
+		if err := s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks); err != nil {
 			return err
 		}
 	}
