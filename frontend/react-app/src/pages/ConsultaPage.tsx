@@ -513,7 +513,11 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
               : "Haz clic en cada superficie del diente para marcar su condición. Cada clic cicla entre los estados."}
           </p>
 
-          <OdontogramChart toothStates={toothStates} onToothClick={isClosed ? undefined : handleToothClick} />
+          <OdontogramChart
+            toothStates={toothStates}
+            onToothClick={isClosed ? undefined : handleToothClick}
+            patientAge={age}
+          />
 
           {!isClosed && (
             <div className="consulta-actions" style={{ marginTop: 24 }}>
