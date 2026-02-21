@@ -86,7 +86,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   const [treatmentPlan, setTreatmentPlan] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("efectivo");
-  const [activeTab, setActiveTab] = useState<"historia" | "odontograma" | "evolucion" | "imagenes">("historia");
+  const [activeTab, setActiveTab] = useState<"historia" | "odontograma" | "evolucion">("historia");
   const [appointmentStatus, setAppointmentStatus] = useState<string>("scheduled");
   const [appointmentDate, setAppointmentDate] = useState<string>("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -372,70 +372,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
           className={`consulta-tab ${activeTab === "evolucion" ? "active" : ""}`}
           onClick={() => setActiveTab("evolucion")}
         >
-          📝 Evolución y Cierre
-        </button>
-        <button
-          className={`consulta-tab ${activeTab === "imagenes" ? "active" : ""}`}
-          onClick={() => setActiveTab("imagenes")}
-        >
-          🖼️ Imágenes {imageUrls.length > 0 && <span className="tab-count">{imageUrls.length}</span>}
+          📝 Consulta {imageUrls.length > 0 && <span className="tab-count">{imageUrls.length}</span>}
         </button>
       </div>
 
-      {/* Tab: Imágenes */}
-      {activeTab === "imagenes" && (
-        <div className="consulta-section card elite-card">
-          <div className="consulta-section-header">
-            <h3>Imágenes de la Consulta</h3>
-            <span className="consulta-hint" style={{ margin: 0 }}>
-              {isClosed ? `${imageUrls.length} imagen${imageUrls.length !== 1 ? "es" : ""} — solo lectura` : "Sube fotos clínicas (JPEG/PNG, máx. 8MB por imagen)"}
-            </span>
-          </div>
-
-          {!isClosed && (
-            <label className="image-upload-zone">
-              <input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                multiple
-                style={{ display: "none" }}
-                disabled={uploadingImages}
-                onChange={e => e.target.files && uploadImages(e.target.files)}
-              />
-              {uploadingImages ? (
-                <div className="image-upload-uploading">
-                  <span className="auth-spinner" style={{ margin: "0 auto" }} />
-                  <p>Comprimiendo y subiendo...</p>
-                </div>
-              ) : (
-                <div className="image-upload-prompt">
-                  <span style={{ fontSize: "2.5rem" }}>📷</span>
-                  <p><strong>Haz clic o arrastra imágenes aquí</strong></p>
-                  <small>JPEG · PNG · WebP · máx. 8MB · se comprimen automáticamente</small>
-                </div>
-              )}
-            </label>
-          )}
-
-          {imageUrls.length === 0 && !uploadingImages && (
-            <div className="image-empty">
-              <span style={{ fontSize: "2rem" }}>🖼️</span>
-              <p>Sin imágenes registradas</p>
-            </div>
-          )}
-
-          {imageUrls.length > 0 && (
-            <div className="image-gallery">
-              {imageUrls.map((url, i) => (
-                <a key={i} href={url} target="_blank" rel="noreferrer" className="image-thumb-link">
-                  <img src={url} alt={`Imagen ${i + 1}`} className="image-thumb" />
-                  <span className="image-thumb-label">Ver original</span>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Tab: Historial Médico */}
       {activeTab === "historia" && (
@@ -589,12 +529,57 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         </div>
       )}
 
-      {/* Tab: Evolución y Cierre */}
+      {/* Tab: Consulta (Evolución + Imágenes + Cierre) */}
       {activeTab === "evolucion" && (
         <div className="consulta-section card elite-card">
           <div className="consulta-section-header">
-            <h3>Evolución de la Consulta</h3>
+            <h3>Consulta</h3>
             {apptDateLabel && <span className="consulta-hint" style={{ margin: 0 }}>📅 {apptDateLabel}</span>}
+          </div>
+
+          {/* Imágenes de la consulta */}
+          <div className="consulta-images-block">
+            <h4 className="consulta-subheading">Imágenes</h4>
+            {!isClosed && (
+              <label className="image-upload-zone">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  style={{ display: "none" }}
+                  disabled={uploadingImages}
+                  onChange={e => e.target.files && uploadImages(e.target.files)}
+                />
+                {uploadingImages ? (
+                  <div className="image-upload-uploading">
+                    <span className="auth-spinner" style={{ margin: "0 auto" }} />
+                    <p>Comprimiendo y subiendo...</p>
+                  </div>
+                ) : (
+                  <div className="image-upload-prompt">
+                    <span style={{ fontSize: "2rem" }}>📷</span>
+                    <p><strong>Haz clic o arrastra imágenes aquí</strong></p>
+                    <small>JPEG · PNG · WebP · máx. 8MB · se comprimen automáticamente</small>
+                  </div>
+                )}
+              </label>
+            )}
+            {imageUrls.length === 0 && !uploadingImages && (
+              <div className="image-empty">
+                <span style={{ fontSize: "1.5rem" }}>🖼️</span>
+                <p>Sin imágenes registradas</p>
+              </div>
+            )}
+            {imageUrls.length > 0 && (
+              <div className="image-gallery">
+                {imageUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer" className="image-thumb-link">
+                    <img src={url} alt={`Imagen ${i + 1}`} className="image-thumb" />
+                    <span className="image-thumb-label">Ver original</span>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="evolucion-grid">
