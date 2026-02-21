@@ -231,6 +231,7 @@ func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appoint
 	item.EvolutionNotes = evolutionNotes
 	if paymentAmount > 0 {
 		item.PaymentAmount = paymentAmount
+		item.PaymentPaid = true // al finalizar con monto, el pago queda registrado
 	}
 	if paymentMethod != "" {
 		item.PaymentMethod = paymentMethod
