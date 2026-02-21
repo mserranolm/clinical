@@ -4719,3 +4719,49 @@ td { border-bottom: 1px solid #f8fafc !important; }
 }
 [data-theme="dark"] .agenda-empty strong { color: #475569; }
 [data-theme="dark"] .agenda-empty p      { color: #334155; }
+
+/* ── Botones exportar PDF / CSV ──────────────────────────── */
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #0284c7;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.export-btn:hover {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+}
+.export-btn-csv {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #16a34a;
+}
+.export-btn-csv:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+[data-theme="dark"] .export-btn {
+  background: rgba(56,189,248,0.10);
+  border-color: rgba(56,189,248,0.25);
+  color: #38bdf8;
+}
+[data-theme="dark"] .export-btn:hover {
+  background: rgba(56,189,248,0.18);
+}
+[data-theme="dark"] .export-btn-csv {
+  background: rgba(34,197,94,0.10);
+  border-color: rgba(34,197,94,0.25);
+  color: #4ade80;
+}
+[data-theme="dark"] .export-btn-csv:hover {
+  background: rgba(34,197,94,0.18);
+}

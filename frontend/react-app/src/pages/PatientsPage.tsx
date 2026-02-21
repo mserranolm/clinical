@@ -34,15 +34,105 @@ type PatientDetail = PatientRow & {
 const statusLabel: Record<string, string> = {
   scheduled: "Pendiente",
   confirmed: "Confirmada",
+  in_progress: "En consulta",
   completed: "Finalizada",
   cancelled: "Cancelada",
 };
 const statusClass: Record<string, string> = {
   scheduled: "status-unconfirmed",
   confirmed: "status-confirmed",
+  in_progress: "status-in-progress",
   completed: "status-completed",
   cancelled: "status-cancelled",
 };
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function exportCSV(patient: PatientRow, consultas: ConsultaHistorial[]) {
+  const header = ["Fecha", "Hora", "Estado", "Notas de evolución", "Plan de tratamiento", "Monto", "Método de pago"];
+  const escape = (v: string | number | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = consultas.map(c => [
+    escape(fmtDate(c.startAt)),
+    escape(fmtTime(c.startAt)),
+    escape(statusLabel[c.status] ?? c.status),
+    escape(c.evolutionNotes),
+    escape(c.treatmentPlan),
+    escape(c.paymentAmount != null ? c.paymentAmount.toFixed(2) : ""),
+    escape(c.paymentMethod),
+  ].join(","));
+  const csv = [header.map(h => `"${h}"`).join(","), ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `consultas_${patient.firstName}_${patient.lastName}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF(patient: PatientRow, consultas: ConsultaHistorial[], patientDetail: PatientDetail | null) {
+  const bgs = patientDetail?.medicalBackgrounds ?? [];
+  const antecedentes = bgs.length > 0
+    ? bgs.map(b => `${b.type}: ${b.description || "Sí"}`).join(" | ")
+    : "Sin antecedentes registrados";
+
+  const consultasHTML = consultas.map((c, i) => `
+    <div class="consulta-block">
+      <div class="consulta-header">
+        <span class="consulta-num">#${consultas.length - i}</span>
+        <span class="consulta-fecha">${fmtDate(c.startAt)} · ${fmtTime(c.startAt)}</span>
+        <span class="consulta-estado">${statusLabel[c.status] ?? c.status}</span>
+      </div>
+      <div class="campo"><span class="label">Notas de evolución</span><p>${c.evolutionNotes || "Sin notas."}</p></div>
+      <div class="campo"><span class="label">Plan de tratamiento</span><p>${c.treatmentPlan || "Sin plan registrado."}</p></div>
+      ${c.paymentAmount ? `<div class="campo"><span class="label">Pago</span><p>$${c.paymentAmount.toFixed(2)} · ${c.paymentMethod ?? "—"}</p></div>` : ""}
+    </div>
+  `).join("");
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Historial — ${patient.firstName} ${patient.lastName}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #1e293b; margin: 0; padding: 24px; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .subtitle { color: #64748b; font-size: 11px; margin: 0 0 16px; }
+    .patient-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+    .patient-info p { margin: 2px 0; font-size: 11px; color: #475569; }
+    .patient-info strong { font-size: 14px; color: #0f172a; }
+    .antecedentes { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 12px; margin-bottom: 20px; font-size: 11px; color: #92400e; }
+    .consulta-block { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; page-break-inside: avoid; }
+    .consulta-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+    .consulta-num { font-weight: 700; color: #0ea5e9; font-size: 11px; }
+    .consulta-fecha { font-weight: 600; font-size: 12px; flex: 1; }
+    .consulta-estado { font-size: 10px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 999px; padding: 2px 8px; }
+    .campo { margin-bottom: 8px; }
+    .label { font-weight: 700; font-size: 10px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; display: block; margin-bottom: 2px; }
+    .campo p { margin: 0; color: #334155; line-height: 1.5; white-space: pre-wrap; }
+    .footer { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 10px; color: #94a3b8; text-align: center; }
+    @media print { body { padding: 0; } }
+  </style></head><body>
+  <h1>Historial de Consultas</h1>
+  <p class="subtitle">Generado el ${new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })}</p>
+  <div class="patient-info">
+    <strong>${patient.firstName} ${patient.lastName}</strong>
+    <p>${patient.documentId ? `🇮🇩 ${patient.documentId}` : ""} ${patient.phone ? `· 📞 ${patient.phone}` : ""} ${patient.email ? `· ✉️ ${patient.email}` : ""}</p>
+  </div>
+  ${bgs.length > 0 ? `<div class="antecedentes"><strong>Antecedentes médicos:</strong> ${antecedentes}</div>` : ""}
+  ${consultasHTML}
+  <div class="footer">CliniSense — ${consultas.length} consulta${consultas.length !== 1 ? "s" : ""} registrada${consultas.length !== 1 ? "s" : ""}</div>
+  </body></html>`;
+
+  const win = window.open("", "_blank", "width=800,height=900");
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 400);
+}
 
 export function PatientsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
   const [rows, setRows] = useState<PatientRow[]>([]);
@@ -320,7 +410,29 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                   <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>Historial de consultas</p>
                 </div>
               </div>
-              <button className="historial-drawer-close" onClick={() => setSelectedPatient(null)}>✕</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {historial.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className="export-btn"
+                      onClick={() => exportPDF(selectedPatient, historial, patientDetail)}
+                      title="Exportar todas las consultas como PDF"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="export-btn export-btn-csv"
+                      onClick={() => exportCSV(selectedPatient, historial)}
+                      title="Exportar todas las consultas como CSV"
+                    >
+                      📊 CSV
+                    </button>
+                  </>
+                )}
+                <button className="historial-drawer-close" onClick={() => setSelectedPatient(null)}>✕</button>
+              </div>
             </div>
 
             <div className="historial-drawer-body">
@@ -534,7 +646,25 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                   )}
                 </div>
 
-                <div className="modal-actions">
+                <div className="modal-actions" style={{ justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="export-btn"
+                      onClick={() => exportPDF(selectedPatient, [detailCita], patientDetail)}
+                      title="Exportar esta consulta como PDF"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="export-btn export-btn-csv"
+                      onClick={() => exportCSV(selectedPatient, [detailCita])}
+                      title="Exportar esta consulta como CSV"
+                    >
+                      📊 CSV
+                    </button>
+                  </div>
                   <button type="button" onClick={() => setDetailCita(null)}>Cerrar</button>
                 </div>
               </div>
