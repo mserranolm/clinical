@@ -568,6 +568,7 @@ func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.A
 		"TreatmentPlan":   &types.AttributeValueMemberS{Value: appointment.TreatmentPlan},
 		"PaymentAmount":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%.2f", appointment.PaymentAmount)},
 		"PaymentMethod":   &types.AttributeValueMemberS{Value: appointment.PaymentMethod},
+		"PaymentPaid":     &types.AttributeValueMemberBOOL{Value: appointment.PaymentPaid},
 	}
 
 	// Handle optional time fields

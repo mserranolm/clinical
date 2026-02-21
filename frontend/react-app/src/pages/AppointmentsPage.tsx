@@ -190,8 +190,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         durationMinutes: item.durationMinutes ?? 30,
         status: item.status,
         paymentAmount: item.paymentAmount,
-        paymentPaid: (item as { paymentPaid?: boolean }).paymentPaid,
-        paymentMethod: (item as { paymentMethod?: string }).paymentMethod,
+        paymentPaid: item.paymentPaid,
+        paymentMethod: item.paymentMethod,
       })));
       return appointments;
     });
@@ -245,9 +245,6 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     setPayingSaving(true);
     try {
       await clinicalApi.registerPayment(payRow.id, { paid: payPaid, paymentMethod: payMethod, paymentAmount: payAmount }, token);
-      if (payPaid) {
-        await clinicalApi.updateAppointment(payRow.id, { status: "completed" }, token);
-      }
       notify.success(payPaid ? "Pago registrado — cita finalizada" : "Marcado como pendiente de pago");
       setPayRow(null);
       loadAppointments(date, effectiveDoctorId);

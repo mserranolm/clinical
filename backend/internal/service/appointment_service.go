@@ -334,15 +334,15 @@ func (s *AppointmentService) RegisterPayment(ctx context.Context, id string, in 
 	if err != nil {
 		return domain.Appointment{}, fmt.Errorf("appointment not found")
 	}
-	if appt.Status != "completed" {
-		return domain.Appointment{}, fmt.Errorf("solo se puede registrar pago en consultas finalizadas")
-	}
 	appt.PaymentPaid = in.Paid
 	if in.PaymentMethod != "" {
 		appt.PaymentMethod = in.PaymentMethod
 	}
 	if in.PaymentAmount > 0 {
 		appt.PaymentAmount = in.PaymentAmount
+	}
+	if in.Paid {
+		appt.Status = "completed"
 	}
 	return s.repo.Update(ctx, appt)
 }

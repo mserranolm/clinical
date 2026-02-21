@@ -22,6 +22,7 @@ export type AppointmentDTO = {
   status: string;
   paymentAmount?: number;
   paymentMethod?: string;
+  paymentPaid?: boolean;
 };
 
 export const clinicalApi = {
