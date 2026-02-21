@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, CalendarDays } from "lucide-react";
 import type { AuthSession } from "../../types";
+import { canCreateAppointments } from "../../lib/rbac";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": { title: "Panel Principal", subtitle: "Resumen de actividad clínica del día" },
@@ -52,14 +53,16 @@ export function Topbar({ session, title, hamburger }: { session: AuthSession; on
       </div>
 
       <div className="topbar-right">
-        <button
-          type="button"
-          className="topbar-create-btn"
-          onClick={() => navigate("/dashboard/citas")}
-        >
-          <Plus size={14} strokeWidth={2} />
-          Crear cita
-        </button>
+        {canCreateAppointments(session) && (
+          <button
+            type="button"
+            className="topbar-create-btn"
+            onClick={() => navigate("/dashboard/citas")}
+          >
+            <Plus size={14} strokeWidth={2} />
+            Crear cita
+          </button>
+        )}
 
         <div className="topbar-date">
           <span className="live-dot" />

@@ -76,7 +76,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   }
 
   const isDoctor = session.role === "doctor";
-  const canSelectDoctor = session.role === "admin" || session.role === "assistant";
+  const isAdmin = session.role === "admin";
+  const canSelectDoctor = isAdmin || session.role === "assistant";
   const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
 
@@ -84,8 +85,13 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     if (canSelectDoctor && session.orgId) {
       clinicalApi.listOrgUsers(session.orgId, token).then((res) => {
         const docs = (res.items ?? []).filter((u) => u.role === "doctor" && u.status === "active");
-        setDoctors(docs.map((u) => ({ id: u.id, name: u.name })));
-        if (docs.length > 0) setSelectedDoctorId(docs[0].id);
+        const list: { id: string; name: string }[] = docs.map((u) => ({ id: u.id, name: u.name }));
+        // Admin org puede asignarse a sí mismo como doctor
+        if (isAdmin && session.userId && !list.find((d) => d.id === session.userId)) {
+          list.unshift({ id: session.userId, name: `${session.name || "Administrador"} (yo)` });
+        }
+        setDoctors(list);
+        if (list.length > 0) setSelectedDoctorId(list[0].id);
       }).catch(() => {});
     }
   }, [canSelectDoctor, session.orgId]);

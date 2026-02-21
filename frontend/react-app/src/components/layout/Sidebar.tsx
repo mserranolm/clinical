@@ -95,15 +95,17 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
           ))}
         </div>
 
-        <div className="nav-group">
-          <span className="nav-group-label">Herramientas</span>
-          {extraItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">{item.icon}</span>
-              <span className="nav-item-label">{item.label}</span>
-            </NavLink>
-          ))}
-        </div>
+        {(isAdmin || role === "doctor") && (
+          <div className="nav-group">
+            <span className="nav-group-label">Herramientas</span>
+            {extraItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+                <span className="nav-item-icon">{item.icon}</span>
+                <span className="nav-item-label">{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
 
         {isAdmin && (
           <div className="nav-group">

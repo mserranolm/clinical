@@ -41,12 +41,18 @@ export function canDeletePatients(session: AuthSession | null | undefined): bool
 // Appointments
 export function canWriteAppointments(session: AuthSession | null | undefined): boolean {
   const r = role(session);
-  return r === "platform_admin" || r === "admin" || r === "doctor" || r === "assistant";
+  return r === "admin" || r === "doctor" || r === "assistant";
+}
+
+// Crear cita: platform_admin NO puede crear citas (no pertenece a una org)
+export function canCreateAppointments(session: AuthSession | null | undefined): boolean {
+  const r = role(session);
+  return r === "admin" || r === "doctor" || r === "assistant";
 }
 
 export function canDeleteAppointments(session: AuthSession | null | undefined): boolean {
   const r = role(session);
-  return r === "platform_admin" || r === "admin";
+  return r === "admin";
 }
 
 // Users management (invite, edit org users)
@@ -55,8 +61,14 @@ export function canManageUsers(session: AuthSession | null | undefined): boolean
   return r === "platform_admin" || r === "admin";
 }
 
-// Treatments / odontogram
+// Treatments / odontogram / documentos — solo admin org y doctor
 export function canManageTreatments(session: AuthSession | null | undefined): boolean {
   const r = role(session);
-  return r === "platform_admin" || r === "admin" || r === "doctor";
+  return r === "admin" || r === "doctor";
+}
+
+// Admin org puede actuar como doctor (asignarse citas a sí mismo)
+export function canActAsDoctor(session: AuthSession | null | undefined): boolean {
+  const r = role(session);
+  return r === "admin" || r === "doctor";
 }
