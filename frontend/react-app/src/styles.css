@@ -3387,18 +3387,18 @@ button.ghost:hover {
 .datepicker-popover {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;           /* alineado a la derecha del trigger */
+  right: 0;
   left: auto;
-  z-index: 9999;      /* por encima de todo */
+  z-index: 9999;
   background: rgba(255,255,255,0.98);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
-  padding: 10px;
+  padding: 12px 14px;
   animation: slideUpModal 0.18s cubic-bezier(0.16,1,0.3,1);
-  min-width: 260px;
-  width: 260px;
+  width: 252px;
+  overflow: hidden;
 }
 
 /* Override react-day-picker v9 styles */
@@ -3406,19 +3406,35 @@ button.ghost:hover {
   --rdp-accent-color: #0ea5e9;
   --rdp-accent-background-color: #e0f2fe;
   --rdp-today-color: #0ea5e9;
-  --rdp-day-height: 30px;
-  --rdp-day-width: 30px;
-  --rdp-day_button-height: 28px;
-  --rdp-day_button-width: 28px;
+  --rdp-day-height: 32px;
+  --rdp-day-width: 32px;
+  --rdp-day_button-height: 30px;
+  --rdp-day_button-width: 30px;
   --rdp-day_button-border-radius: 7px;
+  --rdp-day_button-border: none;
+  --rdp-selected-border: none;
   --rdp-nav_button-height: 26px;
   --rdp-nav_button-width: 26px;
+  --rdp-nav-height: 32px;
+  --rdp-weekday-padding: 4px 0;
+  --rdp-weekday-opacity: 1;
   margin: 0;
   font-family: 'Inter', sans-serif;
   font-size: 0.80rem;
+  width: 100%;
 }
 .datepicker-popover .rdp-months {
   justify-content: center;
+  max-width: 100% !important;
+  width: 100%;
+  gap: 0;
+}
+.datepicker-popover .rdp-month {
+  width: 100%;
+}
+.datepicker-popover .rdp-month_grid {
+  width: 100%;
+  table-layout: fixed;
 }
 .datepicker-popover .rdp-month_caption {
   display: flex;
@@ -3467,7 +3483,19 @@ button.ghost:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 1;
-  padding: 0 !important;
+  padding: 4px 0 !important;
+  text-align: center;
+  width: auto;
+}
+/* Forzar celdas al ancho de la tabla */
+.datepicker-popover .rdp-day {
+  width: auto !important;
+  height: 32px !important;
+  text-align: center;
+  padding: 0;
+}
+.datepicker-popover .rdp-day_button {
+  margin: 0 auto;
 }
 .datepicker-popover .rdp-day_button {
   font-size: 0.78rem;
