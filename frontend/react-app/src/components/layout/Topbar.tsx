@@ -53,31 +53,8 @@ export function Topbar({ session, title }: { session: AuthSession; onLogout: () 
       <div className="topbar-right">
         <button
           type="button"
-          className="primary-btn"
+          className="topbar-create-btn"
           onClick={() => navigate("/dashboard/citas")}
-          style={{
-            background: "#0f172a",
-            color: "white",
-            padding: "8px 16px",
-            borderRadius: 10,
-            fontSize: "0.82rem",
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            border: "none",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.15)",
-            transition: "background 0.2s, box-shadow 0.2s, transform 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "#1e293b";
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "#0f172a";
-            (e.currentTarget as HTMLButtonElement).style.transform = "none";
-          }}
         >
           <Plus size={14} strokeWidth={2} />
           Crear cita

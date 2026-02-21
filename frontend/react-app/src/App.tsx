@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { getSession, saveSession, clearSession } from "./lib/session";
 import { AuthSession } from "./types";
@@ -27,6 +27,16 @@ const initialSession = loadValidSession();
 
 export function App() {
   const [session, setSession] = useState<AuthSession | null>(initialSession);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = (dark: boolean) =>
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    apply(mq.matches);
+    const handler = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   function handleAuthSuccess(nextSession: AuthSession) {
     saveSession(nextSession);
