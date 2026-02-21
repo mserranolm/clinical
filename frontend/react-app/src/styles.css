@@ -1426,10 +1426,10 @@ p {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center;
   padding: 20px;
   animation: fadeInOverlay 0.15s ease;
-  overflow: auto;
+  overflow-y: auto;
 }
 @keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
 
@@ -1444,6 +1444,7 @@ p {
   display: grid; gap: 18px;
   animation: slideUpModal 0.2s cubic-bezier(0.16,1,0.3,1);
   overflow: visible;
+  margin: auto;
 }
 @keyframes slideUpModal { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 .modal-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; }
