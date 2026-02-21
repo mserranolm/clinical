@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -51,6 +52,28 @@ func (s *AppointmentService) patientEmail(ctx context.Context, patientID string)
 		return "", ""
 	}
 	return p.Email, p.FirstName + " " + p.LastName
+}
+
+// ensureOrgContext returns ctx with OrgID set and the orgID to use for consent templates.
+// If context already has OrgID, returns as-is. Otherwise tries to resolve from doctor (DoctorID = user ID).
+func (s *AppointmentService) ensureOrgContext(ctx context.Context, doctorID string) (context.Context, string) {
+	orgID := store.OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) != "" {
+		return ctx, orgID
+	}
+	if strings.TrimSpace(doctorID) == "" || s.authRepo == nil {
+		return ctx, ""
+	}
+	u, err := s.authRepo.GetUserByID(ctx, doctorID)
+	if err != nil {
+		log.Printf("[appointment] ensureOrgContext: could not get user for doctor %s: %v", doctorID, err)
+		return ctx, ""
+	}
+	orgID = strings.TrimSpace(u.OrgID)
+	if orgID != "" {
+		ctx = store.ContextWithOrgID(ctx, orgID)
+	}
+	return ctx, orgID
 }
 
 type CreateAppointmentInput struct {
@@ -131,9 +154,9 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	}
 	if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
 		if s.notifier != nil {
-			orgID := store.OrgIDFromContext(ctx)
+			ctx, orgID := s.ensureOrgContext(ctx, created.DoctorID)
 			var consentLinks []notifications.ConsentLink
-			if s.consents != nil {
+			if s.consents != nil && orgID != "" {
 				if list, cerr := s.consents.CreateConsentsForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc)); cerr == nil {
 					for _, c := range list {
 						if c.AcceptToken != "" {
@@ -141,6 +164,9 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 						}
 					}
 				}
+			}
+			if len(consentLinks) == 0 && orgID != "" {
+				log.Printf("[appointment] create: no consent templates active for org %s — configure plantillas de consentimiento (asistencia + tratamiento)", orgID)
 			}
 			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, consentLinks)
 		}
@@ -245,9 +271,9 @@ func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID,
 	if s.notifier != nil {
 		email, name := s.patientEmail(ctx, item.PatientID)
 		if email != "" {
-			orgID := store.OrgIDFromContext(ctx)
+			ctx, orgID := s.ensureOrgContext(ctx, item.DoctorID)
 			var consentLinks []notifications.ConsentLink
-			if s.consents != nil {
+			if s.consents != nil && orgID != "" {
 				if list, cerr := s.consents.CreateConsentsForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil {
 					for _, c := range list {
 						if c.AcceptToken != "" {
@@ -255,6 +281,9 @@ func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID,
 						}
 					}
 				}
+			}
+			if len(consentLinks) == 0 && orgID != "" {
+				log.Printf("[appointment] 24h reminder: no consent templates active for org %s", orgID)
 			}
 			_ = s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks)
 		}

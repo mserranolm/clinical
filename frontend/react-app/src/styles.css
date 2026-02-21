@@ -1713,6 +1713,8 @@ tr:hover td { background: #f8fafc; }
 }
 
 .empty-state { text-align: center; padding: 60px !important; color: var(--text-muted); font-style: italic; }
+.empty-state p { font-style: normal; margin: 0.5em 0; }
+.empty-state-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 24px; }
 .mono { font-family: ui-monospace, monospace; font-size: 0.85rem; color: var(--text-muted); }
 
 /* Forms */

@@ -146,7 +146,12 @@ func (s *ConsentService) CreateForAppointment(ctx context.Context, appointmentID
 // and returns all consents for this appointment (existing + newly created). Does not send email.
 func (s *ConsentService) CreateConsentsForAppointment(ctx context.Context, appointmentID, orgID, patientID, doctorID, patientEmail, patientName string, startAt time.Time) ([]domain.Consent, error) {
 	templates, err := s.templateRepo.ListActiveByOrg(ctx, orgID)
-	if err != nil || len(templates) == 0 {
+	if err != nil {
+		return nil, nil
+	}
+	if len(templates) == 0 {
+		// Sin plantillas activas no se generan consentimientos. El correo llegará solo con confirmación de cita.
+		// Para enviar los 2 enlaces (asistencia + tratamiento) hay que crear y activar 2 plantillas en Plantillas de consentimiento.
 		return nil, nil
 	}
 	existing, _ := s.repo.ListByAppointmentID(ctx, appointmentID)

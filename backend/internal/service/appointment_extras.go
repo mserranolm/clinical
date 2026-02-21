@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"clinical-backend/internal/notifications"
-	"clinical-backend/internal/store"
 )
 
 const reminderCooldown = 3 * time.Minute
@@ -36,9 +35,9 @@ func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmen
 		if email == "" {
 			return fmt.Errorf("el paciente no tiene email registrado")
 		}
+		ctx, orgID := s.ensureOrgContext(ctx, item.DoctorID)
 		var consentLinks []notifications.ConsentLink
-		if s.consents != nil {
-			orgID := store.OrgIDFromContext(ctx)
+		if s.consents != nil && orgID != "" {
 			if list, cerr := s.consents.CreateConsentsForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil {
 				for _, c := range list {
 					if c.AcceptToken != "" {

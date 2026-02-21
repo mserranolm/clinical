@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, useRef, FormEvent } from "react";
 import { request } from "../lib/http";
 import { notify } from "../lib/notify";
 
@@ -15,45 +15,98 @@ type ConsentTemplate = {
 
 type Props = { token: string };
 
-const DEFAULT_CONSENT_CONTENT = `CONSENTIMIENTO INFORMADO PARA TRATAMIENTO ODONTOLÓGICO
+/** Plantilla genérica: confirmación de asistencia a la consulta (primera firma). */
+const PLANTILLA_ASISTENCIA = {
+  title: "Confirmación de asistencia a la consulta",
+  content: `CONFIRMACIÓN DE ASISTENCIA A LA CONSULTA
 
-Yo, el/la paciente abajo firmante, declaro que:
+Al aceptar este documento, confirmo que:
 
-1. INFORMACIÓN DEL TRATAMIENTO
-He sido informado/a por el profesional tratante sobre el diagnóstico de mi condición dental, el tratamiento propuesto, los procedimientos que se realizarán, los riesgos y beneficios esperados, y las alternativas de tratamiento disponibles.
+• He recibido la citación para la consulta odontológica en la fecha y hora indicadas.
+• Me comprometo a asistir o a avisar con la mayor antelación posible en caso de no poder acudir.
+• Entiendo que la confirmación de mi asistencia permite una mejor organización de la agenda clínica.
 
-2. PROCEDIMIENTOS AUTORIZADOS
-Autorizo al profesional y a su equipo a realizar los procedimientos odontológicos necesarios, incluyendo pero no limitado a: exámenes clínicos y radiográficos, limpiezas dentales, obturaciones (empastes), extracciones, tratamientos de conducto (endodoncia), colocación de coronas o prótesis, y cualquier otro procedimiento que sea necesario para mi salud bucal.
+Acepto y confirmo mi asistencia a la consulta.`,
+};
 
-3. RIESGOS Y COMPLICACIONES
-Entiendo que todo procedimiento médico conlleva riesgos, que pueden incluir: dolor o molestia post-procedimiento, inflamación o sangrado temporal, infección (poco frecuente), reacciones a anestesia local, y en casos de extracción: alveolitis u otras complicaciones.
+/** Plantilla genérica: consentimiento informado para tratamiento odontológico (segunda firma). Basada en modelos de colegios profesionales. */
+const PLANTILLA_TRATAMIENTO_ODONTOLOGICO = {
+  title: "Consentimiento informado para tratamiento odontológico",
+  content: `CONSENTIMIENTO INFORMADO PARA TRATAMIENTOS E INTERVENCIONES DENTALES
 
-4. ANESTESIA LOCAL
-Consiento el uso de anestesia local para los procedimientos que lo requieran. He informado al profesional sobre alergias conocidas, medicamentos que tomo y condiciones médicas relevantes.
+Yo, el/la paciente, declaro que:
+
+1. DESCRIPCIÓN DEL TRATAMIENTO
+He sido informado/a por el profesional tratante sobre el diagnóstico de mi condición dental, el tratamiento propuesto y los procedimientos que se realizarán. El tratamiento tiene como objetivo preservar, restaurar o mejorar mi salud bucal e incluye, según lo acordado: diagnóstico clínico, limpieza dental, obturaciones, extracciones, tratamientos de conducto (endodoncia), colocación de coronas o prótesis, y cualquier otro procedimiento necesario para mi atención.
+
+2. RIESGOS Y BENEFICIOS
+Se me han explicado los posibles beneficios del tratamiento y los riesgos asociados, que pueden incluir: infecciones, sensibilidad dental, dolor postoperatorio, inflamación o sangrado temporal, reacciones alérgicas a medicamentos o anestesia y, en raras ocasiones, complicaciones mayores (por ejemplo alveolitis en extracciones).
+
+3. ALTERNATIVAS
+He sido informado/a de las alternativas al tratamiento propuesto, incluyendo opciones menos invasivas, otros procedimientos y la posibilidad de no realizar tratamiento, así como sus consecuencias.
+
+4. ANESTESIA Y MEDICAMENTOS
+En caso de ser necesario, consiento el uso de anestesia local, sedación consciente u otros medicamentos. He informado al profesional sobre alergias conocidas, medicamentos que tomo y condiciones médicas relevantes.
 
 5. FOTOGRAFÍAS Y REGISTROS
-Autorizo al profesional a tomar fotografías clínicas y radiografías necesarias para el diagnóstico y seguimiento de mi tratamiento, las cuales formarán parte de mi expediente médico confidencial.
+Autorizo la toma de fotografías clínicas y radiografías necesarias para el diagnóstico y seguimiento, que formarán parte de mi expediente confidencial.
 
-6. CONFIDENCIALIDAD
-Entiendo que toda la información relacionada con mi tratamiento es confidencial y será manejada de acuerdo con las leyes de protección de datos aplicables.
+6. DECLARACIÓN FINAL
+Declaro haber recibido información clara y comprensible, haber tenido oportunidad de hacer preguntas y que doy mi consentimiento libre y voluntario para que se realice el tratamiento propuesto.`,
+};
 
-7. DERECHO A RETRACTARSE
-Entiendo que tengo el derecho de retirar este consentimiento en cualquier momento antes de que comience el procedimiento, sin que ello afecte la calidad de la atención que recibiré.
-
-8. DECLARACIÓN FINAL
-Declaro haber leído y comprendido este documento, haber tenido la oportunidad de hacer preguntas, y que todas mis dudas han sido respondidas satisfactoriamente. Acepto voluntariamente el tratamiento propuesto.`;
+/** Contenido por defecto al crear una nueva plantilla manualmente (tratamiento odontológico). */
+const DEFAULT_CONSENT_CONTENT = PLANTILLA_TRATAMIENTO_ODONTOLOGICO.content;
 
 export function ConsentTemplatesPage({ token }: Props) {
   const [templates, setTemplates] = useState<ConsentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingExamples, setCreatingExamples] = useState(false);
   const [editing, setEditing] = useState<ConsentTemplate | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", content: "", isActive: true });
   const [saving, setSaving] = useState(false);
+  const autoLoadedRef = useRef(false);
 
   useEffect(() => {
     loadTemplates();
   }, []);
+
+  // Si no hay plantillas, cargar automáticamente las de ejemplo (basadas en modelos odontológicos).
+  useEffect(() => {
+    if (loading || templates.length > 0 || autoLoadedRef.current) return;
+    autoLoadedRef.current = true;
+    setCreatingExamples(true);
+    (async () => {
+      try {
+        await request<ConsentTemplate>("/consent-templates", {
+          method: "POST",
+          token,
+          body: {
+            title: PLANTILLA_ASISTENCIA.title,
+            content: PLANTILLA_ASISTENCIA.content,
+            isActive: true,
+          },
+        });
+        await request<ConsentTemplate>("/consent-templates", {
+          method: "POST",
+          token,
+          body: {
+            title: PLANTILLA_TRATAMIENTO_ODONTOLOGICO.title,
+            content: PLANTILLA_TRATAMIENTO_ODONTOLOGICO.content,
+            isActive: true,
+          },
+        });
+        await loadTemplates();
+        notify.success("Plantillas de consentimiento cargadas (asistencia + tratamiento odontológico).");
+      } catch (e: any) {
+        autoLoadedRef.current = false;
+        notify.error("Error al cargar plantillas de ejemplo", e.message);
+      } finally {
+        setCreatingExamples(false);
+      }
+    })();
+  }, [loading, templates.length, token]);
 
   async function loadTemplates() {
     setLoading(true);
@@ -67,9 +120,44 @@ export function ConsentTemplatesPage({ token }: Props) {
     }
   }
 
+  /** Crea las dos plantillas de ejemplo (asistencia + tratamiento odontológico) y las deja activas. */
+  async function createExampleTemplates() {
+    setCreatingExamples(true);
+    try {
+      await request<ConsentTemplate>("/consent-templates", {
+        method: "POST",
+        token,
+        body: {
+          title: PLANTILLA_ASISTENCIA.title,
+          content: PLANTILLA_ASISTENCIA.content,
+          isActive: true,
+        },
+      });
+      await request<ConsentTemplate>("/consent-templates", {
+        method: "POST",
+        token,
+        body: {
+          title: PLANTILLA_TRATAMIENTO_ODONTOLOGICO.title,
+          content: PLANTILLA_TRATAMIENTO_ODONTOLOGICO.content,
+          isActive: true,
+        },
+      });
+      await loadTemplates();
+      notify.success("Plantillas de ejemplo creadas. Ambas están activas y se enviarán al agendar citas.");
+    } catch (e: any) {
+      notify.error("Error al crear plantillas", e.message);
+    } finally {
+      setCreatingExamples(false);
+    }
+  }
+
   function openNew() {
     setEditing(null);
-    setForm({ title: "Consentimiento Informado General", content: DEFAULT_CONSENT_CONTENT, isActive: true });
+    setForm({
+      title: PLANTILLA_TRATAMIENTO_ODONTOLOGICO.title,
+      content: DEFAULT_CONSENT_CONTENT,
+      isActive: true,
+    });
     setShowForm(true);
   }
 
@@ -196,18 +284,30 @@ export function ConsentTemplatesPage({ token }: Props) {
         </button>
       </div>
 
-      {loading ? (
+      {loading || creatingExamples ? (
         <div className="loading-state">
           <div className="spinner" />
-          <p>Cargando plantillas...</p>
+          <p>{creatingExamples ? "Cargando plantillas de ejemplo..." : "Cargando plantillas..."}</p>
         </div>
       ) : templates.length === 0 ? (
         <div className="empty-state">
           <p>No hay plantillas de consentimiento.</p>
-          <p>Crea una plantilla activa para que se envíe automáticamente al paciente al agendar una cita.</p>
-          <button className="btn btn-primary" onClick={openNew}>
-            Crear primera plantilla
-          </button>
+          <p>
+            Crea una plantilla activa para que se envíe automáticamente al paciente al agendar una cita.
+            Puedes usar las plantillas de ejemplo (confirmación de asistencia + consentimiento de tratamiento odontológico) o crear la tuya.
+          </p>
+          <div className="empty-state-actions">
+            <button
+              className="btn btn-primary"
+              onClick={createExampleTemplates}
+              disabled={creatingExamples}
+            >
+              {creatingExamples ? "Creando plantillas…" : "Crear plantillas de ejemplo"}
+            </button>
+            <button className="btn btn-secondary" onClick={openNew}>
+              Crear plantilla manual
+            </button>
+          </div>
         </div>
       ) : (
         <div className="templates-list">
