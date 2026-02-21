@@ -4,7 +4,6 @@ import { DayPicker } from "react-day-picker";
 import { es } from "date-fns/locale";
 import { format, parse, isValid } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import "react-day-picker/src/style.css";
 
 interface DatePickerProps {
   value: string; // "YYYY-MM-DD"

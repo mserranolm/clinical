@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import 'react-day-picker/src/style.css';
 
 :root {
   /* ── Paleta Air: Sky/Slate ──────────────────────────────── */
@@ -3481,6 +3482,12 @@ button.ghost:hover {
   width: 252px;
   overflow: hidden;
 }
+.datepicker-popover-portal {
+  position: fixed !important;
+  top: unset !important;
+  right: unset !important;
+  left: unset !important;
+}
 
 /* Override react-day-picker v9 styles */
 .datepicker-popover .rdp-root {
@@ -3577,15 +3584,13 @@ button.ghost:hover {
 }
 .datepicker-popover .rdp-day_button {
   margin: 0 auto;
-}
-.datepicker-popover .rdp-day_button {
   font-size: 0.78rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
   transition: background 0.15s, color 0.15s;
   border: none !important;
   cursor: pointer;
-  background: transparent;
+  background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
 }
