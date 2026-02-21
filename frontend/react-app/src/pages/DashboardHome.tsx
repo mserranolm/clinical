@@ -5,6 +5,7 @@ import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canManageTreatments, canWriteAppointments, isPlatformAdmin, isOrgAdmin } from "../lib/rbac";
 import { Modal } from "../components/Modal";
+import { DatePicker } from "../components/ui/DatePicker";
 import {
   CheckCircle, TrendingUp, Clock,
   CalendarCheck, DollarSign, ClipboardList,
@@ -162,7 +163,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
           <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
           <div className="input-group">
             <label>Fecha</label>
-            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            <DatePicker value={editDate} onChange={setEditDate} />
           </div>
           <div className="input-group">
             <label>Hora de inicio</label>
@@ -323,7 +324,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <p>Vista detallada de la agenda seleccionada.</p>
           </div>
           <div className="header-actions">
-            <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
+            <DatePicker value={date} onChange={onDateChange} />
           </div>
         </header>
         

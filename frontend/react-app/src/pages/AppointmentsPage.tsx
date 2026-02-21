@@ -5,6 +5,7 @@ import { notify } from "../lib/notify";
 import { PatientSearch } from "../modules/appointments/components/PatientSearch";
 import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
 import { Modal } from "../components/Modal";
+import { DatePicker } from "../components/ui/DatePicker";
 import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
 import type { AuthSession } from "../types";
 
@@ -39,6 +40,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const navigate = useNavigate();
   const location = useLocation();
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [createDate, setCreateDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
   const [duration, setDuration] = useState<number>(30);
@@ -222,7 +224,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
           <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
           <div className="input-group">
             <label>Fecha</label>
-            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            <DatePicker value={editDate} onChange={setEditDate} />
           </div>
           <div className="input-group">
             <label>Hora de inicio</label>
@@ -274,7 +276,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             <div className="row-inputs">
               <div className="input-group">
                 <label>Fecha</label>
-                <input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                <DatePicker value={createDate} onChange={setCreateDate} name="date" required />
               </div>
               <div className="input-group">
                 <label>Hora de inicio</label>
@@ -330,7 +332,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             <div className="input-group">
               <label>Fecha de Consulta</label>
               <div className="inline-actions">
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <DatePicker value={date} onChange={(v) => { setDate(v); }} />
                 <button type="button" onClick={loadAppointments}>Actualizar</button>
               </div>
             </div>

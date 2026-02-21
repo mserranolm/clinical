@@ -2741,3 +2741,254 @@ button.ghost:hover {
 }
 
 /* auth-spinner defined above in login section */
+
+/* ─── DatePicker personalizado ─────────────────────────────── */
+.datepicker-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  box-shadow: none;
+  text-align: left;
+}
+.datepicker-trigger:hover {
+  border-color: #0d9488;
+  background: white;
+  transform: none;
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.08);
+}
+.datepicker-trigger:focus {
+  outline: none;
+  border-color: #0d9488;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+}
+
+.datepicker-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  background: rgba(255,255,255,0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
+  padding: 12px;
+  animation: slideUpModal 0.18s cubic-bezier(0.16,1,0.3,1);
+  min-width: 300px;
+}
+
+/* Override react-day-picker styles */
+.datepicker-popover .rdp {
+  --rdp-accent-color: #0d9488;
+  --rdp-background-color: rgba(13,148,136,0.08);
+  --rdp-accent-color-dark: #0f766e;
+  --rdp-background-color-dark: rgba(13,148,136,0.2);
+  --rdp-outline: 2px solid #0d9488;
+  --rdp-outline-selected: 2px solid #0d9488;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+}
+.datepicker-popover .rdp-months {
+  justify-content: center;
+}
+.datepicker-popover .rdp-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.datepicker-popover .rdp-caption_label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  text-transform: capitalize;
+}
+.datepicker-popover .rdp-nav_button {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.15s, border-color 0.15s;
+  padding: 0;
+}
+.datepicker-popover .rdp-nav_button:hover {
+  background: white;
+  border-color: #0d9488;
+  color: #0d9488;
+}
+.datepicker-popover .rdp-head_cell {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 0;
+}
+.datepicker-popover .rdp-cell {
+  padding: 2px;
+}
+.datepicker-popover .rdp-day {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: background 0.15s, color 0.15s;
+  border: none;
+  cursor: pointer;
+}
+.datepicker-popover .rdp-day:hover:not(.rdp-day_selected):not(.rdp-day_disabled) {
+  background: rgba(13,148,136,0.08);
+  color: #0d9488;
+}
+.datepicker-popover .rdp-day_today:not(.rdp-day_selected) {
+  font-weight: 800;
+  color: #0d9488;
+  background: rgba(13,148,136,0.06);
+}
+.datepicker-popover .rdp-day_selected,
+.datepicker-popover .rdp-day_selected:hover {
+  background: #0d9488 !important;
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(13,148,136,0.35);
+}
+.datepicker-popover .rdp-day_disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.datepicker-popover .rdp-day_outside {
+  opacity: 0.35;
+}
+
+/* ─── Refinamientos generales del sistema de diseño ────────── */
+
+/* Fondo más sutil con profundidad */
+.page-section {
+  animation: revealUp 0.3s ease both;
+}
+
+/* Mejorar jerarquía tipográfica en cards */
+.stat-card h3 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.05em;
+}
+
+/* Badges estilo píldora */
+.badge {
+  border-radius: 999px !important;
+  padding: 3px 10px !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+}
+.status-scheduled  { background: #e0f2fe; color: #0369a1; }
+.status-confirmed  { background: #dcfce7; color: #166534; }
+.status-unconfirmed{ background: #f1f5f9; color: #475569; }
+.status-completed  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.status-cancelled  { background: #fff1f2; color: #9f1239; }
+.status-active     { background: #dcfce7; color: #166534; }
+.status-inactive   { background: #f1f5f9; color: #64748b; }
+.status-pending    { background: #fef3c7; color: #92400e; }
+
+/* Filas de tabla más limpias */
+tr { transition: background 0.15s ease; }
+tr:hover td { background: #f8fafc; }
+td { padding: 14px 18px; font-size: 0.855rem; }
+th { padding: 11px 18px; }
+
+/* Inputs más aireados */
+input:not([type=checkbox]):not([type=radio]),
+select,
+textarea {
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--r-md);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+input:not([type=checkbox]):not([type=radio]):focus,
+select:focus,
+textarea:focus {
+  border-color: #0d9488;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.10);
+  outline: none;
+}
+
+/* Sidebar slate-900 más suave */
+.sidebar { background: #0f172a; }
+
+/* Acento teal en nav activo */
+.nav-item.active { background: rgba(13,148,136,0.14); color: #ccfbf1; }
+.nav-item.active .nav-item-icon {
+  background: linear-gradient(135deg, #0d9488, #0891b2);
+  box-shadow: 0 3px 8px rgba(13,148,136,0.45);
+}
+.nav-item.active::before { background: #0d9488; box-shadow: 0 0 8px rgba(13,148,136,0.6); }
+.sidebar-logo { background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%); box-shadow: 0 4px 14px rgba(13,148,136,0.4); }
+.sidebar-brand h2 span { color: #2dd4bf; }
+
+/* Botones primarios con teal */
+.auth-submit,
+.primary-btn {
+  background: #0d9488 !important;
+  color: white !important;
+}
+.auth-submit:hover:not(:disabled),
+.primary-btn:hover {
+  background: #0f766e !important;
+  box-shadow: 0 8px 24px rgba(13,148,136,0.3) !important;
+}
+
+/* Acento teal en focus de inputs */
+input:focus { border-color: #0d9488 !important; box-shadow: 0 0 0 3px rgba(13,148,136,0.10) !important; }
+
+/* Topbar: icono de página con teal */
+.topbar-page-icon {
+  background: linear-gradient(135deg, #ccfbf1 0%, #cffafe 100%);
+  border-color: #99f6e4;
+  color: #0d9488;
+}
+
+/* Live dot teal */
+.live-dot { background: #0d9488; }
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(13,148,136,0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(13,148,136,0); }
+}
+
+/* Acento en links */
+.link-btn { color: #0d9488; }
+
+/* action-btn-treat con teal */
+.action-btn-treat {
+  background: #0d9488 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+.action-btn-treat:hover:not(:disabled) {
+  background: #0f766e !important;
+  box-shadow: 0 4px 12px rgba(13,148,136,0.3) !important;
+}

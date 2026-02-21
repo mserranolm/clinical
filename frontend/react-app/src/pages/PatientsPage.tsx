@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canWritePatients, canDeletePatients } from "../lib/rbac";
+import { DatePicker } from "../components/ui/DatePicker";
 import type { AuthSession } from "../types";
 
 type PatientRow = {
@@ -51,6 +52,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingPatient, setEditingPatient] = useState<PatientRow | null>(null);
+  const [birthDate, setBirthDate] = useState<string>("");
   const formRef = useRef<HTMLFormElement>(null);
 
   const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
@@ -146,6 +148,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
   const handleEdit = (patient: PatientRow) => {
     setEditingPatient(patient);
+    setBirthDate(patient.birthDate ?? "");
     setShowModal(true);
   };
 
@@ -582,7 +585,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
               <div className="input-group">
                 <label>Fecha de Nacimiento</label>
-                <input name="birthDate" type="date" defaultValue={editingPatient?.birthDate} />
+                <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" />
               </div>
 
               <div className="modal-actions">
