@@ -9,7 +9,7 @@ import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
 import {
   CheckCircle, TrendingUp, Clock,
-  CalendarCheck, DollarSign, ClipboardList,
+  CalendarCheck, DollarSign, ClipboardList, ClipboardCheck,
   Pencil, Stethoscope, Send, RefreshCw,
 } from "lucide-react";
 
@@ -113,17 +113,20 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   const isCompleted = (status: string) => status === "completed";
   const confirmedRows = useMemo(() => rows.filter((r) => isConfirmed(r.status)), [rows]);
   const unconfirmedRows = useMemo(() => rows.filter((r) => !isConfirmed(r.status) && !isCompleted(r.status) && r.status !== "cancelled"), [rows]);
+  const completedRows = useMemo(() => rows.filter((r) => isCompleted(r.status)), [rows]);
 
   const kpis = useMemo(() => {
     const total = rows.length;
     const confirmed = confirmedRows.length;
     const unconfirmed = unconfirmedRows.length;
+    const completed = completedRows.length;
     return [
       { label: "Citas del día", value: String(total), trend: loading ? "Actualizando..." : "En vivo" },
       { label: "Confirmados", value: String(confirmed), trend: "Ver listado", clickable: true },
-      { label: "No confirmados", value: String(unconfirmed), trend: "Ver listado", clickable: true }
+      { label: "No confirmados", value: String(unconfirmed), trend: "Ver listado", clickable: true },
+      { label: "Finalizados", value: String(completed), trend: "Ver listado", clickable: true }
     ];
-  }, [confirmedRows.length, loading, rows.length, unconfirmedRows.length]);
+  }, [confirmedRows.length, completedRows.length, loading, rows.length, unconfirmedRows.length]);
 
   const statusClass = (status: string) => {
     if (status === "confirmed") return "status-confirmed";
@@ -234,6 +237,17 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
           <h3>{kpis[2].value}</h3>
           <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
         </article>
+
+        <article className="stat-card elite-card" style={{ cursor: "pointer" }} onClick={() => setShowPatientsBreakdown(p => !p)}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ClipboardCheck size={16} strokeWidth={1.5} color="#15803d" />
+            </div>
+            <small style={{ margin: 0 }}>Finalizados</small>
+          </div>
+          <h3>{kpis[3].value}</h3>
+          <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
+        </article>
       </div>
 
       {/* KPIs de pagos — superadmin */}
@@ -309,7 +323,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
           <header className="card-header" style={{ marginBottom: 16 }}>
             <h3>Listado de pacientes por estado</h3>
           </header>
-          <div className="grid-2-cols">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 24 }}>
             <div>
               <h4 style={{ marginBottom: 8 }}>Confirmados ({confirmedRows.length})</h4>
               <ul className="patient-status-list">
@@ -326,6 +340,15 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                   <li key={`unconfirmed-${row.id}`}>{patientLabel(row)}</li>
                 ))}
                 {unconfirmedRows.length === 0 ? <li>Sin pacientes pendientes.</li> : null}
+              </ul>
+            </div>
+            <div>
+              <h4 style={{ marginBottom: 8 }}>Finalizados ({completedRows.length})</h4>
+              <ul className="patient-status-list">
+                {completedRows.map((row) => (
+                  <li key={`completed-${row.id}`}>{patientLabel(row)}</li>
+                ))}
+                {completedRows.length === 0 ? <li>Ninguna consulta finalizada hoy.</li> : null}
               </ul>
             </div>
           </div>
