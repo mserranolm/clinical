@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DayPicker } from "react-day-picker";
 import { es } from "date-fns/locale";
 import { format, parse, isValid } from "date-fns";
@@ -15,7 +16,8 @@ interface DatePickerProps {
 
 export function DatePicker({ value, onChange, name, required, placeholder = "Seleccionar fecha" }: DatePickerProps) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   const parsed = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
   const selected = parsed && isValid(parsed) ? parsed : undefined;
@@ -23,13 +25,36 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+      if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        const target = e.target as Element;
+        if (!target.closest(".datepicker-popover-portal")) {
+          setOpen(false);
+        }
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  function openPopover() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const popoverHeight = 320;
+      const openUpward = spaceBelow < popoverHeight && rect.top > popoverHeight;
+
+      setPopoverStyle({
+        position: "fixed",
+        zIndex: 9999,
+        width: Math.max(rect.width, 260),
+        left: rect.left,
+        ...(openUpward
+          ? { bottom: window.innerHeight - rect.top + 6 }
+          : { top: rect.bottom + 6 }),
+      });
+    }
+    setOpen((o) => !o);
+  }
 
   function handleSelect(day: Date | undefined) {
     if (day) {
@@ -39,14 +64,12 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
   }
 
   return (
-    <div ref={ref} style={{ position: "relative", width: "100%" }}>
-      {/* Hidden native input for form submission */}
+    <div ref={triggerRef} style={{ position: "relative", width: "100%" }}>
       {name && <input type="hidden" name={name} value={value} required={required} />}
 
-      {/* Trigger button */}
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={openPopover}
         className="datepicker-trigger"
       >
         <CalendarDays size={15} strokeWidth={1.5} style={{ color: "#0d9488", flexShrink: 0 }} />
@@ -65,9 +88,8 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
         />
       </button>
 
-      {/* Calendar popover */}
-      {open && (
-        <div className="datepicker-popover">
+      {open && createPortal(
+        <div className="datepicker-popover datepicker-popover-portal" style={popoverStyle}>
           <DayPicker
             mode="single"
             selected={selected}
@@ -81,7 +103,8 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
                   : <ChevronRight size={15} strokeWidth={1.5} {...props} />,
             }}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
