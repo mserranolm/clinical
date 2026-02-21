@@ -61,8 +61,14 @@ export function canManageUsers(session: AuthSession | null | undefined): boolean
   return r === "platform_admin" || r === "admin";
 }
 
-// Treatments / odontogram / documentos — solo admin org
+// Atender consulta (iniciar tratamiento) — admin org y doctor
 export function canManageTreatments(session: AuthSession | null | undefined): boolean {
+  const r = role(session);
+  return r === "admin" || r === "doctor";
+}
+
+// Ver Documentos / Odontograma / Tratamientos en sidebar — solo admin org
+export function canViewClinicalTools(session: AuthSession | null | undefined): boolean {
   const r = role(session);
   return r === "admin";
 }
