@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clinicalApi } from "../../api/clinical";
 import { notify } from "../../lib/notify";
 import type { AuthSession } from "../../types";
@@ -58,6 +58,14 @@ const PC: Record<string, string> = { current: "#d1fae5", overdue: "#fef3c7", sus
 const ST: Record<string, string> = { active: "#065f46", inactive: "#991b1b" };
 const PT: Record<string, string> = { current: "#065f46", overdue: "#92400e", suspended: "#991b1b" };
 
+const AUTO_REFRESH_OPTIONS = [
+  { value: 0, label: "Desactivada" },
+  { value: 10, label: "Cada 10 s" },
+  { value: 15, label: "Cada 15 s" },
+  { value: 30, label: "Cada 30 s" },
+  { value: 60, label: "Cada 60 s" },
+] as const;
+
 const inp: React.CSSProperties = { padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 6, width: "100%", fontSize: "0.875rem", boxSizing: "border-box" };
 const lbl: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: 4 };
 const sec: React.CSSProperties = { borderTop: "1px solid #e5e7eb", paddingTop: "1rem", marginBottom: "1rem" };
@@ -83,11 +91,14 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
   const [editingOrg, setEditingOrg] = useState<Org | null>(null);
   const [form, setForm] = useState<OrgForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [autoRefreshSeconds, setAutoRefreshSeconds] = useState<number>(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const token = session.token;
 
-  async function loadAll() {
-    setLoading(true);
+  async function loadAll(silent = false) {
+    if (!silent) setLoading(true);
     try {
       const [orgsRes, statsRes] = await Promise.all([
         clinicalApi.listOrgs(token),
@@ -108,11 +119,31 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
     } catch (e) {
       notify.error("Error cargando datos", e instanceof Error ? e.message : "");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => { loadAll(); }, []);
+
+  // Auto-refresh
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (autoRefreshSeconds > 0) {
+      intervalRef.current = setInterval(() => loadAll(true), autoRefreshSeconds * 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [autoRefreshSeconds]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadAll(true);
+    setRefreshing(false);
+  }
 
   function openCreate() {
     setEditingOrg(null);
@@ -191,7 +222,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
   return (
     <div style={{ padding: "2rem", maxWidth: 1100, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.25rem" }}>Consola de Plataforma</h1>
           <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
@@ -199,7 +230,30 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
             <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700 }}>SUPER ADMIN</span>
           </p>
         </div>
-        <button onClick={openCreate} style={btnPrimary}>+ Nueva organización</button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            style={{ ...btnCancel, display: "flex", alignItems: "center", gap: "0.35rem" }}
+            title="Actualizar datos"
+          >
+            {refreshing ? "⟳ Actualizando..." : "↻ Actualizar"}
+          </button>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "#374151" }}>
+            <span style={{ whiteSpace: "nowrap" }}>Auto:</span>
+            <select
+              value={autoRefreshSeconds}
+              onChange={e => setAutoRefreshSeconds(Number(e.target.value))}
+              style={{ ...inp, width: "auto", minWidth: 100, padding: "0.4rem 0.6rem", fontSize: "0.8rem" }}
+            >
+              {AUTO_REFRESH_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+          <button onClick={openCreate} style={btnPrimary}>+ Nueva organización</button>
+        </div>
       </div>
 
       {/* Stats dashboard */}
