@@ -427,7 +427,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                     <td>
                       {row.consentSummary && row.consentSummary.total > 0 ? (
                         row.consentSummary.accepted >= row.consentSummary.total ? (
-                          <span className="badge badge-success" title="Todos los consentimientos aceptados">Completo</span>
+                          <span className="badge status-confirmed" title="Todos los consentimientos aceptados">Completo</span>
                         ) : (
                           <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} aceptados. El paciente debe abrir y aceptar todos los enlaces del correo.`}>Pendiente</span>
                         )
