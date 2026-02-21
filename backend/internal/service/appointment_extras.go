@@ -23,6 +23,13 @@ func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmen
 		return fmt.Errorf("espera %d segundos antes de reenviar otro recordatorio", int(remaining.Seconds())+1)
 	}
 
+	if item.ConfirmToken == "" {
+		token, terr := generateAppointmentToken()
+		if terr == nil {
+			item.ConfirmToken = token
+		}
+	}
+
 	if s.notifier != nil {
 		email, name := s.patientEmail(ctx, item.PatientID)
 		if email == "" {
