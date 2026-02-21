@@ -9,6 +9,7 @@ import { DatePicker } from "../components/ui/DatePicker";
 import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
 import { RefreshCw, Stethoscope } from "lucide-react";
 import type { AuthSession } from "../types";
+import { localDateTimeToISO, isoToLocalDateTime } from "../lib/datetime";
 
 type AppointmentRow = {
   id: string;
@@ -31,10 +32,6 @@ const DURATION_BLOCKS = [
   { label: "2 horas 30 min", value: 150 },
   { label: "3 horas", value: 180 },
 ];
-
-function localToUTC(dateStr: string, timeStr: string): string {
-  return `${dateStr}T${timeStr}:00-04:00`;
-}
 
 function formatTimeRange(startAt: string, endAt: string): string {
   const start = new Date(startAt);
@@ -63,11 +60,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [payingSaving, setPayingSaving] = useState(false);
 
   function openEdit(row: AppointmentRow) {
-    const d = new Date(row.startAt);
-    const vzla = new Date(d.toLocaleString("en-US", { timeZone: "America/Caracas" }));
+    const { date, time } = isoToLocalDateTime(row.startAt);
     setEditRow(row);
-    setEditDate(`${vzla.getFullYear()}-${String(vzla.getMonth()+1).padStart(2,"0")}-${String(vzla.getDate()).padStart(2,"0")}`);
-    setEditTime(`${String(vzla.getHours()).padStart(2, "0")}:${String(vzla.getMinutes()).padStart(2, "0")}`);
+    setEditDate(date);
+    setEditTime(time);
     setEditDuration(row.durationMinutes || 30);
   }
 
@@ -75,7 +71,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     if (!editRow || !editDate || !editTime) return;
     setSaving(true);
     try {
-      const startAt = localToUTC(editDate, editTime);
+      const startAt = localDateTimeToISO(editDate, editTime);
       const endAt = new Date(new Date(startAt).getTime() + editDuration * 60000).toISOString();
       await clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, token);
       notify.success("Cita actualizada");
@@ -124,7 +120,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       notify.error("Selecciona un doctor", "Debes asignar un doctor a la cita.");
       return;
     }
-    const startAt = localToUTC(String(fd.get('date')), String(fd.get('time')));
+    const startAt = localDateTimeToISO(String(fd.get('date')), String(fd.get('time')));
     const promise = clinicalApi.createAppointment(
       {
         doctorId: effectiveDoctorId,
@@ -247,7 +243,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     setPayingSaving(true);
     try {
       await clinicalApi.registerPayment(payRow.id, { paid: payPaid, paymentMethod: payMethod, paymentAmount: payAmount }, token);
-      notify.success(payPaid ? "Pago registrado" : "Marcado como pendiente de pago");
+      if (payPaid) {
+        await clinicalApi.updateAppointment(payRow.id, { status: "completed" }, token);
+      }
+      notify.success(payPaid ? "Pago registrado — cita finalizada" : "Marcado como pendiente de pago");
       setPayRow(null);
       loadAppointments();
     } catch (err) {

@@ -4,6 +4,7 @@ import type { AuthSession } from "../types";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canManageTreatments, canWriteAppointments, isPlatformAdmin, isOrgAdmin } from "../lib/rbac";
+import { localDateTimeToISO, isoToLocalDateTime } from "../lib/datetime";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
 import {
@@ -73,14 +74,10 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   }, [user.token, user.role]);
 
   function openEdit(row: AppointmentRow) {
-    const d = new Date(row.startAt);
-    const dateStr = d.toISOString().slice(0, 10);
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    const timeStr = `${hh}:${mm}`;
+    const { date, time } = isoToLocalDateTime(row.startAt);
     setEditRow(row);
-    setEditDate(dateStr);
-    setEditTime(timeStr);
+    setEditDate(date);
+    setEditTime(time);
     setEditDuration(30);
   }
 
@@ -88,8 +85,8 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
     if (!editRow || !editDate || !editTime) return;
     setSaving(true);
     try {
-      const startAt = new Date(`${editDate}T${editTime}`).toISOString();
-      const endAt = new Date(new Date(`${editDate}T${editTime}`).getTime() + editDuration * 60000).toISOString();
+      const startAt = localDateTimeToISO(editDate, editTime);
+      const endAt = new Date(new Date(startAt).getTime() + editDuration * 60000).toISOString();
       await clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, user.token);
       notify.success("Cita actualizada");
       setEditRow(null);

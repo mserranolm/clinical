@@ -180,6 +180,12 @@ Resources:
             Value: !Ref ProjectName
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
+          - Name: API_ID
+            Value: "egsnzyxipf"
+          - Name: USAGE_PLAN_ID
+            Value: "8gsc3l"
+          - Name: API_KEY_ID
+            Value: "pjdbiyrum2"
       Source:
         Type: CODEPIPELINE
         BuildSpec: |
@@ -202,7 +208,25 @@ Resources:
               commands:
                 - echo Build completed on `date`
                 - echo Deploying to AWS...
-                - sam deploy --stack-name $STACK_NAME --region $AWS_DEFAULT_REGION --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset --no-progressbar 2>&1 | tee /tmp/deploy_out.txt; grep -q "UPDATE_COMPLETE.*ClinicalApiFunction\|ClinicalApiFunction.*UPDATE_COMPLETE" /tmp/deploy_out.txt && echo "Lambda updated successfully" && exit 0; grep -q "No changes to deploy" /tmp/deploy_out.txt && echo "No changes" && exit 0; grep -q "Error:" /tmp/deploy_out.txt && exit 1; exit 0
+                - sam deploy --stack-name $STACK_NAME --region $AWS_DEFAULT_REGION --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset --no-progressbar
+                - echo "==> Restaurando GatewayResponses CORS..."
+                - |
+                  for TYPE in DEFAULT_4XX DEFAULT_5XX INVALID_API_KEY ACCESS_DENIED UNAUTHORIZED; do
+                    aws apigateway put-gateway-response \
+                      --rest-api-id $API_ID \
+                      --response-type $TYPE \
+                      --response-parameters '{"gatewayresponse.header.Access-Control-Allow-Origin":"'"'"'*'"'"'","gatewayresponse.header.Access-Control-Allow-Headers":"'"'"'Content-Type,Authorization,x-api-key'"'"'","gatewayresponse.header.Access-Control-Allow-Methods":"'"'"'GET,POST,PUT,PATCH,DELETE,OPTIONS'"'"'"}' \
+                      --region $AWS_DEFAULT_REGION \
+                      --output text --query responseType
+                  done
+                - echo "==> Vinculando UsagePlan al stage prod..."
+                - aws apigateway update-usage-plan --usage-plan-id $USAGE_PLAN_ID --patch-operations "op=add,path=/apiStages,value=${API_ID}:prod" --region $AWS_DEFAULT_REGION --output text --query 'apiStages[0].stage' 2>/dev/null || echo "ya vinculado"
+                - echo "==> Re-asociando API Key al UsagePlan..."
+                - aws apigateway delete-usage-plan-key --usage-plan-id $USAGE_PLAN_ID --key-id $API_KEY_ID --region $AWS_DEFAULT_REGION 2>/dev/null || true
+                - aws apigateway create-usage-plan-key --usage-plan-id $USAGE_PLAN_ID --key-id $API_KEY_ID --key-type API_KEY --region $AWS_DEFAULT_REGION --output text --query name
+                - echo "==> Redeployando stage prod..."
+                - aws apigateway create-deployment --rest-api-id $API_ID --stage-name prod --region $AWS_DEFAULT_REGION --output text --query id
+                - echo "==> Deploy y fix completados"
           artifacts:
             files:
               - '**/*'
