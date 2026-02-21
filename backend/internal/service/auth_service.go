@@ -285,7 +285,7 @@ type CreateOrgAdminInput struct {
 	OrgID    string `json:"orgId"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
-	Password string `json:"password"`
+	Password string `json:"password"` // ignorado: se genera temporal y se envía por correo
 }
 
 type CreateOrgUserInput struct {
@@ -642,23 +642,41 @@ func (s *AuthService) CreateOrgAdmin(ctx context.Context, in CreateOrgAdminInput
 	if strings.TrimSpace(in.Email) == "" {
 		return store.AuthUser{}, fmt.Errorf("email is required")
 	}
-	if len(in.Password) < 8 {
-		return store.AuthUser{}, fmt.Errorf("password must have at least 8 characters")
-	}
 	if _, err := s.repo.GetOrganization(ctx, in.OrgID); err != nil {
 		return store.AuthUser{}, fmt.Errorf("organization not found")
 	}
-	user := store.AuthUser{
-		ID:           buildID("usr"),
-		OrgID:        in.OrgID,
-		Name:         strings.TrimSpace(in.Name),
-		Email:        strings.ToLower(strings.TrimSpace(in.Email)),
-		Role:         "admin",
-		Status:       "active",
-		PasswordHash: hashPassword(in.Password),
-		CreatedAt:    time.Now().UTC(),
+	tempPassword, err := generateTempPassword()
+	if err != nil {
+		return store.AuthUser{}, err
 	}
-	return s.repo.CreateUser(ctx, user)
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		name = strings.TrimSpace(in.Email)
+	}
+	user := store.AuthUser{
+		ID:                 buildID("usr"),
+		OrgID:              in.OrgID,
+		Name:               name,
+		Email:              strings.ToLower(strings.TrimSpace(in.Email)),
+		Role:               "admin",
+		Status:             "active",
+		PasswordHash:       hashPassword(tempPassword),
+		MustChangePassword: true,
+		CreatedAt:          time.Now().UTC(),
+	}
+	created, err := s.repo.CreateUser(ctx, user)
+	if err != nil {
+		return store.AuthUser{}, err
+	}
+	if s.notifier != nil {
+		base := s.frontendBaseURL
+		if base == "" {
+			base = os.Getenv("FRONTEND_BASE_URL")
+		}
+		loginURL := fmt.Sprintf("%s/login", strings.TrimRight(base, "/"))
+		_ = s.notifier.SendWelcome(ctx, created.Email, created.Name, created.Role, tempPassword, loginURL)
+	}
+	return created, nil
 }
 
 func (s *AuthService) CreateOrgUser(ctx context.Context, in CreateOrgUserInput) (UserDTO, error) {

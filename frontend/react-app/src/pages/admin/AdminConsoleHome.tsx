@@ -46,7 +46,7 @@ const EMPTY_FORM = {
   name: "", businessName: "", taxId: "", address: "", email: "", phone: "",
   status: "active", paymentStatus: "current",
   maxDoctors: 5, maxAssistants: 2, maxPatients: 20,
-  adminName: "", adminEmail: "", adminPassword: "",
+  adminName: "", adminEmail: "",
   timezone: "America/Caracas",
 };
 type OrgForm = typeof EMPTY_FORM;
@@ -161,7 +161,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
       maxDoctors: org.limits?.maxDoctors ?? 5,
       maxAssistants: org.limits?.maxAssistants ?? 2,
       maxPatients: org.limits?.maxPatients ?? 20,
-      adminName: "", adminEmail: "", adminPassword: "",
+      adminName: "", adminEmail: "",
       timezone: org.timezone || "America/Caracas",
     });
     setShowForm(true);
@@ -186,14 +186,13 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
         notify.success("Organización actualizada");
       } else {
         const created = await clinicalApi.createOrg(payload, token) as { id: string };
-        if (form.adminEmail && form.adminPassword) {
+        if (form.adminEmail) {
           await clinicalApi.createOrgAdmin(created.id, {
             name: form.adminName || form.adminEmail,
             email: form.adminEmail,
-            password: form.adminPassword,
           }, token);
         }
-        notify.success("Organización creada");
+        notify.success(form.adminEmail ? "Organización creada. Se envió un correo al admin con la contraseña temporal." : "Organización creada");
       }
       setShowForm(false);
       setEditingOrg(null);
@@ -380,12 +379,8 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                     <label style={lbl}>Email del admin</label>
                     <input type="email" style={inp} value={form.adminEmail} onChange={e => setForm(f => ({ ...f, adminEmail: e.target.value }))} placeholder="admin@clinica.com" />
                   </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={lbl}>Contraseña (mín. 8 caracteres)</label>
-                    <input type="password" style={inp} value={form.adminPassword} onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))} placeholder="••••••••" />
-                  </div>
                 </div>
-                <p style={{ fontSize: "0.75rem", color: "#3b82f6", marginTop: "0.5rem" }}>Opcional — si no se completa, se puede crear después desde la lista.</p>
+                <p style={{ fontSize: "0.75rem", color: "#3b82f6", marginTop: "0.5rem" }}>Se enviará un correo con una contraseña temporal. El admin deberá cambiarla en el primer inicio de sesión. Opcional — si no indicas email, podrás crear el admin después desde la organización.</p>
               </div>
             )}
 

@@ -75,7 +75,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     try {
       const [appointmentsRes, patientsRes] = await Promise.all([
         clinicalApi.listAppointments(scopedDoctorId, appointmentsDate, session.token),
-        clinicalApi.listPatients(scopedDoctorId, session.token)
+        clinicalApi.listPatients("", session.token)
       ]);
 
       const patientById = new Map(
@@ -154,7 +154,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} />} />
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
             <Route path="consulta" element={<ConsultaPage token={session.token} doctorId={session.userId} />} />
-            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
+            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId="" session={session} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="plantillas-consentimiento" element={<ConsentTemplatesPage token={session.token} />} />

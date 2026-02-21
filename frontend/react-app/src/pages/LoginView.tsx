@@ -8,6 +8,7 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   async function onLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -124,7 +125,26 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
             </div>
             <div className="input-group">
               <label>Contraseña</label>
-              <input name="password" type="password" placeholder="••••••••" minLength={8} required autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              <div className="password-input-wrap">
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  minLength={8}
+                  required
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(p => !p)}
+                  title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
+              </div>
             </div>
 
             {error && (

@@ -160,7 +160,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
   const loadPatients = () => {
     setLoading(true);
-    clinicalApi.listPatients(doctorId, token)
+    clinicalApi.listPatients("", token)
       .then((result) => {
         setRows(result.items.map((p) => ({
           id: p.id,
@@ -179,7 +179,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
   useEffect(() => {
     loadPatients();
-  }, [doctorId, token]);
+  }, [token]);
 
   async function openHistorial(patient: PatientRow) {
     setSelectedPatient(patient);
@@ -261,7 +261,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
   async function onSearch() {
     if (!query.trim()) return;
     setSearching(true);
-    const promise = clinicalApi.searchPatients(query.trim(), doctorId, token);
+    const promise = clinicalApi.searchPatients(query.trim(), "", token);
     notify.promise(promise, {
       loading: "Buscando pacientes...",
       success: (result) => {

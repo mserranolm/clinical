@@ -262,7 +262,7 @@ export const clinicalApi = {
   createOrg: (data: { name: string; businessName?: string; taxId?: string; address?: string; email?: string; phone?: string }, token: string) =>
     request<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number }; createdAt: string }>("/platform/orgs", { method: "POST", body: data, token }),
 
-  createOrgAdmin: (orgId: string, data: { name: string; email: string; password: string }, token: string) =>
+  createOrgAdmin: (orgId: string, data: { name: string; email: string; password?: string }, token: string) =>
     request<{ userId: string; email: string; role: string }>(`/platform/orgs/${orgId}/admins`, { method: "POST", body: data, token }),
 
   // Org user management endpoints

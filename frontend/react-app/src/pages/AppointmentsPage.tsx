@@ -177,7 +177,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     const did = forDoctorId ?? effectiveDoctorId;
     const promise = Promise.all([
       clinicalApi.listAppointments(did, d, token),
-      clinicalApi.listPatients(did, token)
+      clinicalApi.listPatients("", token)
     ]).then(([appointments, patients]) => {
       const patientById = new Map(
         (patients.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
@@ -375,7 +375,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             )}
             <div className="input-group">
               <label>Paciente</label>
-              <PatientSearch doctorId={effectiveDoctorId} token={token} onPatientSelect={setSelectedPatient} />
+              <PatientSearch doctorId="" token={token} onPatientSelect={setSelectedPatient} />
               <input type="hidden" name="patientId" value={selectedPatient?.id || ''} />
             </div>
             <div className="row-inputs">
