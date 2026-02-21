@@ -6,6 +6,8 @@ type Patient = {
   id: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+  documentId?: string;
 };
 
 type PatientSearchProps = {
@@ -78,8 +80,29 @@ export function PatientSearch({ doctorId, token, onPatientSelect }: PatientSearc
           {!loading && debouncedQuery.length >= 3 && results.length > 0 && (
             <ul className="search-results">
               {results.map(patient => (
-                <li key={patient.id} onClick={() => handleSelectPatient(patient)}>
-                  {patient.firstName} {patient.lastName}
+                <li key={patient.id} className="search-result-item" onClick={() => handleSelectPatient(patient)}>
+                  <div className="search-result-avatar">
+                    {(patient.firstName[0] || "?").toUpperCase()}
+                  </div>
+                  <div className="search-result-info">
+                    <strong className="search-result-name">
+                      {patient.firstName} {patient.lastName}
+                    </strong>
+                    <div className="search-result-meta">
+                      {patient.documentId && (
+                        <span className="search-result-tag">
+                          <span className="search-result-tag-label">Doc</span>
+                          {patient.documentId}
+                        </span>
+                      )}
+                      {patient.phone && (
+                        <span className="search-result-tag">
+                          <span className="search-result-tag-label">Tel</span>
+                          {patient.phone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>

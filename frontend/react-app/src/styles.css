@@ -1611,28 +1611,93 @@ tr:hover td { background: #f8fafc; }
 
 .search-results {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
   background: white;
-  border: 1px solid #e2e8f0;
-  border-top: none;
-  border-radius: 0 0 12px 12px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(148,163,184,0.18), 0 2px 8px rgba(148,163,184,0.10);
   list-style: none;
-  padding: 8px;
+  padding: 6px;
   margin: 0;
-  z-index: 10;
+  z-index: 9999;
+  overflow: hidden;
 }
 
-.search-results li {
-  padding: 12px 16px;
+/* Item contenedor */
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   cursor: pointer;
-  border-radius: 8px;
+  transition: background 0.13s;
+}
+.search-result-item:hover {
+  background: #f0f9ff;
 }
 
-.search-results li:hover {
-  background-color: #f1f5f9;
+/* Avatar inicial */
+.search-result-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  color: #0284c7;
+  font-size: 0.82rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Info del paciente */
+.search-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.search-result-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Tags Doc / Tel */
+.search-result-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 5px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.search-result-tag-label {
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 0.60rem;
+  letter-spacing: 0.04em;
 }
 
 .no-results {

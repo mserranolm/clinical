@@ -9,7 +9,7 @@ import { DatePicker } from "../components/ui/DatePicker";
 import {
   CheckCircle, TrendingUp, Clock,
   CalendarCheck, DollarSign, ClipboardList,
-  Pencil, Stethoscope, Send,
+  Pencil, Stethoscope, Send, RefreshCw,
 } from "lucide-react";
 
 const TIME_SLOTS = [
@@ -333,7 +333,15 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
               </p>
             </div>
           </div>
-          <div className="agenda-header-right">
+          <div className="agenda-header-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              className="agenda-btn"
+              onClick={onRefresh}
+              title="Actualizar citas"
+            >
+              <RefreshCw size={13} strokeWidth={1.5} />
+            </button>
             <DatePicker value={date} onChange={onDateChange} />
           </div>
         </div>

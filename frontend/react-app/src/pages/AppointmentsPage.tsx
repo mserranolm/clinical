@@ -7,6 +7,7 @@ import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
 import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
+import { RefreshCw, Stethoscope } from "lucide-react";
 import type { AuthSession } from "../types";
 
 type AppointmentRow = {
@@ -347,7 +348,13 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       </div>
 
       <article className="card elite-card" style={{ marginTop: 24 }}>
-        <h3 style={{ marginBottom: 16 }}>Calendario Diario de Atención</h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>Calendario Diario de Atención</h3>
+          <button type="button" className="agenda-btn" onClick={loadAppointments} title="Actualizar agenda">
+            <RefreshCw size={13} strokeWidth={1.5} />
+            <span>Actualizar</span>
+          </button>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>
@@ -399,20 +406,20 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                         </button>
                       )}
                       {canManageTreatments(session) && isCompleted(row.status) && (
-                        <button type="button" className="action-btn" style={{ opacity: 0.5, cursor: "not-allowed" }} disabled title="Consulta ya finalizada">
-                          <span>✓ Finalizada</span>
-                        </button>
+                        <span className="agenda-done-badge">
+                          ✓ Finalizada
+                        </span>
                       )}
                       {canManageTreatments(session) && !isCompleted(row.status) && (
                         <button
                           type="button"
-                          className="action-btn action-btn-treat"
+                          className="agenda-btn agenda-btn-treat"
                           onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
-                          title={isConfirmed(row.status) ? "Atender paciente" : "La cita debe estar confirmada para atender"}
-                          style={!isConfirmed(row.status) ? { opacity: 0.55 } : {}}
+                          title={isConfirmed(row.status) ? "Atender paciente" : "Confirma primero"}
+                          style={!isConfirmed(row.status) ? { opacity: 0.45, cursor: "not-allowed" } : {}}
                         >
+                          <Stethoscope size={13} strokeWidth={1.5} />
                           <span>Atender</span>
-                          <span className="icon">→</span>
                         </button>
                       )}
                       {canDeleteAppointments(session) && (
