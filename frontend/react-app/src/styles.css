@@ -1444,7 +1444,7 @@ p {
   display: grid; gap: 18px;
   animation: slideUpModal 0.2s cubic-bezier(0.16,1,0.3,1);
   overflow: visible;
-  margin: auto;
+  margin: 20px auto;
 }
 @keyframes slideUpModal { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 .modal-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; }
@@ -3485,7 +3485,6 @@ button.ghost:hover {
   width: 252px;
 }
 .modal-card-with-datepicker {
-  padding-bottom: 320px !important;
   max-width: 560px !important;
 }
 
