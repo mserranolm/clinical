@@ -220,9 +220,10 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
     setSaving(true);
 
+    const effectiveDoctorId = doctorId || session.userId;
     const promise = editingPatient
       ? clinicalApi.updatePatient(editingPatient.id, data, token)
-      : clinicalApi.onboardPatient({ ...data, doctorId, specialty: "odontology", medicalBackgrounds: [], imageKeys: [] }, token);
+      : clinicalApi.onboardPatient({ ...data, doctorId: effectiveDoctorId, specialty: "odontology", medicalBackgrounds: [], imageKeys: [] }, token);
 
     notify.promise(promise, {
       loading: editingPatient ? "Actualizando paciente..." : "Registrando paciente...",
