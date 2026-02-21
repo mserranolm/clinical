@@ -491,7 +491,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                           <span>Cancelar</span>
                         </button>
                       )}
-                      {canWriteAppointments(session) && !isCompleted(row.status) && (
+                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "in_progress" && row.status !== "cancelled" && (
                         <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
                           <span className="icon">✉️</span>
                           <span>Reenviar</span>
