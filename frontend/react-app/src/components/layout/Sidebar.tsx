@@ -1,4 +1,15 @@
 import { NavLink } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  FileText,
+  GitGraph,
+  ClipboardList,
+  ShieldCheck,
+  LogOut,
+  Stethoscope,
+} from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
   platform_admin: "Super Admin",
@@ -8,37 +19,55 @@ const ROLE_LABELS: Record<string, string> = {
   patient: "Paciente",
 };
 
+type NavItemDef = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+
 export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; userName?: string; role?: string }) {
-  const initials = userName ? userName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "SA";
+  const initials = userName
+    ? userName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+    : "SA";
   const isPlatformAdmin = role === "platform_admin";
   const isAdmin = role === "admin";
+
+  const iconProps = { size: 15, strokeWidth: 1.5 };
+
+  const clinicItems: NavItemDef[] = [
+    { to: "/dashboard", label: "Panel Principal", icon: <LayoutDashboard {...iconProps} />, end: true },
+  ];
+  const clinicaItems: NavItemDef[] = [
+    { to: "/dashboard/pacientes", label: "Pacientes", icon: <Users {...iconProps} /> },
+    { to: "/dashboard/citas", label: "Agenda Médica", icon: <Calendar {...iconProps} /> },
+  ];
+  const adminItems: NavItemDef[] = [
+    { to: "/dashboard/usuarios", label: "Usuarios", icon: <Users {...iconProps} /> },
+  ];
+  const extraItems: NavItemDef[] = [
+    { to: "/dashboard/consentimientos", label: "Documentos", icon: <FileText {...iconProps} /> },
+    { to: "/dashboard/odontograma", label: "Odontograma", icon: <GitGraph {...iconProps} /> },
+    { to: "/dashboard/planes", label: "Tratamientos", icon: <ClipboardList {...iconProps} /> },
+  ];
 
   if (isPlatformAdmin) {
     return (
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="sidebar-logo"><span className="sidebar-logo-icon">🦷</span></div>
-          <div><h2>Clini<span>Sense</span></h2><small>Plataforma</small></div>
+          <div className="sidebar-logo">
+            <Stethoscope size={17} strokeWidth={1.5} color="white" />
+          </div>
+          <div>
+            <h2>Clini<span>Sense</span></h2>
+            <small>Plataforma</small>
+          </div>
         </div>
         <nav className="sidebar-nav">
           <div className="nav-group">
             <span className="nav-group-label">Plataforma</span>
             <NavLink to="/dashboard" end className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">🛡</span>
+              <span className="nav-item-icon"><ShieldCheck {...iconProps} /></span>
               <span className="nav-item-label">Consola de Plataforma</span>
             </NavLink>
           </div>
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="sidebar-user-avatar">{initials}</div>
-            <div className="sidebar-user-info">
-              <strong>{userName || "Super Admin"}</strong>
-              <span>Super Admin</span>
-            </div>
-          </div>
-          <button className="sidebar-logout" onClick={onLogout}><span>⏻</span> Cerrar sesión</button>
-        </div>
+        <SidebarFooter initials={initials} userName={userName} role={role} onLogout={onLogout} />
       </aside>
     );
   }
@@ -46,52 +75,80 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-logo"><span className="sidebar-logo-icon">🦷</span></div>
-        <div><h2>Clini<span>Sense</span></h2><small>Medical Admin Suite</small></div>
+        <div className="sidebar-logo">
+          <Stethoscope size={17} strokeWidth={1.5} color="white" />
+        </div>
+        <div>
+          <h2>Clini<span>Sense</span></h2>
+          <small>Medical Suite</small>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
         <div className="nav-group">
           <span className="nav-group-label">Principal</span>
-          <NavLink to="/dashboard" end className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-            <span className="nav-item-icon">▣</span>
-            <span className="nav-item-label">Panel Principal</span>
-          </NavLink>
+          {clinicItems.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">{item.icon}</span>
+              <span className="nav-item-label">{item.label}</span>
+            </NavLink>
+          ))}
         </div>
 
         <div className="nav-group">
           <span className="nav-group-label">Clínica</span>
-          <NavLink to="/dashboard/pacientes" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-            <span className="nav-item-icon">⊕</span>
-            <span className="nav-item-label">Pacientes</span>
-          </NavLink>
-          <NavLink to="/dashboard/citas" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-            <span className="nav-item-icon">◫</span>
-            <span className="nav-item-label">Agenda Médica</span>
-          </NavLink>
+          {clinicaItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">{item.icon}</span>
+              <span className="nav-item-label">{item.label}</span>
+            </NavLink>
+          ))}
+        </div>
+
+        <div className="nav-group">
+          <span className="nav-group-label">Herramientas</span>
+          {extraItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-item-icon">{item.icon}</span>
+              <span className="nav-item-label">{item.label}</span>
+            </NavLink>
+          ))}
         </div>
 
         {isAdmin && (
           <div className="nav-group">
             <span className="nav-group-label">Administración</span>
-            <NavLink to="/dashboard/usuarios" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon">👥</span>
-              <span className="nav-item-label">Usuarios</span>
-            </NavLink>
+            {adminItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+                <span className="nav-item-icon">{item.icon}</span>
+                <span className="nav-item-label">{item.label}</span>
+              </NavLink>
+            ))}
           </div>
         )}
       </nav>
 
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">{initials}</div>
-          <div className="sidebar-user-info">
-            <strong>{userName || "Doctor"}</strong>
-            <span>{ROLE_LABELS[role ?? ""] ?? "Médico Activo"}</span>
-          </div>
-        </div>
-        <button className="sidebar-logout" onClick={onLogout}><span>⏻</span> Cerrar sesión</button>
-      </div>
+      <SidebarFooter initials={initials} userName={userName} role={role} onLogout={onLogout} />
     </aside>
+  );
+}
+
+function SidebarFooter({ initials, userName, role, onLogout }: {
+  initials: string; userName?: string; role?: string; onLogout: () => void;
+}) {
+  return (
+    <div className="sidebar-footer">
+      <div className="sidebar-user">
+        <div className="sidebar-user-avatar">{initials}</div>
+        <div className="sidebar-user-info">
+          <strong>{userName || "Usuario"}</strong>
+          <span>{ROLE_LABELS[role ?? ""] ?? "Médico"}</span>
+        </div>
+      </div>
+      <button className="sidebar-logout" onClick={onLogout}>
+        <LogOut size={13} strokeWidth={1.5} />
+        Cerrar sesión
+      </button>
+    </div>
   );
 }

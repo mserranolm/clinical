@@ -5,6 +5,11 @@ import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canManageTreatments, canWriteAppointments, isPlatformAdmin, isOrgAdmin } from "../lib/rbac";
 import { Modal } from "../components/Modal";
+import {
+  CheckCircle, TrendingUp, Clock,
+  CalendarCheck, DollarSign, ClipboardList,
+  Pencil, Stethoscope, Send,
+} from "lucide-react";
 
 const TIME_SLOTS = [
   "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
@@ -178,59 +183,105 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
           </div>
         </Modal>
       )}
+
+      {/* KPI cards — citas del día */}
       <div className="stats-grid">
-        {kpis.map((card) => (
-          <article key={card.label} className="stat-card elite-card">
-            <small>{card.label}</small>
-            <h3>{card.value}</h3>
-            {card.clickable ? (
-              <button type="button" className="link-btn" onClick={() => setShowPatientsBreakdown((prev) => !prev)}>
-                {card.trend}
-              </button>
-            ) : (
-              <span>{card.trend}</span>
-            )}
-          </article>
-        ))}
+        <article className="stat-card elite-card">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CalendarCheck size={16} strokeWidth={1.5} color="#0369a1" />
+            </div>
+            <small style={{ margin: 0 }}>Citas del día</small>
+          </div>
+          <h3>{kpis[0].value}</h3>
+          <span style={{ color: "#10b981", fontWeight: 600, fontSize: "0.75rem" }}>En vivo</span>
+        </article>
+
+        <article className="stat-card elite-card" style={{ cursor: "pointer" }} onClick={() => setShowPatientsBreakdown(p => !p)}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CheckCircle size={16} strokeWidth={1.5} color="#166534" />
+            </div>
+            <small style={{ margin: 0 }}>Confirmados</small>
+          </div>
+          <h3>{kpis[1].value}</h3>
+          <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
+        </article>
+
+        <article className="stat-card elite-card" style={{ cursor: "pointer" }} onClick={() => setShowPatientsBreakdown(p => !p)}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Clock size={16} strokeWidth={1.5} color="#92400e" />
+            </div>
+            <small style={{ margin: 0 }}>No confirmados</small>
+          </div>
+          <h3>{kpis[2].value}</h3>
+          <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
+        </article>
       </div>
 
-      {/* KPIs de pagos — solo superadmin ve totales de todas las orgs */}
+      {/* KPIs de pagos — superadmin */}
       {isPlatformAdmin(user) && platformStats && (
-        <div className="stats-grid" style={{ marginTop: 12 }}>
-          <article className="stat-card elite-card" style={{ borderLeft: "4px solid #10b981" }}>
-            <small>💰 Ingresos totales (plataforma)</small>
-            <h3 style={{ color: "#10b981" }}>
+        <div className="stats-grid">
+          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #10b981" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <DollarSign size={16} strokeWidth={1.5} color="#065f46" />
+              </div>
+              <small style={{ margin: 0 }}>Ingresos totales</small>
+            </div>
+            <h3 style={{ color: "#10b981", fontSize: "1.6rem" }}>
               ${platformStats.totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span>Todas las organizaciones</span>
           </article>
           <article className="stat-card elite-card">
-            <small>📋 Consultas finalizadas</small>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <ClipboardList size={16} strokeWidth={1.5} color="#166534" />
+              </div>
+              <small style={{ margin: 0 }}>Consultas finalizadas</small>
+            </div>
             <h3>{platformStats.totalConsultations}</h3>
             <span>En toda la plataforma</span>
           </article>
         </div>
       )}
 
-      {/* KPIs de pagos — admin de org ve cobrado vs pendiente de su org */}
+      {/* KPIs de pagos — admin de org */}
       {isOrgAdmin(user) && orgStats && (
-        <div className="stats-grid" style={{ marginTop: 12 }}>
-          <article className="stat-card elite-card" style={{ borderLeft: "4px solid #10b981" }}>
-            <small>💰 Ingresos cobrados</small>
-            <h3 style={{ color: "#10b981" }}>
+        <div className="stats-grid">
+          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #10b981" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <DollarSign size={16} strokeWidth={1.5} color="#065f46" />
+              </div>
+              <small style={{ margin: 0 }}>Ingresos cobrados</small>
+            </div>
+            <h3 style={{ color: "#10b981", fontSize: "1.6rem" }}>
               ${orgStats.totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span>Consultas finalizadas</span>
           </article>
-          <article className="stat-card elite-card" style={{ borderLeft: "4px solid #f59e0b" }}>
-            <small>⏳ Monto pendiente</small>
-            <h3 style={{ color: "#f59e0b" }}>
+          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #f59e0b" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <TrendingUp size={16} strokeWidth={1.5} color="#92400e" />
+              </div>
+              <small style={{ margin: 0 }}>Monto pendiente</small>
+            </div>
+            <h3 style={{ color: "#f59e0b", fontSize: "1.6rem" }}>
               ${orgStats.pendingRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span>Citas no finalizadas</span>
           </article>
           <article className="stat-card elite-card">
-            <small>📋 Total consultas</small>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <ClipboardList size={16} strokeWidth={1.5} color="#166534" />
+              </div>
+              <small style={{ margin: 0 }}>Total consultas</small>
+            </div>
             <h3>{orgStats.totalConsultations}</h3>
             <span>Registradas en la org</span>
           </article>
@@ -302,14 +353,14 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {canWriteAppointments(user) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn" onClick={() => openEdit(row)}>
-                          <span className="icon">✏️</span>
-                          <span>Editar</span>
+                          <Pencil size={12} strokeWidth={1.5} />
+                          Editar
                         </button>
                       )}
                       {canWriteAppointments(user) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
-                          <span className="icon">✓</span>
-                          <span>Confirmar</span>
+                          <CheckCircle size={12} strokeWidth={1.5} />
+                          Confirmar
                         </button>
                       )}
                       {canManageTreatments(user) && !isCompleted(row.status) && (
@@ -318,21 +369,22 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                           className="action-btn action-btn-treat"
                           onClick={() => isConfirmed(row.status) ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
                           title={isConfirmed(row.status) ? "Atender paciente" : "La cita debe estar confirmada"}
-                          style={!isConfirmed(row.status) ? { opacity: 0.55 } : {}}
+                          style={!isConfirmed(row.status) ? { opacity: 0.5 } : {}}
                         >
-                          <span>Atender</span>
-                          <span className="icon">→</span>
+                          <Stethoscope size={12} strokeWidth={1.5} />
+                          Atender
                         </button>
                       )}
                       {isCompleted(row.status) && (
-                        <button type="button" className="action-btn" disabled style={{ opacity: 0.5 }}>
-                          <span>✓ Finalizada</span>
+                        <button type="button" className="action-btn" disabled style={{ opacity: 0.45 }}>
+                          <CheckCircle size={12} strokeWidth={1.5} />
+                          Finalizada
                         </button>
                       )}
                       {!isCompleted(row.status) && row.status !== "cancelled" && (
                         <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
-                          <span className="icon">✉️</span>
-                          <span>Reenviar</span>
+                          <Send size={12} strokeWidth={1.5} />
+                          Reenviar
                         </button>
                       )}
                     </div>
