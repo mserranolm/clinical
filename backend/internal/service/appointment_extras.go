@@ -4,18 +4,42 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"clinical-backend/internal/store"
 )
 
-// SendReminderAnytime resends a reminder without enforcing the 24h window.
+const reminderCooldown = 3 * time.Minute
+
+// SendReminderAnytime resends the appointment confirmation email (with confirm + consent links).
+// Rate-limited to once every 3 minutes using ReminderSentAt.
 func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmentID, channel string) error {
 	item, err := s.repo.GetByID(ctx, appointmentID)
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("Recordatorio de cita médica el %s. Responde para confirmar.", item.StartAt.Format(time.RFC1123))
-	if err := s.notifier.SendAppointmentReminder(ctx, item.PatientID, channel, msg); err != nil {
-		return err
+
+	if item.ReminderSentAt != nil && time.Since(*item.ReminderSentAt) < reminderCooldown {
+		remaining := reminderCooldown - time.Since(*item.ReminderSentAt)
+		return fmt.Errorf("espera %d segundos antes de reenviar otro recordatorio", int(remaining.Seconds())+1)
 	}
+
+	if s.notifier != nil {
+		email, name := s.patientEmail(ctx, item.PatientID)
+		if email == "" {
+			return fmt.Errorf("el paciente no tiene email registrado")
+		}
+		var consentToken string
+		if s.consents != nil {
+			orgID := store.OrgIDFromContext(ctx)
+			if c, cerr := s.consents.CreateForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil && c.AcceptToken != "" {
+				consentToken = c.AcceptToken
+			}
+		}
+		if err := s.notifier.SendAppointmentCreated(ctx, email, name, item, consentToken); err != nil {
+			return err
+		}
+	}
+
 	now := time.Now().UTC()
 	item.ReminderSentAt = &now
 	_, err = s.repo.Update(ctx, item)
