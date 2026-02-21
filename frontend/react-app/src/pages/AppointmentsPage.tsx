@@ -76,7 +76,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       await clinicalApi.updateAppointment(editRow.id, { startAt, endAt }, token);
       notify.success("Cita actualizada");
       setEditRow(null);
-      loadAppointments();
+      loadAppointments(date, effectiveDoctorId);
     } catch (err) {
       notify.error("Error al actualizar", err instanceof Error ? err.message : String(err));
     } finally {
@@ -108,7 +108,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const effectiveDoctorId = isDoctor ? doctorId : selectedDoctorId;
 
   useEffect(() => {
-    if (effectiveDoctorId) loadAppointments();
+    if (effectiveDoctorId) loadAppointments(date, effectiveDoctorId);
   }, [location.key, effectiveDoctorId, date]);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
@@ -136,7 +136,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
 
     notify.promise(promise, {
       loading: "Agendando cita...",
-      success: () => { form.reset(); loadAppointments(); return "Cita agendada"; },
+      success: () => { form.reset(); loadAppointments(date, effectiveDoctorId); return "Cita agendada"; },
       successDesc: "La consulta fue registrada en la agenda.",
       error: "Error al agendar",
       errorDesc: (err) => err instanceof Error ? err.message : "Verifica los datos e intenta de nuevo.",
@@ -170,10 +170,12 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
   };
 
-  function loadAppointments() {
+  function loadAppointments(forDate?: string, forDoctorId?: string) {
+    const d = forDate ?? date;
+    const did = forDoctorId ?? effectiveDoctorId;
     const promise = Promise.all([
-      clinicalApi.listAppointments(effectiveDoctorId, date, token),
-      clinicalApi.listPatients(effectiveDoctorId, token)
+      clinicalApi.listAppointments(did, d, token),
+      clinicalApi.listPatients(did, token)
     ]).then(([appointments, patients]) => {
       const patientById = new Map(
         (patients.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
@@ -207,7 +209,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     const promise = clinicalApi.confirmAppointment(id, token);
     notify.promise(promise, {
       loading: "Confirmando cita...",
-      success: () => { loadAppointments(); return "Cita confirmada"; },
+      success: () => { loadAppointments(date, effectiveDoctorId); return "Cita confirmada"; },
       error: "Error al confirmar",
     });
   }
@@ -226,7 +228,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     const promise = clinicalApi.updateAppointment(id, { status: "cancelled" }, token);
     notify.promise(promise, {
       loading: "Cancelando cita...",
-      success: () => { loadAppointments(); return "Cita cancelada"; },
+      success: () => { loadAppointments(date, effectiveDoctorId); return "Cita cancelada"; },
       error: "Error al cancelar",
     });
   }
@@ -248,7 +250,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       }
       notify.success(payPaid ? "Pago registrado — cita finalizada" : "Marcado como pendiente de pago");
       setPayRow(null);
-      loadAppointments();
+      loadAppointments(date, effectiveDoctorId);
     } catch (err) {
       notify.error("Error al registrar pago", err instanceof Error ? err.message : String(err));
     } finally {
@@ -261,7 +263,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     const promise = clinicalApi.deleteAppointment(id, token);
     notify.promise(promise, {
       loading: "Eliminando cita...",
-      success: () => { loadAppointments(); return "Cita eliminada"; },
+      success: () => { loadAppointments(date, effectiveDoctorId); return "Cita eliminada"; },
       error: "Error al eliminar",
     });
   }
@@ -433,7 +435,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
               <label>Fecha de Consulta</label>
               <div className="inline-actions">
                 <DatePicker value={date} onChange={(v) => { setDate(v); }} />
-                <button type="button" onClick={loadAppointments}>Actualizar</button>
+                <button type="button" onClick={() => loadAppointments(date, effectiveDoctorId)}>Actualizar</button>
               </div>
             </div>
           </div>
@@ -443,7 +445,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       <article className="card elite-card" style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h3 style={{ margin: 0 }}>Calendario Diario de Atención</h3>
-          <button type="button" className="agenda-btn" onClick={loadAppointments} title="Actualizar agenda">
+          <button type="button" className="agenda-btn" onClick={() => loadAppointments(date, effectiveDoctorId)} title="Actualizar agenda">
             <RefreshCw size={13} strokeWidth={1.5} />
             <span>Actualizar</span>
           </button>
