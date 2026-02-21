@@ -496,9 +496,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                         <button
                           type="button"
                           className="agenda-btn"
-                          style={{ background: row.paymentPaid ? "#d1fae5" : "#fef3c7", color: row.paymentPaid ? "#065f46" : "#92400e", borderColor: row.paymentPaid ? "#6ee7b7" : "#fcd34d" }}
-                          onClick={() => openPayModal(row)}
-                          title="Registrar pago"
+                          style={{ background: row.paymentPaid ? "#d1fae5" : "#fef3c7", color: row.paymentPaid ? "#065f46" : "#92400e", borderColor: row.paymentPaid ? "#6ee7b7" : "#fcd34d", opacity: row.paymentPaid ? 0.7 : 1, cursor: row.paymentPaid ? "default" : "pointer" }}
+                          onClick={() => !row.paymentPaid && openPayModal(row)}
+                          disabled={row.paymentPaid}
+                          title={row.paymentPaid ? "Pago ya registrado" : "Registrar pago"}
                         >
                           <span>{row.paymentPaid ? "💰 Pagado" : "💳 Registrar Pago"}</span>
                         </button>
