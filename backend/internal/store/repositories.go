@@ -44,6 +44,7 @@ type ConsentRepository interface {
 	GetByID(ctx context.Context, id string) (domain.Consent, error)
 	GetByToken(ctx context.Context, token string) (domain.Consent, error)
 	GetByAppointmentID(ctx context.Context, appointmentID string) (domain.Consent, error)
+	ListByAppointmentID(ctx context.Context, appointmentID string) ([]domain.Consent, error)
 }
 
 type ConsentTemplateRepository interface {
@@ -52,6 +53,7 @@ type ConsentTemplateRepository interface {
 	GetByID(ctx context.Context, id string) (domain.ConsentTemplate, error)
 	ListByOrg(ctx context.Context, orgID string) ([]domain.ConsentTemplate, error)
 	GetActiveByOrg(ctx context.Context, orgID string) (domain.ConsentTemplate, error)
+	ListActiveByOrg(ctx context.Context, orgID string) ([]domain.ConsentTemplate, error)
 }
 
 type AuthUser struct {
@@ -429,6 +431,18 @@ func (r *memoryConsentRepo) GetByAppointmentID(_ context.Context, appointmentID 
 	return domain.Consent{}, fmt.Errorf("consent not found")
 }
 
+func (r *memoryConsentRepo) ListByAppointmentID(_ context.Context, appointmentID string) ([]domain.Consent, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.Consent
+	for _, item := range r.items {
+		if item.AppointmentID == appointmentID {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
 // In-memory consent template repository
 type memoryConsentTemplateRepo struct {
 	mu    sync.RWMutex
@@ -483,6 +497,18 @@ func (r *memoryConsentTemplateRepo) GetActiveByOrg(_ context.Context, orgID stri
 		}
 	}
 	return domain.ConsentTemplate{}, fmt.Errorf("no active consent template found")
+}
+
+func (r *memoryConsentTemplateRepo) ListActiveByOrg(_ context.Context, orgID string) ([]domain.ConsentTemplate, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.ConsentTemplate
+	for _, item := range r.items {
+		if item.OrgID == orgID && item.IsActive {
+			out = append(out, item)
+		}
+	}
+	return out, nil
 }
 
 type memoryAuthRepo struct {

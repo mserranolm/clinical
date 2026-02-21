@@ -132,36 +132,59 @@ func (s *ConsentService) CreateAndSend(ctx context.Context, in CreateConsentInpu
 	return created, nil
 }
 
-// CreateForAppointment creates a consent linked to an appointment and sends the email with accept link.
+// CreateForAppointment creates a single consent from the first active template (legacy).
+// Prefer CreateConsentsForAppointment to include all active templates (asistencia + tratamiento).
 func (s *ConsentService) CreateForAppointment(ctx context.Context, appointmentID, orgID, patientID, doctorID, patientEmail, patientName string, startAt time.Time) (domain.Consent, error) {
-	tmpl, err := s.templateRepo.GetActiveByOrg(ctx, orgID)
-	if err != nil {
-		// No active template — skip silently
+	list, err := s.CreateConsentsForAppointment(ctx, appointmentID, orgID, patientID, doctorID, patientEmail, patientName, startAt)
+	if err != nil || len(list) == 0 {
 		return domain.Consent{}, nil
 	}
-	token, err := generateToken()
-	if err != nil {
-		return domain.Consent{}, err
+	return list[0], nil
+}
+
+// CreateConsentsForAppointment creates one consent per active template (asistencia, tratamiento, etc.)
+// and returns all consents for this appointment (existing + newly created). Does not send email.
+func (s *ConsentService) CreateConsentsForAppointment(ctx context.Context, appointmentID, orgID, patientID, doctorID, patientEmail, patientName string, startAt time.Time) ([]domain.Consent, error) {
+	templates, err := s.templateRepo.ListActiveByOrg(ctx, orgID)
+	if err != nil || len(templates) == 0 {
+		return nil, nil
 	}
-	consent := domain.Consent{
-		ID:             buildID("cns"),
-		PatientID:      patientID,
-		DoctorID:       doctorID,
-		AppointmentID:  appointmentID,
-		TemplateID:     tmpl.ID,
-		Title:          tmpl.Title,
-		Content:        tmpl.Content,
-		DeliveryMethod: "email",
-		Status:         "pending",
-		AcceptToken:    token,
-		CreatedAt:      time.Now().UTC(),
+	existing, _ := s.repo.ListByAppointmentID(ctx, appointmentID)
+	byTemplate := make(map[string]domain.Consent)
+	for _, c := range existing {
+		byTemplate[c.TemplateID] = c
 	}
-	created, err := s.repo.Create(ctx, consent)
-	if err != nil {
-		return domain.Consent{}, err
+	var result []domain.Consent
+	result = append(result, existing...)
+	for _, tmpl := range templates {
+		if _, ok := byTemplate[tmpl.ID]; ok {
+			continue
+		}
+		token, err := generateToken()
+		if err != nil {
+			continue
+		}
+		consent := domain.Consent{
+			ID:             buildID("cns"),
+			PatientID:      patientID,
+			DoctorID:       doctorID,
+			AppointmentID:  appointmentID,
+			TemplateID:     tmpl.ID,
+			Title:          tmpl.Title,
+			Content:        tmpl.Content,
+			DeliveryMethod: "email",
+			Status:         "pending",
+			AcceptToken:    token,
+			CreatedAt:      time.Now().UTC(),
+		}
+		created, err := s.repo.Create(ctx, consent)
+		if err != nil {
+			continue
+		}
+		result = append(result, created)
+		byTemplate[tmpl.ID] = created
 	}
-	_ = s.notifier.SendConsentWithAppointment(ctx, patientEmail, patientName, created, startAt)
-	return created, nil
+	return result, nil
 }
 
 func (s *ConsentService) Accept(ctx context.Context, consentID string) (domain.Consent, error) {

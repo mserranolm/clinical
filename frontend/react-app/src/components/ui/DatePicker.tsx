@@ -45,10 +45,14 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  // Cerrar al hacer scroll
+  // Cerrar al hacer scroll (ignorar scroll dentro del propio portal)
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
+    const close = (e: Event) => {
+      const target = e.target as Element;
+      if (target && target.closest("[data-dp-portal]")) return;
+      setOpen(false);
+    };
     window.addEventListener("scroll", close, true);
     return () => window.removeEventListener("scroll", close, true);
   }, [open]);

@@ -29,9 +29,15 @@ type Notifier interface {
 	SendInvitation(ctx context.Context, toEmail, inviteURL, role, tempPassword string) error
 	SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error
 	SendAppointmentEvent(ctx context.Context, toEmail, patientName, eventType string, startAt, endAt time.Time) error
-	SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentToken string) error
+	SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentLinks []ConsentLink) error
 	SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error
 	SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error
+}
+
+// ConsentLink is a consent title and its public accept token for the email body.
+type ConsentLink struct {
+	Title string
+	Token string
 }
 
 type Router struct {

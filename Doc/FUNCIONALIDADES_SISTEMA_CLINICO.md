@@ -1,316 +1,359 @@
-# 🏥 Sistema de Gestión Clínica - Especificación Completa
+# 🏥 CliniSense — Especificación de Funcionalidades del Sistema
 
-## 📋 Resumen Ejecutivo
-Sistema integral para gestión de clínicas odontológicas (expandible a otras especialidades) que automatiza el flujo completo desde el registro del paciente hasta el seguimiento post-tratamiento.
-
----
-
-## 🎯 Módulos Principales
-
-### 1. 👥 **Gestión de Pacientes**
-#### Funcionalidades Actuales:
-- ✅ Registro/Onboarding completo
-- ✅ Antecedentes médicos
-- ✅ Información de contacto
-- ✅ Almacenamiento de imágenes (S3)
-
-#### Funcionalidades a Expandir:
-- 📊 **Historial Clínico Digital**
-  - Evoluciones por cita
-  - Radiografías y estudios
-  - Fotografías intraorales
-  - Modelos 3D (futuro)
-  
-- 📈 **Análisis de Paciente**
-  - Dashboard de salud
-  - Tendencias de tratamiento
-  - Alertas médicas
-  - Recordatorios de seguimiento
-  
-- 👨‍👩‍👧‍👦 **Gestión Familiar**
-  - Vínculos familiares
-  - Planes familiares
-  - Descuentos grupales
-  - Contactos de emergencia
-
-### 2. 📅 **Sistema de Agenda y Citas**
-#### Funcionalidades Actuales:
-- ✅ Creación de citas
-- ✅ Recordatorios automáticos 24h
-- ✅ Confirmación por paciente
-- ✅ Cierre diario automático
-
-#### Funcionalidades a Expandir:
-- 🕐 **Agenda Inteligente**
-  - Bloques de tiempo por tipo de tratamiento
-  - Gestión de urgencias
-  - Lista de espera automatizada
-  - Optimización de horarios
-  
-- 📱 **Portal del Paciente**
-  - Autogestión de citas
-  - Reagendamiento online
-  - Historial de citas
-  - Documentos descargables
-  
-- 👨‍⚕️ **Gestión Multi-Doctor**
-  - Calendarios compartidos
-  - Derivaciones internas
-  - Especialistas invitados
-  - Gestión de ausencias
-
-### 3. 📋 **Tratamientos y Procedimientos**
-#### Funcionalidades a Desarrollar:
-- 🦷 **Catálogo de Tratamientos**
-  - Odontograma digital interactivo
-  - Códigos CIE-10 / CPT
-  - Tiempos estimados
-  - Materiales requeridos
-  
-- 📖 **Protocolos Clínicos**
-  - Flujos de tratamiento estandarizados
-  - Listas de verificación
-  - Contraindicaciones
-  - **Cuidados post-aplicación** (basado en PDF)
-  
-- 🔬 **Integración con Laboratorios**
-  - Solicitud de estudios
-  - Resultados automáticos
-  - Seguimiento de muestras
-  - Alertas de resultados críticos
-
-### 4. 💊 **Cuidados Post-Tratamiento**
-#### Basado en "CUIDADOS POST-APLICACIÓN":
-- 📄 **Instrucciones Personalizadas**
-  - Plantillas por tipo de tratamiento
-  - Instrucciones específicas del doctor
-  - Multimedia explicativo
-  - Idiomas múltiples
-  
-- ⏰ **Seguimiento Automático**
-  - Recordatorios de medicación
-  - Check-ins post-cirugía
-  - Escalamiento de síntomas
-  - Contacto directo con urgencias
-  
-- 📊 **Monitoreo de Recuperación**
-  - Cuestionarios de síntomas
-  - Fotos de evolución
-  - Escalas de dolor
-  - Alertas tempranas
-
-### 5. 💳 **Gestión Financiera**
-#### Funcionalidades Actuales:
-- ✅ Registro de pagos por cita
-
-#### Funcionalidades a Expandir:
-- 💰 **Facturación Completa**
-  - Cotizaciones automáticas
-  - Planes de pago
-  - Descuentos y promociones
-  - Facturación electrónica
-  
-- 📈 **Análisis Financiero**
-  - Dashboard de ingresos
-  - Reportes por doctor
-  - Análisis de tratamientos
-  - Proyecciones de flujo
-  
-- 🏦 **Integraciones de Pago**
-  - Tarjetas de crédito/débito
-  - Transferencias bancarias
-  - Seguros médicos
-  - Planes prepagos
-
-### 6. 📄 **Consentimientos y Documentos Legales**
-#### Funcionalidades Actuales:
-- ✅ Envío de consentimientos
-- ✅ Aceptación digital
-
-#### Funcionalidades a Expandir:
-- ⚖️ **Marco Legal Completo**
-  - Consentimientos por procedimiento
-  - Firmas digitales certificadas
-  - Versionado de documentos
-  - Archivo legal permanente
-  
-- 📋 **Formularios Inteligentes**
-  - Llenado automático
-  - Validaciones en tiempo real
-  - Campos condicionales
-  - Multi-idioma
-
-### 7. 📊 **Reportes y Analytics**
-#### Funcionalidades a Desarrollar:
-- 📈 **Dashboard Ejecutivo**
-  - KPIs operacionales
-  - Métricas de satisfacción
-  - Rendimiento por doctor
-  - Análisis de tendencias
-  
-- 📋 **Reportes Regulatorios**
-  - Reportes epidemiológicos
-  - Cumplimiento LOPD/GDPR
-  - Auditorías internas
-  - Certificaciones de calidad
-
-### 8. 🔔 **Sistema de Notificaciones**
-#### Funcionalidades Actuales:
-- ✅ SMS/Email recordatorios
-- ✅ Configuración por flags
-
-#### Funcionalidades a Expandir:
-- 📱 **Notificaciones Inteligentes**
-  - Push notifications móvil
-  - WhatsApp Business API
-  - Telegram médico
-  - Llamadas automáticas
-  
-- 🎯 **Personalización Avanzada**
-  - Preferencias por paciente
-  - Horarios óptimos
-  - Canales preferidos
-  - Frecuencia adaptativa
-
-### 9. 🔐 **Seguridad y Compliance**
-#### Funcionalidades a Desarrollar:
-- 🛡️ **Seguridad Médica**
-  - Encriptación end-to-end
-  - Acceso por roles
-  - Auditoría completa
-  - Backup automático
-  
-- ⚖️ **Cumplimiento Regulatorio**
-  - HIPAA compliance
-  - LOPD/GDPR
-  - ISO 27001
-  - Certificaciones médicas
-
-### 10. 📱 **Aplicaciones Móviles**
-#### Funcionalidades a Desarrollar:
-- 👨‍⚕️ **App Doctor**
-  - Agenda móvil
-  - Historial rápido
-  - Notas de voz
-  - Fotos clínicas
-  
-- 👤 **App Paciente**
-  - Portal personal
-  - Citas y recordatorios
-  - Documentos
-  - Telemedicina
+> **Última actualización**: Febrero 2026  
+> **Stack**: AWS Lambda + Go (backend) · React + Vite (frontend) · DynamoDB + S3 · SES · EventBridge  
+> **Entorno productivo**: `https://clinisense.aski-tech.net`  
+> **API**: `https://egsnzyxipf.execute-api.us-east-1.amazonaws.com/prod`
 
 ---
 
-## 🚀 **Roadmap de Implementación**
+## ✅ Estado General del Sistema
 
-### Fase 1 - MVP (COMPLETADO) ✅
-- [x] Sistema básico de pacientes
-- [x] Agenda y recordatorios
-- [x] Pagos básicos
-- [x] Consentimientos digitales
-- [x] CI/CD Pipeline
+| Módulo | Estado | Notas |
+|---|---|---|
+| Autenticación y Roles | ✅ Producción | JWT + RBAC (admin, doctor) |
+| Gestión de Pacientes | ✅ Producción | CRUD completo + historial |
+| Agenda y Citas | ✅ Producción | Con confirmación y recordatorios |
+| Consentimientos Digitales | ✅ Producción | Plantillas + firma digital |
+| Odontograma Digital | ✅ Producción | Modelo FDI completo |
+| Planes de Tratamiento | ✅ Producción | Con estados y prioridades |
+| Notificaciones Email | ✅ Producción | SES con links de confirmación |
+| CI/CD Pipeline | ✅ Producción | CodePipeline frontend + backend |
+| Portal Público Paciente | ✅ Producción | Confirmar cita + firmar consentimiento |
+| Gestión de Usuarios | ✅ Producción | Invitaciones + cambio de contraseña |
 
-### Fase 2 - Expansión Core (SIGUIENTE)
-- [ ] Odontograma digital
-- [ ] Cuidados post-tratamiento
-- [ ] Portal del paciente
-- [ ] Facturación completa
-- [ ] App móvil básica
+---
 
-### Fase 3 - Inteligencia (FUTURO)
-- [ ] Analytics avanzados
-- [ ] IA para diagnóstico
-- [ ] Integración laboratorios
+## 🔐 1. Autenticación y Control de Acceso
+
+### Implementado ✅
+- Login con email/contraseña (JWT)
+- Roles: `admin`, `doctor`, `platform_admin`
+- RBAC en frontend y backend:
+  - Admin: acceso total a la organización
+  - Doctor: acceso solo a sus propios pacientes/citas
+- Invitación de nuevos usuarios por email (`/accept-invitation`)
+- Cambio de contraseña autenticado
+- Sesión persistente con token en localStorage
+- Protección de rutas en frontend
+- API Key requerida en todas las llamadas (`x-api-key`)
+- Endpoints públicos sin autenticación: `/public/consents/{token}/accept`, `/public/appointments/{token}/confirm`
+
+### Pendiente 🔄
+- Recuperación de contraseña por email (forgot password)
+- 2FA / MFA
+- Expiración y renovación automática de tokens
+
+---
+
+## 👥 2. Gestión de Pacientes
+
+### Implementado ✅
+- Registro de paciente (onboarding) con:
+  - Nombre, apellido, cédula/documento
+  - Email, teléfono, fecha de nacimiento
+  - Antecedentes médicos (alergias, condiciones previas)
+  - Imágenes clínicas (S3)
+- Edición de datos del paciente
+- Eliminación de paciente
+- Búsqueda por nombre, apellido, cédula, email, teléfono
+- Vista de historial de consultas por paciente
+- Exportación de historial a CSV y PDF
+- Filtrado por doctor (admin ve todos, doctor ve los suyos)
+- DatePicker con navegación rápida por mes/año (dropdown), fechas futuras deshabilitadas
+
+### Pendiente 🔄
+- Foto de perfil del paciente
+- Gestión familiar (vínculos entre pacientes)
+- Alertas médicas automáticas
+- Recordatorios de seguimiento post-tratamiento
+
+---
+
+## 📅 3. Agenda y Citas
+
+### Implementado ✅
+- Creación de citas con:
+  - Doctor, paciente, fecha/hora inicio y fin
+  - Tipo, notas, duración calculada
+- Estados de cita: `scheduled`, `confirmed`, `in_progress`, `completed`, `cancelled`
+- Confirmación de cita por el paciente vía link en email (`/confirm-appointment?token=...`)
+- Inicio y cierre de consulta (in_progress → completed)
+- Notas de evolución y plan de tratamiento por cita
+- Registro de pago por cita (monto, método, pagado/pendiente)
+- Imágenes clínicas adjuntas a la cita (S3)
+- Recordatorio manual "Reenviar" con:
+  - Rate limit: máximo 1 reenvío cada 3 minutos
+  - Incluye link de confirmación + link de consentimiento
+  - Genera `ConfirmToken` si la cita no tenía uno
+- Botón "Reenviar" oculto para citas `in_progress` y `cancelled`
+- Vista de agenda por día con DatePicker
+- Filtrado por doctor
+
+### Recordatorios Automáticos ✅
+- Recordatorio 24h antes de la cita (EventBridge Scheduler)
+- Cierre automático del día (scheduler diario)
+
+### Pendiente 🔄
+- Reagendamiento de citas
+- Vista de calendario semanal/mensual
+- Bloqueo de horarios del doctor
+- Lista de espera
+- Citas recurrentes
+
+---
+
+## 📋 4. Consentimientos Informados
+
+### Implementado ✅
+- **Plantillas de Consentimiento**:
+  - CRUD completo de plantillas por organización
+  - Activar/desactivar plantillas
+  - Plantilla activa usada automáticamente al crear citas
+  - Plantilla de ejemplo pre-cargada (odontología general)
+- **Consentimientos por Cita**:
+  - Generación automática al crear cita (si hay plantilla activa)
+  - Token único de aceptación (`AcceptToken`)
+  - Link de firma enviado por email junto con la confirmación de cita
+  - Página pública de firma: `/consent?token=...`
+  - Estado: `pending` → `accepted`
+  - Registro de fecha/hora de aceptación
+- **Vista de Documentos**:
+  - Lista de consentimientos por paciente/doctor
+  - Estado visual (pendiente/aceptado)
+  - Fecha de aceptación
+
+### Pendiente 🔄
+- Firma digital certificada (con valor legal)
+- Versionado de plantillas
+- Consentimientos por tipo de procedimiento específico
+- Descarga de consentimiento firmado en PDF
+- Múltiples plantillas activas por especialidad
+
+---
+
+## 🦷 5. Odontograma Digital
+
+### Implementado ✅
+- Modelo dental completo FDI (32 dientes, cuadrantes 1-4)
+- Superficies por diente: oclusal, vestibular, lingual, mesial, distal
+- Condiciones: sano, caries, obturado, corona, extraído, implante, endodoncia, fractura, ausente
+- Códigos de tratamiento estándar (D1110–D9972)
+- Historial de tratamientos por diente
+- Notas generales y por diente
+- Registro de doctor que modificó y fecha
+- Fotos y radiografías por tratamiento (S3)
+- Página frontend `OdontogramPage` con visualización interactiva
+
+### Pendiente 🔄
+- Exportación del odontograma a PDF/imagen
+- Comparativa temporal (odontograma en fechas distintas)
+- Integración directa con creación de cita
+
+---
+
+## 💊 6. Planes de Tratamiento
+
+### Implementado ✅
+- Creación de planes de tratamiento con:
+  - Título, descripción, prioridad
+  - Lista de tratamientos planificados por diente/superficie
+  - Costo estimado total y por tratamiento
+  - Tiempo estimado
+  - Prerrequisitos entre tratamientos
+- Estados del plan: `draft`, `proposed`, `approved`, `in_progress`, `completed`, `cancelled`
+- Estados por tratamiento: `pending`, `scheduled`, `completed`, `skipped`
+- Prioridades: `urgent`, `high`, `medium`, `low`, `elective`
+- Vinculación con odontograma
+- Página frontend `PlansPage` y wizard `TreatmentWizard`
+
+### Pendiente 🔄
+- Aprobación del plan por el paciente (firma digital)
+- Cotización automática con precios configurables
+- Seguimiento de progreso visual
+- Integración con agenda (crear citas desde el plan)
+
+---
+
+## 💰 7. Gestión Financiera
+
+### Implementado ✅
+- Registro de pago por cita:
+  - Monto, método de pago, estado (pagado/pendiente)
+- Visualización del estado de pago en la lista de citas
+
+### Pendiente 🔄
+- Dashboard financiero con totales por período
+- Reportes de ingresos por doctor
+- Planes de pago a plazos
+- Facturación electrónica
+- Integración con pasarelas de pago
+- Descuentos y promociones
+
+---
+
+## 🔔 8. Notificaciones y Comunicaciones
+
+### Implementado ✅
+- **Email de creación de cita** (SES):
+  - Datos de la cita (fecha, hora)
+  - Link de confirmación: `https://clinisense.aski-tech.net/confirm-appointment?token=...`
+  - Link de firma de consentimiento: `https://clinisense.aski-tech.net/consent?token=...` (si hay plantilla activa)
+- **Email de recordatorio 24h** (EventBridge):
+  - Mismo formato que el de creación
+- **Email de reenvío manual** ("Reenviar"):
+  - Incluye confirmación + consentimiento
+  - Rate limit: 1 cada 3 minutos por cita
+- **Notificaciones in-app** (toast):
+  - Éxito, error, carga con `react-hot-toast`
+
+### Pendiente 🔄
+- WhatsApp Business API
+- SMS
+- Push notifications móvil
+- Configuración de preferencias de notificación por paciente
+- Email de recordatorio post-consulta
+
+---
+
+## 👨‍💼 9. Administración de Usuarios
+
+### Implementado ✅
+- Lista de usuarios de la organización
+- Invitación de nuevos usuarios por email
+- Roles: admin, doctor
+- Cambio de contraseña
+- Página `UsersAdminPage` (solo admin)
+
+### Pendiente 🔄
+- Desactivación de usuarios
+- Perfiles de usuario con foto
+- Horarios de atención por doctor
+- Especialidades por doctor
+
+---
+
+## 🌐 10. Portal Público del Paciente
+
+### Implementado ✅
+- **Confirmar cita** (`/confirm-appointment?token=...`):
+  - Página pública sin login
+  - Muestra datos de la cita
+  - Botón de confirmación
+  - Actualiza estado a `confirmed` en backend
+- **Firmar consentimiento** (`/consent?token=...`):
+  - Página pública sin login
+  - Muestra contenido del consentimiento
+  - Botón de aceptación
+  - Registra fecha/hora de aceptación
+
+### Pendiente 🔄
+- Portal completo del paciente con login propio
+- Historial de citas del paciente
+- Reagendamiento online
+- Descarga de documentos
+
+---
+
+## 🏗️ 11. Arquitectura Técnica
+
+### Backend ✅
+```
+AWS Lambda (Go 1.21)
+  ├── API Gateway REST (x-api-key + JWT)
+  ├── DynamoDB
+  │   ├── clinical-users
+  │   ├── clinical-appointments
+  │   ├── clinical-patients
+  │   ├── clinical-consents
+  │   ├── clinical-consent-templates   ← añadida Feb 2026
+  │   └── clinical-odontograms
+  ├── S3 (imágenes clínicas)
+  ├── SES (emails transaccionales)
+  └── EventBridge Schedulers
+      ├── Recordatorio 24h antes de cita
+      └── Cierre diario automático
+```
+
+### Frontend ✅
+```
+React 18 + Vite + TypeScript
+  ├── React Router v6 (SPA)
+  ├── react-day-picker v9 (DatePicker con portal + dropdown mes/año)
+  ├── react-hot-toast (notificaciones)
+  ├── lucide-react (iconos)
+  └── CSS custom (design system CliniSense Air)
+
+Páginas:
+  ├── /                          Landing
+  ├── /login                     Login
+  ├── /accept-invitation         Aceptar invitación
+  ├── /confirm-appointment       Confirmar cita (pública)
+  ├── /consent                   Firmar consentimiento (pública)
+  └── /dashboard/*
+      ├── Panel Principal        KPIs + agenda del día
+      ├── Pacientes              CRUD + historial + exportación
+      ├── Agenda Médica          Citas + confirmación + pagos
+      ├── Documentos             Consentimientos firmados
+      ├── Plantillas Consentimiento  CRUD plantillas
+      ├── Odontograma            Visualización interactiva
+      ├── Tratamientos           Planes de tratamiento
+      └── Usuarios               Admin de usuarios (solo admin)
+```
+
+### CI/CD ✅
+```
+GitHub → AWS CodePipeline
+  ├── clinical-backend-pipeline  (SAM deploy automático)
+  └── clinical-frontend-pipeline (S3 + CloudFront)
+```
+
+---
+
+## 🚀 Roadmap
+
+### Fase 1 — MVP ✅ COMPLETADO
+- [x] Autenticación JWT + RBAC
+- [x] Gestión de pacientes
+- [x] Agenda y citas con recordatorios
+- [x] Consentimientos digitales con firma
+- [x] Odontograma digital FDI
+- [x] Planes de tratamiento
+- [x] Portal público del paciente (confirmar cita + firmar)
+- [x] CI/CD Pipeline completo
+- [x] Notificaciones email con links de confirmación y consentimiento
+
+### Fase 2 — Expansión Core (PRÓXIMO)
+- [ ] Recuperación de contraseña
+- [ ] Dashboard financiero con reportes
+- [ ] Exportación odontograma a PDF
+- [ ] Integración agenda ↔ planes de tratamiento
+- [ ] Aprobación de planes por el paciente
+- [ ] Reagendamiento de citas online
+- [ ] Vista de calendario semanal/mensual
+
+### Fase 3 — Comunicaciones Avanzadas
+- [ ] WhatsApp Business API
+- [ ] SMS recordatorios
+- [ ] Email post-consulta con instrucciones
+- [ ] Portal completo del paciente con login
+
+### Fase 4 — Inteligencia y Escala
+- [ ] Analytics y KPIs avanzados
+- [ ] Multi-sede / multi-organización
+- [ ] App móvil (React Native)
+- [ ] IA para predicción de no-shows
+- [ ] Integración con laboratorios
 - [ ] Telemedicina
-- [ ] IoT dental
-
-### Fase 4 - Expansión (LARGO PLAZO)
-- [ ] Multi-especialidad
-- [ ] Multi-sede
-- [ ] Marketplace
-- [ ] Red de clínicas
-- [ ] Investigación clínica
 
 ---
 
-## 🔧 **Arquitectura Técnica**
+## 🐛 Bugs Conocidos / Issues Activos
 
-### Backend Actual:
-```
-✅ AWS Lambda + Go
-✅ DynamoDB + S3
-✅ EventBridge Schedulers
-✅ API Gateway
-✅ SNS/SES notifications
-```
-
-### Expansiones Propuestas:
-```
-🔄 AWS Cognito (autenticación robusta)
-🔄 AWS AppSync (GraphQL)
-🔄 AWS Rekognition (análisis de imágenes)
-🔄 AWS Textract (OCR documentos)
-🔄 Amazon Connect (call center)
-🔄 AWS Pinpoint (marketing)
-```
-
-### Frontend Propuesto:
-```
-📱 React Native (apps móviles)
-🌐 Next.js (portal web)
-⚡ Real-time con WebSockets
-🎨 Design system unificado
-```
-
----
-
-## 📊 **Métricas de Éxito**
-
-### Operacionales:
-- ⏱️ Tiempo promedio de cita: <30 min
-- 📈 Utilización de agenda: >85%
-- 😊 Satisfacción paciente: >4.5/5
-- 💰 Reducción de no-shows: >20%
-
-### Técnicas:
-- 🚀 Tiempo de respuesta API: <200ms
-- ⚡ Disponibilidad: >99.9%
-- 🔒 0 brechas de seguridad
-- 📱 Adopción móvil: >60%
-
----
-
-## 💡 **Innovaciones Propuestas**
-
-### 🤖 IA y Machine Learning:
-- Predicción de no-shows
-- Recomendaciones de tratamiento
-- Análisis de imágenes radiográficas
-- Chatbot de triaje
-
-### 🌐 Integraciones:
-- Sistemas de seguros
-- Laboratorios clínicos
-- Proveedores de materiales
-- Plataformas de educación médica
-
-### 📱 Experiencia del Usuario:
-- Realidad aumentada para tratamientos
-- Gamificación de higiene oral
-- Community de pacientes
-- Programa de referidos
-
----
-
-## 🎯 **Próximos Pasos Inmediatos**
-
-1. **Implementar Odontograma Digital** (2-3 semanas)
-2. **Sistema de Cuidados Post-Tratamiento** (1-2 semanas)
-3. **Portal Básico del Paciente** (3-4 semanas)
-4. **Facturación Completa** (2-3 semanas)
-5. **App Móvil MVP** (4-6 semanas)
-
----
-
-¿Por dónde quieres empezar a expandir el sistema?
+| # | Descripción | Estado |
+|---|---|---|
+| 1 | DatePicker cortado en modales | ✅ Resuelto (createPortal Feb 2026) |
+| 2 | Error `doctorId required` al crear paciente como admin | ✅ Resuelto (Feb 2026) |
+| 3 | Dropdown de año en DatePicker no responde al click | 🔴 Pendiente investigación |
+| 4 | Botón "Reenviar" visible en citas `in_progress` | ✅ Resuelto (Feb 2026) |
+| 5 | Pipeline backend fallaba por `profile = "aski"` en samconfig | ✅ Resuelto (Feb 2026) |

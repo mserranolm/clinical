@@ -904,6 +904,30 @@ func (r *dynamoConsentRepo) GetByAppointmentID(ctx context.Context, appointmentI
 	return consent, err
 }
 
+func (r *dynamoConsentRepo) ListByAppointmentID(ctx context.Context, appointmentID string) ([]domain.Consent, error) {
+	orgID := orgIDOrDefault(ctx)
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND AppointmentID = :apptID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT#"},
+			":apptID":   &types.AttributeValueMemberS{Value: appointmentID},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []domain.Consent
+	for _, item := range result.Items {
+		var c domain.Consent
+		if err := attributevalue.UnmarshalMap(item, &c); err == nil {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
 // ConsentTemplate DynamoDB repository
 type dynamoConsentTemplateRepo struct {
 	client    *dynamodb.Client
@@ -996,6 +1020,29 @@ func (r *dynamoConsentTemplateRepo) GetActiveByOrg(ctx context.Context, orgID st
 	var t domain.ConsentTemplate
 	err = attributevalue.UnmarshalMap(result.Items[0], &t)
 	return t, err
+}
+
+func (r *dynamoConsentTemplateRepo) ListActiveByOrg(ctx context.Context, orgID string) ([]domain.ConsentTemplate, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND IsActive = :active"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT_TEMPLATE#"},
+			":active":   &types.AttributeValueMemberBOOL{Value: true},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []domain.ConsentTemplate
+	for _, item := range result.Items {
+		var t domain.ConsentTemplate
+		if err := attributevalue.UnmarshalMap(item, &t); err == nil {
+			out = append(out, t)
+		}
+	}
+	return out, nil
 }
 
 // Auth repository implementation
