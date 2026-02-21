@@ -3,7 +3,7 @@ import { DayPicker } from "react-day-picker";
 import { es } from "date-fns/locale";
 import { format, parse, isValid } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import "react-day-picker/dist/style.css";
+import "react-day-picker/src/style.css";
 
 interface DatePickerProps {
   value: string; // "YYYY-MM-DD"
@@ -75,10 +75,10 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
             locale={es}
             defaultMonth={selected ?? new Date()}
             components={{
-              Chevron: ({ orientation }) =>
+              Chevron: ({ orientation, ...props }) =>
                 orientation === "left"
-                  ? <ChevronLeft size={16} strokeWidth={1.5} />
-                  : <ChevronRight size={16} strokeWidth={1.5} />,
+                  ? <ChevronLeft size={15} strokeWidth={1.5} {...props} />
+                  : <ChevronRight size={15} strokeWidth={1.5} {...props} />,
             }}
           />
         </div>
