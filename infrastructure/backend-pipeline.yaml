@@ -50,6 +50,9 @@ Resources:
           - Id: DeleteOldArtifacts
             Status: Enabled
             ExpirationInDays: 30
+      Tags:
+        - Key: product
+          Value: clinisense
 
   # CodeBuild Service Role
   BackendCodeBuildRole:
@@ -163,6 +166,9 @@ Resources:
       Name: !Sub "${ProjectName}-build"
       Description: Build and deploy Clinical Backend
       ServiceRole: !GetAtt BackendCodeBuildRole.Arn
+      Tags:
+        - Key: product
+          Value: clinisense
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -253,6 +259,9 @@ Resources:
       Name: !Sub "${ProjectName}-pipeline"
       PipelineType: V2
       RoleArn: !GetAtt BackendCodePipelineRole.Arn
+      Tags:
+        - Key: product
+          Value: clinisense
       ArtifactStore:
         Type: S3
         Location: !Ref BackendArtifactStore

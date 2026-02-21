@@ -9,6 +9,8 @@ Globals:
       - arm64
     Timeout: 30
     MemorySize: 512
+    Tags:
+      product: clinisense
     Environment:
       Variables:
         ENVIRONMENT: prod
@@ -37,6 +39,8 @@ Resources:
       Name: !Sub "${AWS::StackName}-api"
       Description: Clinical REST API with API Key authentication
       StageName: prod
+      Tags:
+        product: clinisense
       EndpointConfiguration:
         Type: REGIONAL
       Cors:
@@ -51,6 +55,9 @@ Resources:
       Name: !Sub "${AWS::StackName}-api-key"
       Description: API Key for Clinical frontend
       Enabled: true
+      Tags:
+        - Key: product
+          Value: clinisense
       
   # Usage Plan con límite de llamadas diarias
   ClinicalUsagePlan:
@@ -66,6 +73,9 @@ Resources:
       Quota:
         Limit: 50000
         Period: DAY
+      Tags:
+        - Key: product
+          Value: clinisense
           
   # Asociar API Key con Usage Plan
   ClinicalUsagePlanKey:
@@ -192,6 +202,9 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
   PatientsTable:
     Type: AWS::DynamoDB::Table
@@ -208,6 +221,9 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
   ConsentsTable:
     Type: AWS::DynamoDB::Table
@@ -224,6 +240,9 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
   OdontogramsTable:
     Type: AWS::DynamoDB::Table
@@ -240,6 +259,9 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
   TreatmentPlansTable:
     Type: AWS::DynamoDB::Table
@@ -256,6 +278,9 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
   UsersTable:
     Type: AWS::DynamoDB::Table
@@ -272,6 +297,9 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
 
 Outputs:

@@ -56,6 +56,9 @@ Resources:
             AllowedMethods: [GET, HEAD]
             AllowedOrigins: ['*']
             MaxAge: 3600
+      Tags:
+        - Key: product
+          Value: clinisense
 
   # S3 Bucket Policy for CloudFront access
   FrontendS3BucketPolicy:
@@ -87,6 +90,9 @@ Resources:
   FrontendCloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
+      Tags:
+        - Key: product
+          Value: clinisense
       DistributionConfig:
         Aliases:
           - !Ref DomainName
@@ -139,6 +145,9 @@ Resources:
           - Id: DeleteOldArtifacts
             Status: Enabled
             ExpirationInDays: 30
+      Tags:
+        - Key: product
+          Value: clinisense
 
   # CodeBuild Service Role
   FrontendCodeBuildRole:
@@ -204,6 +213,9 @@ Resources:
       Name: !Sub "${ProjectName}-build"
       Description: Build and deploy Clinical Frontend to CloudFront
       ServiceRole: !GetAtt FrontendCodeBuildRole.Arn
+      Tags:
+        - Key: product
+          Value: clinisense
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -303,6 +315,9 @@ Resources:
       Name: !Sub "${ProjectName}-pipeline"
       PipelineType: V2
       RoleArn: !GetAtt FrontendCodePipelineRole.Arn
+      Tags:
+        - Key: product
+          Value: clinisense
       ArtifactStore:
         Type: S3
         Location: !Ref FrontendArtifactStore
