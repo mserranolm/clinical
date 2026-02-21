@@ -14,6 +14,7 @@ interface DatePickerProps {
 
 export function DatePicker({ value, onChange, name, required, placeholder = "Seleccionar fecha" }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const parsed = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
@@ -30,6 +31,14 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  function toggle() {
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setOpenUpward(window.innerHeight - rect.bottom < 320);
+    }
+    setOpen((o) => !o);
+  }
+
   function handleSelect(day: Date | undefined) {
     if (day) {
       onChange(format(day, "yyyy-MM-dd"));
@@ -41,7 +50,7 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
     <div ref={ref} style={{ position: "relative", width: "100%" }}>
       {name && <input type="hidden" name={name} value={value} required={required} />}
 
-      <button type="button" onClick={() => setOpen((o) => !o)} className="datepicker-trigger">
+      <button type="button" onClick={toggle} className="datepicker-trigger">
         <CalendarDays size={15} strokeWidth={1.5} style={{ color: "#0d9488", flexShrink: 0 }} />
         <span style={{ flex: 1, textAlign: "left", color: displayValue ? "#0f172a" : "#94a3b8" }}>
           {displayValue || placeholder}
@@ -54,7 +63,10 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
       </button>
 
       {open && (
-        <div className="datepicker-popover">
+        <div
+          className="datepicker-popover"
+          style={openUpward ? { top: "auto", bottom: "calc(100% + 6px)" } : undefined}
+        >
           <DayPicker
             mode="single"
             selected={selected}
