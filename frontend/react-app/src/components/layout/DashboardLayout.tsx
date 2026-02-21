@@ -69,6 +69,14 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     }
   }, [location.pathname, appointmentsDate, session]);
 
+  // Al volver a esta pestaña, refrescar citas por si el paciente confirmó/aceptó consentimientos desde el correo
+  useEffect(() => {
+    if (isPlatformAdmin || location.pathname !== "/dashboard") return;
+    const onFocus = () => loadDashboardData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [location.pathname, appointmentsDate, session]);
+
   async function loadDashboardData() {
     setLoading(true);
     setError("");
