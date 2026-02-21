@@ -50,7 +50,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
     return (
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <Logo variant="light" className="sidebar-logo-svg" />
+          <Logo variant="color" className="sidebar-logo-svg" />
           <small className="sidebar-brand-tag">Plataforma</small>
         </div>
         <nav className="sidebar-nav">
@@ -70,7 +70,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <Logo variant="light" className="sidebar-logo-svg" />
+        <Logo variant="color" className="sidebar-logo-svg" />
         <small className="sidebar-brand-tag">Medical Suite</small>
       </div>
 

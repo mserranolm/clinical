@@ -1,34 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Brand */
-  --clinical-blue: #0f172a;
-  --clinical-blue-light: #1e293b;
-  --accent: #0ea5e9;
-  --accent-teal: #0d9488;
-  --accent-soft: #e0f2fe;
-  --emerald: #10b981;
-  --emerald-soft: #d1fae5;
+  /* ── Paleta Air: Sky/Slate ──────────────────────────────── */
+  --accent:           #0ea5e9;   /* sky-500  — acento principal */
+  --accent-hover:     #0284c7;   /* sky-600  — hover */
+  --accent-soft:      #f0f9ff;   /* sky-50   — fondos suaves */
+  --accent-border:    #bae6fd;   /* sky-200  — bordes acento */
+  --accent-ring:      #e0f2fe;   /* sky-100  — focus ring */
+
+  /* Legacy aliases (mantienen compatibilidad) */
+  --clinical-blue:        #1e3a5f;   /* azul oscuro suave, NO negro */
+  --clinical-blue-light:  #2d5a8e;
+  --accent-teal:          #0ea5e9;   /* unificado a sky */
+  --emerald:              #10b981;
+  --emerald-soft:         #d1fae5;
+  --clinical-accent:      #0ea5e9;
+  --clinical-emerald:     #10b981;
+  --clinical-emerald-soft:#d1fae5;
 
   /* Surfaces */
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --border: rgba(15, 23, 42, 0.07);
-  --border-strong: rgba(15, 23, 42, 0.12);
+  --bg:           #f8fafc;   /* slate-50 */
+  --surface:      #ffffff;
+  --surface-2:    #f1f5f9;   /* slate-100 */
+  --border:       rgba(148,163,184,0.20);   /* slate-400/20 */
+  --border-strong:rgba(148,163,184,0.35);
 
-  /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  /* Text — nunca negro puro */
+  --text-primary:   #1e293b;   /* slate-800 */
+  --text-secondary: #475569;   /* slate-600 */
+  --text-muted:     #94a3b8;   /* slate-400 */
+  --text-main:      #1e293b;
+  --medical-bg:     #f8fafc;
+  --medical-white:  #ffffff;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(15,23,42,0.04);
-  --shadow-sm: 0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
-  --shadow-md: 0 4px 16px rgba(15,23,42,0.08), 0 1px 4px rgba(15,23,42,0.04);
-  --shadow-lg: 0 12px 40px rgba(15,23,42,0.10), 0 2px 8px rgba(15,23,42,0.05);
-  --shadow-elite: 0 20px 50px rgba(15, 23, 42, 0.08);
-  --shadow-soft: 0 4px 20px rgba(15, 23, 42, 0.04);
+  /* Shadows — muy suaves */
+  --shadow-xs:    0 1px 3px rgba(148,163,184,0.12);
+  --shadow-sm:    0 2px 8px rgba(148,163,184,0.14), 0 1px 2px rgba(148,163,184,0.08);
+  --shadow-md:    0 4px 16px rgba(148,163,184,0.16), 0 1px 4px rgba(148,163,184,0.08);
+  --shadow-lg:    0 12px 40px rgba(148,163,184,0.18), 0 2px 8px rgba(148,163,184,0.10);
+  --shadow-elite: 0 20px 50px rgba(148,163,184,0.14);
+  --shadow-soft:  0 4px 20px rgba(148,163,184,0.10);
 
   /* Radius */
   --r-sm: 8px;
@@ -40,16 +51,8 @@
   --border-radius-md: 12px;
 
   /* Glass */
-  --glass-bg: rgba(255,255,255,0.80);
-  --glass-border: rgba(255,255,255,0.60);
-
-  /* Legacy compat */
-  --clinical-accent: #0ea5e9;
-  --clinical-emerald: #10b981;
-  --clinical-emerald-soft: #d1fae5;
-  --medical-bg: #f8fafc;
-  --medical-white: #ffffff;
-  --text-main: #0f172a;
+  --glass-bg:     rgba(255,255,255,0.85);
+  --glass-border: rgba(255,255,255,0.70);
 }
 
 * {
@@ -1036,10 +1039,10 @@ p {
   background: var(--bg);
 }
 
-/* ─── Sidebar ───────────────────────────────────────────────── */
+/* ─── Sidebar — Air Edition ─────────────────────────────────── */
 .sidebar {
-  background: #080e1c;
-  color: white;
+  background: #ffffff;
+  color: #475569;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -1047,7 +1050,8 @@ p {
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  border-right: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid #f1f5f9;
+  box-shadow: 1px 0 0 0 #f1f5f9;
 }
 
 /* Brand */
@@ -1057,10 +1061,10 @@ p {
   align-items: flex-start;
   gap: 4px;
   padding: 20px 16px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid #f1f5f9;
 }
 
-/* Logo SVG en sidebar (variante light) */
+/* Logo SVG en sidebar (variante color sobre fondo blanco) */
 .sidebar-logo-svg {
   height: 28px;
   width: auto;
@@ -1070,7 +1074,7 @@ p {
 /* Tag debajo del logo */
 .sidebar-brand-tag {
   display: block;
-  color: rgba(255,255,255,0.22);
+  color: #94a3b8;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -1104,10 +1108,10 @@ p {
 
 .nav-group-label {
   font-size: 0.6rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255,255,255,0.2);
+  color: #cbd5e1;
   padding: 10px 12px 4px;
 }
 
@@ -1118,7 +1122,7 @@ p {
   padding: 9px 12px;
   border-radius: 10px;
   text-decoration: none;
-  color: rgba(255,255,255,0.48);
+  color: #64748b;
   font-weight: 500;
   font-size: 0.845rem;
   transition: background 0.18s ease, color 0.18s ease;
@@ -1131,40 +1135,41 @@ p {
   display: flex; align-items: center; justify-content: center;
   border-radius: 7px;
   font-size: 0.8rem;
-  background: rgba(255,255,255,0.04);
+  background: #f8fafc;
+  color: #94a3b8;
   flex-shrink: 0;
-  transition: background 0.18s, box-shadow 0.18s;
+  transition: background 0.18s, color 0.18s;
 }
 
 .nav-item-label { flex: 1; }
 
 .nav-item:hover {
-  color: rgba(255,255,255,0.85);
-  background: rgba(255,255,255,0.06);
+  color: #1e293b;
+  background: #f8fafc;
 }
 .nav-item:hover .nav-item-icon {
-  background: rgba(255,255,255,0.08);
+  background: #f1f5f9;
+  color: #475569;
 }
 
+/* Activo — sky-50 fondo, sky-600 texto, barra lateral sky-500 */
 .nav-item.active {
-  color: #e0f2fe;
-  background: rgba(14,165,233,0.14);
+  color: #0284c7;
+  background: #f0f9ff;
   font-weight: 600;
 }
 .nav-item.active .nav-item-icon {
-  background: linear-gradient(135deg, #0ea5e9, #0d9488);
-  color: white;
-  box-shadow: 0 3px 8px rgba(14,165,233,0.45);
+  background: #e0f2fe;
+  color: #0284c7;
 }
 .nav-item.active::before {
   content: "";
   position: absolute;
   left: 0; top: 50%;
   transform: translateY(-50%);
-  width: 2.5px; height: 16px;
+  width: 3px; height: 18px;
   background: #0ea5e9;
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 8px rgba(14,165,233,0.6);
 }
 
 .nav-badge {
@@ -1173,15 +1178,15 @@ p {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 7px;
-  background: #0ea5e9;
-  color: white;
+  background: #e0f2fe;
+  color: #0284c7;
   border-radius: 999px;
 }
 
 /* Sidebar Footer */
 .sidebar-footer {
   padding: 12px 10px;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid #f1f5f9;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1193,13 +1198,13 @@ p {
   gap: 10px;
   padding: 9px 12px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
 }
 
 .sidebar-user-avatar {
   width: 30px; height: 30px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
   color: white;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
@@ -1217,7 +1222,7 @@ p {
   min-width: 0;
 }
 .sidebar-user-info strong {
-  color: rgba(255,255,255,0.88);
+  color: #1e293b;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
@@ -1225,15 +1230,15 @@ p {
   text-overflow: ellipsis;
 }
 .sidebar-user-info span {
-  color: rgba(255,255,255,0.28);
+  color: #94a3b8;
   font-size: 0.68rem;
 }
 
 .sidebar-logout {
   width: 100%;
   background: transparent !important;
-  color: rgba(255,255,255,0.32) !important;
-  border: 1px solid rgba(255,255,255,0.07) !important;
+  color: #94a3b8 !important;
+  border: 1px solid #f1f5f9 !important;
   box-shadow: none !important;
   font-size: 0.79rem !important;
   padding: 8px 12px !important;
@@ -1243,9 +1248,9 @@ p {
   transition: all 0.18s ease !important;
 }
 .sidebar-logout:hover {
-  background: rgba(239,68,68,0.08) !important;
-  color: #fca5a5 !important;
-  border-color: rgba(239,68,68,0.15) !important;
+  background: #fff1f2 !important;
+  color: #f43f5e !important;
+  border-color: #fecdd3 !important;
   transform: none !important;
   box-shadow: none !important;
 }
@@ -1650,25 +1655,26 @@ button {
   font-size: 0.875rem;
   letter-spacing: -0.01em;
 }
-button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.auth-tabs button):not(.search-clear):not(.search-remote-btn) {
-  background: var(--clinical-blue);
+button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.auth-tabs button):not(.search-clear):not(.search-remote-btn):not(.datepicker-trigger):not(.lp-btn-ghost):not(.lp-btn-primary):not(.lp-btn-cta-primary):not(.lp-btn-cta-secondary) {
+  background: #0ea5e9;
   color: white;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(14,165,233,0.20);
 }
-button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.search-clear):not(.search-remote-btn):hover {
+button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.search-clear):not(.search-remote-btn):not(.datepicker-trigger):not(.lp-btn-ghost):not(.lp-btn-primary):not(.lp-btn-cta-primary):not(.lp-btn-cta-secondary):hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-  background: #1e293b;
+  box-shadow: 0 6px 18px rgba(14,165,233,0.28);
+  background: #0284c7;
 }
 button.ghost {
   background: white;
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
+  color: #475569;
+  border: 1px solid #e2e8f0;
   box-shadow: var(--shadow-xs);
 }
 button.ghost:hover {
-  border-color: #94a3b8;
-  background: #f8fafc;
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0284c7;
   transform: translateY(-1px);
 }
 
@@ -2352,17 +2358,17 @@ button.ghost:hover {
 }
 
 .consulta-tab:hover {
-  border-color: var(--clinical-blue);
-  color: var(--clinical-blue);
+  border-color: #7dd3fc;
+  color: #0284c7;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(14,165,233,0.10);
 }
 
 .consulta-tab.active {
-  background: var(--clinical-blue);
-  border-color: var(--clinical-blue);
+  background: #0ea5e9;
+  border-color: #0ea5e9;
   color: white;
-  box-shadow: 0 10px 20px rgba(15, 41, 83, 0.15);
+  box-shadow: 0 6px 18px rgba(14,165,233,0.25);
 }
 
 /* Sección general */
@@ -2433,8 +2439,8 @@ button.ghost:hover {
 }
 
 .historia-check-label input[type="checkbox"]:checked {
-  background: var(--clinical-blue);
-  border-color: var(--clinical-blue);
+  background: #0ea5e9;
+  border-color: #0ea5e9;
 }
 
 .historia-check-label input[type="checkbox"]:checked::after {
@@ -2449,8 +2455,8 @@ button.ghost:hover {
 }
 
 .historia-check-label input[type="checkbox"]:hover {
-  border-color: var(--clinical-blue);
-  box-shadow: 0 0 0 4px rgba(15, 41, 83, 0.05);
+  border-color: #7dd3fc;
+  box-shadow: 0 0 0 4px #e0f2fe;
 }
 
 /* Pathology Chips — defined below in CONSULTA MISSING LAYOUT CLASSES */
@@ -3329,16 +3335,16 @@ button.ghost:hover {
   text-align: left;
 }
 .datepicker-trigger:hover {
-  border-color: #0d9488;
+  border-color: #7dd3fc;
   background: white;
   transform: none;
-  box-shadow: 0 0 0 3px rgba(13,148,136,0.08);
+  box-shadow: 0 0 0 3px #e0f2fe;
 }
 .datepicker-trigger:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #7dd3fc;
   background: white;
-  box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+  box-shadow: 0 0 0 3px #e0f2fe;
 }
 
 .datepicker-popover {
@@ -3358,9 +3364,9 @@ button.ghost:hover {
 
 /* Override react-day-picker v9 styles */
 .datepicker-popover .rdp-root {
-  --rdp-accent-color: #0d9488;
-  --rdp-accent-background-color: rgba(13,148,136,0.10);
-  --rdp-today-color: #0d9488;
+  --rdp-accent-color: #0ea5e9;
+  --rdp-accent-background-color: #e0f2fe;
+  --rdp-today-color: #0ea5e9;
   --rdp-day-height: 36px;
   --rdp-day-width: 36px;
   --rdp-day_button-height: 34px;
@@ -3411,8 +3417,8 @@ button.ghost:hover {
 .datepicker-popover .rdp-button_previous:hover,
 .datepicker-popover .rdp-button_next:hover {
   background: white !important;
-  border-color: #0d9488 !important;
-  color: #0d9488 !important;
+  border-color: #7dd3fc !important;
+  color: #0284c7 !important;
   transform: none !important;
 }
 .datepicker-popover .rdp-weekday {
@@ -3434,19 +3440,19 @@ button.ghost:hover {
   box-shadow: none !important;
 }
 .datepicker-popover .rdp-day_button:hover {
-  background: rgba(13,148,136,0.09) !important;
-  color: #0d9488 !important;
+  background: #f0f9ff !important;
+  color: #0284c7 !important;
   transform: none !important;
 }
 .datepicker-popover .rdp-today .rdp-day_button {
   font-weight: 800;
-  color: #0d9488;
+  color: #0ea5e9;
 }
 .datepicker-popover .rdp-selected .rdp-day_button {
-  background: #0d9488 !important;
+  background: #0ea5e9 !important;
   color: white !important;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(13,148,136,0.35) !important;
+  box-shadow: 0 2px 8px rgba(14,165,233,0.30) !important;
 }
 .datepicker-popover .rdp-disabled .rdp-day_button {
   opacity: 0.3;
@@ -3494,78 +3500,144 @@ tr:hover td { background: #f8fafc; }
 td { padding: 14px 18px; font-size: 0.855rem; }
 th { padding: 11px 18px; }
 
-/* Inputs más aireados */
+/* ── Inputs Air: border-slate-200, focus ring sky ────────── */
 input:not([type=checkbox]):not([type=radio]),
 select,
 textarea {
   padding: 10px 14px;
-  background: #f8fafc;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: var(--r-md);
   font-size: 0.875rem;
+  color: #1e293b;
   transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 input:not([type=checkbox]):not([type=radio]):focus,
 select:focus,
 textarea:focus {
-  border-color: #0d9488;
+  border-color: #7dd3fc !important;
   background: white;
-  box-shadow: 0 0 0 3px rgba(13,148,136,0.10);
+  box-shadow: 0 0 0 3px #e0f2fe !important;
   outline: none;
 }
+input::placeholder { color: #cbd5e1; }
 
-/* Sidebar slate-900 más suave */
-.sidebar { background: #0f172a; }
+/* ── Sidebar Air (override final) ───────────────────────── */
+.sidebar { background: #ffffff !important; }
+.nav-item.active { background: #f0f9ff !important; color: #0284c7 !important; }
+.nav-item.active .nav-item-icon { background: #e0f2fe !important; color: #0284c7 !important; box-shadow: none !important; }
+.nav-item.active::before { background: #0ea5e9 !important; box-shadow: none !important; }
 
-/* Acento teal en nav activo */
-.nav-item.active { background: rgba(13,148,136,0.14); color: #ccfbf1; }
-.nav-item.active .nav-item-icon {
-  background: linear-gradient(135deg, #0d9488, #0891b2);
-  box-shadow: 0 3px 8px rgba(13,148,136,0.45);
-}
-.nav-item.active::before { background: #0d9488; box-shadow: 0 0 8px rgba(13,148,136,0.6); }
-.sidebar-logo { background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%); box-shadow: 0 4px 14px rgba(13,148,136,0.4); }
-.sidebar-brand h2 span { color: #2dd4bf; }
-
-/* Botones primarios con teal */
+/* ── Botones primarios Air ───────────────────────────────── */
 .auth-submit,
 .primary-btn {
-  background: #0d9488 !important;
+  background: #0ea5e9 !important;
   color: white !important;
+  box-shadow: 0 2px 8px rgba(14,165,233,0.22) !important;
 }
 .auth-submit:hover:not(:disabled),
 .primary-btn:hover {
-  background: #0f766e !important;
-  box-shadow: 0 8px 24px rgba(13,148,136,0.3) !important;
+  background: #0284c7 !important;
+  box-shadow: 0 6px 18px rgba(14,165,233,0.30) !important;
 }
 
-/* Acento teal en focus de inputs */
-input:focus { border-color: #0d9488 !important; box-shadow: 0 0 0 3px rgba(13,148,136,0.10) !important; }
-
-/* Topbar: icono de página con teal */
+/* ── Topbar: icono de página sky ─────────────────────────── */
 .topbar-page-icon {
-  background: linear-gradient(135deg, #ccfbf1 0%, #cffafe 100%);
-  border-color: #99f6e4;
-  color: #0d9488;
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0284c7;
 }
 
-/* Live dot teal */
-.live-dot { background: #0d9488; }
+/* ── Live dot sky ────────────────────────────────────────── */
+.live-dot { background: #0ea5e9; }
 @keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(13,148,136,0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(13,148,136,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(14,165,233,0); }
 }
 
-/* Acento en links */
-.link-btn { color: #0d9488; }
+/* ── Links ───────────────────────────────────────────────── */
+.link-btn { color: #0284c7; }
 
-/* action-btn-treat con teal */
+/* ── action-btn-treat sky ────────────────────────────────── */
 .action-btn-treat {
-  background: #0d9488 !important;
+  background: #0ea5e9 !important;
   color: white !important;
   border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(14,165,233,0.20) !important;
 }
 .action-btn-treat:hover:not(:disabled) {
-  background: #0f766e !important;
-  box-shadow: 0 4px 12px rgba(13,148,136,0.3) !important;
+  background: #0284c7 !important;
+  box-shadow: 0 4px 14px rgba(14,165,233,0.28) !important;
 }
+
+/* ── action-btn-confirm sky ──────────────────────────────── */
+.action-btn-confirm {
+  background: #f0f9ff !important;
+  color: #0284c7 !important;
+  border-color: #bae6fd !important;
+}
+.action-btn-confirm:hover:not(:disabled) {
+  background: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+  box-shadow: none !important;
+}
+
+/* ── Topbar Air ──────────────────────────────────────────── */
+.topbar {
+  background: rgba(255,255,255,0.92) !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  box-shadow: 0 1px 0 #f1f5f9 !important;
+}
+.topbar-create-btn {
+  background: #0ea5e9 !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(14,165,233,0.22) !important;
+}
+.topbar-create-btn:hover {
+  background: #0284c7 !important;
+  box-shadow: 0 6px 18px rgba(14,165,233,0.28) !important;
+}
+
+/* ── Cards Air ───────────────────────────────────────────── */
+.card, .elite-card, .chart-card {
+  border: 1px solid #f1f5f9 !important;
+  box-shadow: 0 2px 12px rgba(148,163,184,0.10) !important;
+}
+.card:hover, .elite-card:hover {
+  box-shadow: 0 4px 20px rgba(148,163,184,0.16) !important;
+}
+
+/* ── Stat cards Air ──────────────────────────────────────── */
+.stat-card {
+  border: 1px solid #f1f5f9 !important;
+  box-shadow: 0 2px 12px rgba(148,163,184,0.10) !important;
+}
+
+/* ── Tabla Air ───────────────────────────────────────────── */
+th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+tr:hover td { background: #f8fafc !important; }
+td { border-bottom: 1px solid #f8fafc !important; }
+
+/* ── Modal Air ───────────────────────────────────────────── */
+.modal-overlay {
+  background: rgba(248,250,252,0.70) !important;
+  backdrop-filter: blur(8px) !important;
+}
+.modal-card {
+  border: 1px solid #f1f5f9 !important;
+  box-shadow: 0 20px 60px rgba(148,163,184,0.18) !important;
+}
+
+/* ── Badges Air ──────────────────────────────────────────── */
+.status-scheduled   { background: #f0f9ff;  color: #0284c7; border: 1px solid #bae6fd; }
+.status-confirmed   { background: #f0fdf4;  color: #16a34a; border: 1px solid #bbf7d0; }
+.status-unconfirmed { background: #f8fafc;  color: #64748b; border: 1px solid #e2e8f0; }
+.status-completed   { background: #f0fdf4;  color: #16a34a; border: 1px solid #bbf7d0; }
+.status-cancelled   { background: #fff1f2;  color: #e11d48; border: 1px solid #fecdd3; }
+.status-active      { background: #f0fdf4;  color: #16a34a; border: 1px solid #bbf7d0; }
+.status-inactive    { background: #f8fafc;  color: #64748b; border: 1px solid #e2e8f0; }
+.status-pending     { background: #fffbeb;  color: #d97706; border: 1px solid #fde68a; }
