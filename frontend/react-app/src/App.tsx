@@ -13,6 +13,7 @@ import { Landing } from "./pages/Landing";
 import { LoginView } from "./pages/LoginView";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 import { ConsentAcceptPage } from "./pages/ConsentAcceptPage";
+import ConfirmAppointmentPage from "./pages/ConfirmAppointmentPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 
 function loadValidSession(): AuthSession | null {
@@ -71,6 +72,7 @@ export function App() {
       />
       <Route path="/accept-invitation" element={<AcceptInvitationPage onSuccess={handleAuthSuccess} />} />
       <Route path="/consent" element={<ConsentAcceptPage />} />
+      <Route path="/confirm-appointment" element={<ConfirmAppointmentPage />} />
       <Route
         path="/change-password"
         element={session ? <ChangePasswordPage session={session} onSuccess={handlePasswordChanged} /> : <Navigate to="/login" replace />}
