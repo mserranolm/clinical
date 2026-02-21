@@ -42,6 +42,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   ];
   const extraItems: NavItemDef[] = [
     { to: "/dashboard/consentimientos", label: "Documentos", icon: <FileText {...iconProps} /> },
+    { to: "/dashboard/plantillas-consentimiento", label: "Plantillas Consentimiento", icon: <ShieldCheck {...iconProps} /> },
     { to: "/dashboard/odontograma", label: "Odontograma", icon: <GitGraph {...iconProps} /> },
     { to: "/dashboard/planes", label: "Tratamientos", icon: <ClipboardList {...iconProps} /> },
   ];
