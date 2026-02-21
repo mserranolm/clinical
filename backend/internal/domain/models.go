@@ -31,6 +31,7 @@ type MedicalBackground struct {
 
 type Appointment struct {
 	ID                  string     `json:"id"`
+	OrgID               string     `json:"orgId,omitempty"` // interno: para persistir en la org correcta (ej. confirmación pública)
 	DoctorID            string     `json:"doctorId"`
 	PatientID           string     `json:"patientId"`
 	StartAt             time.Time  `json:"startAt"`

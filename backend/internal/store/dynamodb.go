@@ -555,7 +555,10 @@ type dynamoAppointmentRepo struct {
 }
 
 func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error) {
-	orgID := orgIDOrDefault(ctx)
+	orgID := strings.TrimSpace(appointment.OrgID)
+	if orgID == "" {
+		orgID = orgIDOrDefault(ctx)
+	}
 	item := map[string]types.AttributeValue{
 		"PK":              &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":              &types.AttributeValueMemberS{Value: fmt.Sprintf("APPOINTMENT#%s", appointment.ID)},
@@ -641,9 +644,13 @@ func (r *dynamoAppointmentRepo) GetByConfirmToken(ctx context.Context, token str
 	if len(result.Items) == 0 {
 		return domain.Appointment{}, fmt.Errorf("appointment not found")
 	}
+	item := result.Items[0]
 	var appt domain.Appointment
-	if err := attributevalue.UnmarshalMap(result.Items[0], &appt); err != nil {
+	if err := attributevalue.UnmarshalMap(item, &appt); err != nil {
 		return domain.Appointment{}, err
+	}
+	if pk, ok := item["PK"].(*types.AttributeValueMemberS); ok && pk.Value != "" {
+		appt.OrgID = strings.TrimPrefix(pk.Value, "ORG#")
 	}
 	return appt, nil
 }

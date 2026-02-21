@@ -44,15 +44,13 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   const adminOnlyTools: NavItemDef[] = [
     { to: "/dashboard/plantillas-consentimiento", label: "Plantillas Consentimiento", icon: <ShieldCheck {...iconProps} /> },
   ];
-  // Herramientas de consulta: solo para doctor (y asistente si aplica).
+  // Herramientas de consulta: solo para admin de la organización (ni doctor ni asistente).
   const consultaTools: NavItemDef[] = [
     { to: "/dashboard/consentimientos", label: "Documentos", icon: <FileText {...iconProps} /> },
     { to: "/dashboard/odontograma", label: "Odontograma", icon: <GitGraph {...iconProps} /> },
     { to: "/dashboard/planes", label: "Tratamientos", icon: <ClipboardList {...iconProps} /> },
   ];
-  const isDoctor = role === "doctor";
-  const isAssistant = role === "assistant";
-  const showConsultaTools = isDoctor || isAssistant;
+  const showConsultaTools = isAdmin;
 
   if (isPlatformAdmin) {
     return (
