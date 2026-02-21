@@ -676,7 +676,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
       {/* Modal de registro/edición */}
       {showModal && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
-          <div className="modal-card">
+          <div className="modal-card modal-card-with-datepicker">
             <div className="modal-header">
               <div>
                 <h3>{editingPatient ? "Editar Paciente" : "Registrar Nuevo Paciente"}</h3>

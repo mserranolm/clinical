@@ -1428,8 +1428,8 @@ p {
   z-index: 1000;
   display: flex; align-items: flex-start; justify-content: center;
   padding: 20px;
-  animation: fadeInOverlay 0.15s ease;
   overflow-y: auto;
+  animation: fadeInOverlay 0.15s ease;
 }
 @keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
 
@@ -3483,13 +3483,10 @@ button.ghost:hover {
   padding: 12px 14px;
   animation: slideUpModal 0.18s cubic-bezier(0.16,1,0.3,1);
   width: 252px;
-  overflow: hidden;
 }
-.datepicker-popover-portal {
-  position: fixed !important;
-  top: unset !important;
-  right: unset !important;
-  left: unset !important;
+.modal-card-with-datepicker {
+  padding-bottom: 320px !important;
+  max-width: 560px !important;
 }
 
 /* Override react-day-picker v9 styles */

@@ -41,11 +41,7 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
     <div ref={ref} style={{ position: "relative", width: "100%" }}>
       {name && <input type="hidden" name={name} value={value} required={required} />}
 
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="datepicker-trigger"
-      >
+      <button type="button" onClick={() => setOpen((o) => !o)} className="datepicker-trigger">
         <CalendarDays size={15} strokeWidth={1.5} style={{ color: "#0d9488", flexShrink: 0 }} />
         <span style={{ flex: 1, textAlign: "left", color: displayValue ? "#0f172a" : "#94a3b8" }}>
           {displayValue || placeholder}
@@ -53,12 +49,7 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
         <ChevronRight
           size={14}
           strokeWidth={1.5}
-          style={{
-            color: "#94a3b8",
-            transform: open ? "rotate(90deg)" : "none",
-            transition: "transform 0.2s ease",
-            flexShrink: 0,
-          }}
+          style={{ color: "#94a3b8", transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s ease", flexShrink: 0 }}
         />
       </button>
 
