@@ -1,15 +1,15 @@
 import { endpointCatalog } from "../lib/config";
 import { request } from "../lib/http";
 import {
-  type CreateAppointmentInput,
-  type CreateConsentInput,
-  type CreateOdontogramInput,
-  type CreatePatientInput,
-  type CreateTreatmentPlanInput,
-  type ForgotPasswordInput,
-  type LoginInput,
-  type RegisterInput,
-  type ResetPasswordInput
+    type CreateAppointmentInput,
+    type CreateConsentInput,
+    type CreateOdontogramInput,
+    type CreatePatientInput,
+    type CreateTreatmentPlanInput,
+    type ForgotPasswordInput,
+    type LoginInput,
+    type RegisterInput,
+    type ResetPasswordInput
 } from "../types";
 
 export type ConsentSummary = {
@@ -203,19 +203,35 @@ export const clinicalApi = {
       }
     ),
 
-  updateOdontogramTeeth: (odontogramId: string, toothStates: Record<number, Record<string, string>>, token?: string) => {
-    const teeth = Object.entries(toothStates).map(([num, surfaces]) => ({
-      toothNumber: Number(num),
-      isPresent: true,
-      surfaces: Object.entries(surfaces)
-        .filter(([, cond]) => cond !== "none")
-        .map(([surf, cond]) => ({
-          surface: surf === "O" ? "oclusal" : surf === "V" ? "vestibular" : surf === "L" ? "lingual" : surf === "M" ? "mesial" : "distal",
-          condition: cond === "caries" ? "caries" : cond === "restored" ? "filled" : cond === "completed" ? "filled" : "healthy",
-          severity: 1,
-          notes: "",
-        })),
-    }));
+  updateOdontogramTeeth: (
+    odontogramId: string,
+    toothStates: Record<number, unknown>,
+    token?: string,
+    serializer?: (toothNum: number, state: unknown) => { toothNumber: number; isPresent: boolean; surfaces: unknown[]; generalNotes?: string },
+  ) => {
+    let teeth: unknown[];
+
+    if (serializer) {
+      // Nuevo formato con serializer (ToothState)
+      teeth = Object.entries(toothStates).map(([num, state]) =>
+        serializer(Number(num), state)
+      );
+    } else {
+      // Formato legacy (Record<Surface, string>)
+      teeth = Object.entries(toothStates).map(([num, surfaces]) => ({
+        toothNumber: Number(num),
+        isPresent: true,
+        surfaces: Object.entries(surfaces as Record<string, string>)
+          .filter(([, cond]) => cond !== "none")
+          .map(([surf, cond]) => ({
+            surface: surf === "O" ? "oclusal" : surf === "V" ? "vestibular" : surf === "L" ? "lingual" : surf === "M" ? "mesial" : "distal",
+            condition: cond === "caries" ? "caries" : cond === "restored" ? "filled" : cond === "completed" ? "filled" : "healthy",
+            severity: 1,
+            notes: "",
+          })),
+      }));
+    }
+
     return request<{ id: string }>(endpointCatalog.updateOdontogram(odontogramId), {
       method: "PUT",
       body: { teeth },

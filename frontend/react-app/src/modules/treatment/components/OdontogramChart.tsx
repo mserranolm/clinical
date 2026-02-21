@@ -1,10 +1,18 @@
 import { OrbitControls } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Canvas } from '@react-three/fiber';
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
-
-type Surface = 'O' | 'V' | 'L' | 'M' | 'D';
+import {
+  type Surface,
+  type SurfaceCondition,
+  type ToothCondition,
+  type ToothState,
+  SURFACE_FILL,
+  SURFACE_STROKE,
+  toothConditionColor
+} from './odontogram-types';
+import { RadialMenu } from './RadialMenu';
 type ViewMode = '2d' | '3d';
 type ToothKind = 'central-incisor' | 'lateral-incisor' | 'canine' | 'premolar' | 'molar';
 
@@ -112,19 +120,26 @@ const GumArch: React.FC<{
   );
 };
 
-const CONDITION_COLORS: Record<string, string> = {
+const CONDITION_COLORS_LEGACY: Record<string, string> = {
   none:      '#ffffff',
   caries:    '#ef4444',
   restored:  '#3b82f6',
   completed: '#10b981',
 };
 
-const CONDITION_STROKE: Record<string, string> = {
+const CONDITION_STROKE_LEGACY: Record<string, string> = {
   none:      '#cbd5e1',
   caries:    '#dc2626',
   restored:  '#2563eb',
   completed: '#059669',
 };
+
+function getSurfaceFill(cond: string): string {
+  return SURFACE_FILL[cond as SurfaceCondition] ?? CONDITION_COLORS_LEGACY[cond] ?? '#ffffff';
+}
+function getSurfaceStroke(cond: string): string {
+  return SURFACE_STROKE[cond as SurfaceCondition] ?? CONDITION_STROKE_LEGACY[cond] ?? '#cbd5e1';
+}
 
 const EMPTY_SURFACES: Record<Surface, string> = { O: 'none', V: 'none', L: 'none', M: 'none', D: 'none' };
 
@@ -141,14 +156,86 @@ const getToothKind = (toothNumber: number, isTemporary?: boolean): ToothKind => 
 interface ToothProps {
   number: number;
   conditions?: Record<Surface, string>;
+  toothCondition?: ToothCondition;
   onSurfaceClick?: (toothNumber: number, surface: Surface) => void;
   isTemporary?: boolean;
   arch?: 'upper' | 'lower' | 'temp';
 }
 
+/* ── SVG overlay para condición de diente completo ─────────────── */
+const ToothOverlay: React.FC<{ condition: ToothCondition }> = ({ condition }) => {
+  if (condition === 'none') return null;
+  const c = toothConditionColor(condition);
+
+  switch (condition) {
+    case 'exodoncia_indicada':
+    case 'exodoncia_realizada':
+      return (
+        <g className="odn-overlay">
+          <line x1="12" y1="14" x2="52" y2="62" stroke={c} strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="52" y1="14" x2="12" y2="62" stroke={c} strokeWidth="3.5" strokeLinecap="round" />
+        </g>
+      );
+    case 'endodoncia_indicada':
+    case 'endodoncia_realizada':
+      return (
+        <g className="odn-overlay">
+          <line x1="32" y1="10" x2="32" y2="66" stroke={c} strokeWidth="3" strokeLinecap="round" />
+        </g>
+      );
+    case 'corona_indicada':
+    case 'corona_realizada':
+      return (
+        <g className="odn-overlay">
+          <circle cx="32" cy="38" r="18" fill={c} fillOpacity="0.55" stroke={c} strokeWidth="2" />
+        </g>
+      );
+    case 'corona_defectuosa':
+      return (
+        <g className="odn-overlay">
+          <circle cx="32" cy="38" r="18" fill="#2563eb" fillOpacity="0.45" stroke="#ef4444" strokeWidth="2.5" />
+        </g>
+      );
+    case 'implante_indicado':
+    case 'implante_realizado':
+      return (
+        <g className="odn-overlay">
+          <polygon points="32,10 20,58 44,58" fill={c} fillOpacity="0.5" stroke={c} strokeWidth="2" strokeLinejoin="round" />
+        </g>
+      );
+    case 'erupcion_alterada':
+    case 'erupcion_dental':
+      return (
+        <g className="odn-overlay">
+          <circle cx="32" cy="38" r="16" fill="none" stroke={c} strokeWidth="2.5" strokeDasharray="4 3" />
+        </g>
+      );
+    case 'fractura':
+      return (
+        <g className="odn-overlay">
+          <polyline
+            points="22,14 28,28 20,36 30,44 24,56 32,64"
+            fill="none" stroke={c} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+          />
+        </g>
+      );
+    case 'diente_ausente':
+      return (
+        <g className="odn-overlay">
+          <rect x="4" y="4" width="56" height="64" rx="8" fill="#94a3b8" fillOpacity="0.4" />
+          <line x1="16" y1="20" x2="48" y2="56" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+          <line x1="48" y1="20" x2="16" y2="56" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      );
+    default:
+      return null;
+  }
+};
+
 const Tooth: React.FC<ToothProps> = ({
   number,
   conditions = {} as Record<Surface, string>,
+  toothCondition = 'none',
   onSurfaceClick,
   isTemporary,
   arch = 'upper',
@@ -157,9 +244,13 @@ const Tooth: React.FC<ToothProps> = ({
   const click = (s: Surface) => onSurfaceClick?.(number, s);
   const size = isTemporary ? 44 : 56;
   const enamelGradientId = `enamel-${arch}-${number}`;
+  const isAbsent = toothCondition === 'diente_ausente';
 
   return (
-    <div className={`odn-tooth odn-tooth--${arch}`} style={{ width: size, flexShrink: 0 }}>
+    <div
+      className={`odn-tooth odn-tooth--${arch}`}
+      style={{ width: size, flexShrink: 0, opacity: isAbsent ? 0.35 : 1 }}
+    >
       <span className="odn-tooth-num" style={{ fontSize: isTemporary ? '0.55rem' : '0.62rem' }}>{number}</span>
       <svg
         viewBox="0 0 64 72"
@@ -192,8 +283,8 @@ const Tooth: React.FC<ToothProps> = ({
         {/* Vestibular — top */}
         <polygon
           points="14,16 50,16 43,26 21,26"
-          fill={CONDITION_COLORS[get('V')]}
-          stroke={CONDITION_STROKE[get('V')]}
+          fill={getSurfaceFill(get('V'))}
+          stroke={getSurfaceStroke(get('V'))}
           strokeWidth="1.5"
           onClick={() => click('V')}
           className="odn-surface"
@@ -201,8 +292,8 @@ const Tooth: React.FC<ToothProps> = ({
         {/* Lingual — bottom */}
         <polygon
           points="18,50 46,50 40,60 24,60"
-          fill={CONDITION_COLORS[get('L')]}
-          stroke={CONDITION_STROKE[get('L')]}
+          fill={getSurfaceFill(get('L'))}
+          stroke={getSurfaceStroke(get('L'))}
           strokeWidth="1.5"
           onClick={() => click('L')}
           className="odn-surface"
@@ -210,8 +301,8 @@ const Tooth: React.FC<ToothProps> = ({
         {/* Mesial — left */}
         <polygon
           points="14,16 21,26 24,50 18,60 12,50 10,30"
-          fill={CONDITION_COLORS[get('M')]}
-          stroke={CONDITION_STROKE[get('M')]}
+          fill={getSurfaceFill(get('M'))}
+          stroke={getSurfaceStroke(get('M'))}
           strokeWidth="1.5"
           onClick={() => click('M')}
           className="odn-surface"
@@ -219,8 +310,8 @@ const Tooth: React.FC<ToothProps> = ({
         {/* Distal — right */}
         <polygon
           points="50,16 43,26 40,50 46,60 52,50 54,30"
-          fill={CONDITION_COLORS[get('D')]}
-          stroke={CONDITION_STROKE[get('D')]}
+          fill={getSurfaceFill(get('D'))}
+          stroke={getSurfaceStroke(get('D'))}
           strokeWidth="1.5"
           onClick={() => click('D')}
           className="odn-surface"
@@ -228,12 +319,15 @@ const Tooth: React.FC<ToothProps> = ({
         {/* Occlusal — center */}
         <rect
           x="22" y="27" width="20" height="22" rx="4"
-          fill={CONDITION_COLORS[get('O')]}
-          stroke={CONDITION_STROKE[get('O')]}
+          fill={getSurfaceFill(get('O'))}
+          stroke={getSurfaceStroke(get('O'))}
           strokeWidth="1.5"
           onClick={() => click('O')}
           className="odn-surface"
         />
+
+        {/* Overlay de condición de diente completo */}
+        <ToothOverlay condition={toothCondition} />
       </svg>
     </div>
   );
@@ -241,10 +335,15 @@ const Tooth: React.FC<ToothProps> = ({
 
 /* ── Main chart ─────────────────────────────────────────────── */
 export const OdontogramChart: React.FC<{
-  toothStates?: Record<number, Record<Surface, string>>;
+  toothStates?: Record<number, ToothState>;
+  onSurfaceChange?: (toothNum: number, surface: Surface, cond: SurfaceCondition) => void;
+  onToothConditionChange?: (toothNum: number, cond: ToothCondition) => void;
+  onResetTooth?: (toothNum: number) => void;
+  /** @deprecated — se mantiene por compatibilidad con el ciclo antiguo */
   onToothClick?: (toothNum: number, surface: Surface) => void;
   patientAge?: number | null;
-}> = ({ toothStates = {}, onToothClick, patientAge }) => {
+  readOnly?: boolean;
+}> = ({ toothStates = {}, onSurfaceChange, onToothConditionChange, onResetTooth, onToothClick, patientAge, readOnly }) => {
   const isChildProfile = typeof patientAge === 'number' && patientAge >= 0 && patientAge < 12;
   const [viewMode, setViewMode] = useState<ViewMode>('2d');
   const [jawOpen, setJawOpen] = useState(false);
@@ -253,9 +352,51 @@ export const OdontogramChart: React.FC<{
   const showTemporary = !hideTemporary;
   const showPermanent = !isChildProfile || hideTemporary;
 
+  // Estado del menú radial
+  const [radialMenu, setRadialMenu] = useState<{
+    visible: boolean; x: number; y: number; toothNum: number; surface?: Surface;
+  } | null>(null);
+
   useEffect(() => {
     setHideTemporary(!isChildProfile);
   }, [isChildProfile]);
+
+  // Adaptar los toothStates para compatibilidad: puede recibir el formato viejo o nuevo
+  const normalizedStates = useMemo(() => {
+    const result: Record<number, { surfaces: Record<Surface, string>; condition: ToothCondition }> = {};
+    for (const [numStr, val] of Object.entries(toothStates)) {
+      const num = Number(numStr);
+      if (val && 'surfaces' in val && 'condition' in val) {
+        result[num] = val as { surfaces: Record<Surface, string>; condition: ToothCondition };
+      } else {
+        result[num] = { surfaces: val as unknown as Record<Surface, string>, condition: 'none' };
+      }
+    }
+    return result;
+  }, [toothStates]);
+
+  // Wrapper para abrir menú desde click en el SVG del diente
+  const handleToothSvgClick = useCallback((toothNum: number, surface: Surface) => {
+    if (readOnly) return;
+    if (onSurfaceChange || onToothConditionChange) {
+      // Buscar la posición del diente en el DOM
+      const toothEl = document.querySelector(`[data-tooth="${toothNum}"]`);
+      const container = toothEl?.closest('.odn-chart');
+      if (toothEl && container) {
+        const rect = toothEl.getBoundingClientRect();
+        const cRect = container.getBoundingClientRect();
+        setRadialMenu({
+          visible: true,
+          x: rect.left - cRect.left + rect.width / 2,
+          y: rect.top - cRect.top + rect.height / 2,
+          toothNum,
+          surface,
+        });
+        return;
+      }
+    }
+    onToothClick?.(toothNum, surface);
+  }, [readOnly, onSurfaceChange, onToothConditionChange, onToothClick]);
 
   return (
     <div className="odn-mode-wrapper">
@@ -314,15 +455,20 @@ export const OdontogramChart: React.FC<{
 
       {viewMode === '2d' ? (
         <Odontogram2D
-          toothStates={toothStates}
-          onToothClick={onToothClick}
+          toothStates={normalizedStates}
+          onToothClick={handleToothSvgClick}
           showTemporary={showTemporary}
           showPermanent={showPermanent}
+          radialMenu={radialMenu}
+          onSurfaceChange={onSurfaceChange}
+          onToothConditionChange={onToothConditionChange}
+          onResetTooth={onResetTooth}
+          onCloseMenu={() => setRadialMenu(null)}
         />
       ) : (
         <Odontogram3D
-          toothStates={toothStates}
-          onToothClick={onToothClick}
+          toothStates={normalizedStates}
+          onToothClick={handleToothSvgClick}
           jawOpen={jawOpen ? 1 : 0}
           showTemporary={showTemporary}
           showPermanent={showPermanent}
@@ -526,7 +672,7 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
               onPointerDown={(e) => stopAndClick(e, 'O')}
             >
               <boxGeometry args={[w * 0.7, 0.06, d * 0.7]} />
-              <meshStandardMaterial color={CONDITION_COLORS[get('O')]} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
+              <meshStandardMaterial color={getSurfaceFill(get('O'))} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
             </mesh>
             {/* Vestibular */}
             <mesh
@@ -534,7 +680,7 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
               onPointerDown={(e) => stopAndClick(e, 'V')}
             >
               <boxGeometry args={[w * 0.7, crownH * 0.55, 0.06]} />
-              <meshStandardMaterial color={CONDITION_COLORS[get('V')]} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
+              <meshStandardMaterial color={getSurfaceFill(get('V'))} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
             </mesh>
             {/* Lingual/Palatino */}
             <mesh
@@ -542,7 +688,7 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
               onPointerDown={(e) => stopAndClick(e, 'L')}
             >
               <boxGeometry args={[w * 0.7, crownH * 0.55, 0.06]} />
-              <meshStandardMaterial color={CONDITION_COLORS[get('L')]} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
+              <meshStandardMaterial color={getSurfaceFill(get('L'))} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
             </mesh>
             {/* Mesial */}
             <mesh
@@ -550,7 +696,7 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
               onPointerDown={(e) => stopAndClick(e, 'M')}
             >
               <boxGeometry args={[0.06, crownH * 0.55, d * 0.7]} />
-              <meshStandardMaterial color={CONDITION_COLORS[get('M')]} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
+              <meshStandardMaterial color={getSurfaceFill(get('M'))} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
             </mesh>
             {/* Distal */}
             <mesh
@@ -558,7 +704,7 @@ const Tooth3D: React.FC<Tooth3DProps> = ({
               onPointerDown={(e) => stopAndClick(e, 'D')}
             >
               <boxGeometry args={[0.06, crownH * 0.55, d * 0.7]} />
-              <meshStandardMaterial color={CONDITION_COLORS[get('D')]} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
+              <meshStandardMaterial color={getSurfaceFill(get('D'))} roughness={0.45} metalness={0.02} transparent opacity={0.82} />
             </mesh>
           </>
         )}
@@ -573,7 +719,7 @@ const DentalArch3D: React.FC<{
   jaw: 'upper' | 'lower';
   jawOpen: number;
   isTemporary?: boolean;
-  toothStates: Record<number, Record<Surface, string>>;
+  toothStates: Record<number, { surfaces: Record<Surface, string>; condition: ToothCondition }>;
   onToothClick?: (toothNum: number, surface: Surface) => void;
   markMode?: boolean;
 }> = ({ numbers, y, jaw, jawOpen, isTemporary, toothStates, onToothClick, markMode }) => {
@@ -674,7 +820,7 @@ const DentalArch3D: React.FC<{
             key={n}
             number={n}
             isTemporary={isTemporary}
-            conditions={toothStates[n]}
+            conditions={toothStates[n]?.surfaces}
             onSurfaceClick={onToothClick}
             position={[pos.x, y, pos.z]}
             rotationY={pos.rotY}
@@ -688,7 +834,7 @@ const DentalArch3D: React.FC<{
 };
 
 const Odontogram3D: React.FC<{
-  toothStates: Record<number, Record<Surface, string>>;
+  toothStates: Record<number, { surfaces: Record<Surface, string>; condition: ToothCondition }>;
   onToothClick?: (toothNum: number, surface: Surface) => void;
   jawOpen: number;
   showTemporary: boolean;
@@ -776,24 +922,34 @@ const HDivider: React.FC = () => <div className="odn-h-divider" />;
 const VDivider: React.FC = () => <div className="odn-v-divider" />;
 
 const Odontogram2D: React.FC<{
-  toothStates?: Record<number, Record<Surface, string>>;
+  toothStates?: Record<number, { surfaces: Record<Surface, string>; condition: ToothCondition }>;
   onToothClick?: (toothNum: number, surface: Surface) => void;
   showTemporary: boolean;
   showPermanent: boolean;
-}> = ({ toothStates = {}, onToothClick, showTemporary, showPermanent }) => {
+  radialMenu?: { visible: boolean; x: number; y: number; toothNum: number; surface?: Surface } | null;
+  onSurfaceChange?: (toothNum: number, surface: Surface, cond: SurfaceCondition) => void;
+  onToothConditionChange?: (toothNum: number, cond: ToothCondition) => void;
+  onResetTooth?: (toothNum: number) => void;
+  onCloseMenu?: () => void;
+}> = ({ toothStates = {}, onToothClick, showTemporary, showPermanent, radialMenu, onSurfaceChange, onToothConditionChange, onResetTooth, onCloseMenu }) => {
 
   const renderRow = (numbers: number[], rowClass: string, isTemp = false, arch: 'upper' | 'lower' | 'temp' = 'upper') => (
     <div className={`odn-row ${rowClass}`}>
-      {numbers.map(n => (
-        <Tooth
-          key={n}
-          number={n}
-          isTemporary={isTemp}
-          arch={arch}
-          conditions={toothStates[n]}
-          onSurfaceClick={onToothClick}
-        />
-      ))}
+      {numbers.map(n => {
+        const state = toothStates[n];
+        return (
+          <div key={n} data-tooth={n} style={{ display: 'inline-flex' }}>
+            <Tooth
+              number={n}
+              isTemporary={isTemp}
+              arch={arch}
+              conditions={state?.surfaces}
+              toothCondition={state?.condition ?? 'none'}
+              onSurfaceClick={onToothClick}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -862,6 +1018,20 @@ const Odontogram2D: React.FC<{
           </>
         )}
       </div>
+
+      {/* Menú radial */}
+      {radialMenu?.visible && (
+        <RadialMenu
+          x={radialMenu.x}
+          y={radialMenu.y}
+          toothNumber={radialMenu.toothNum}
+          surface={radialMenu.surface}
+          onSelectSurface={onSurfaceChange}
+          onSelectTooth={onToothConditionChange}
+          onReset={onResetTooth}
+          onClose={() => onCloseMenu?.()}
+        />
+      )}
     </div>
   );
 };

@@ -1,10 +1,18 @@
-import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { MedicalHistoryForm } from "../modules/treatment/components/MedicalHistoryForm";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
 import { ProceduresTable } from "../modules/treatment/components/ProceduresTable";
+import {
+  type Surface,
+  type SurfaceCondition,
+  type ToothCondition,
+  type ToothState,
+  EMPTY_SURFACES,
+  EMPTY_TOOTH_STATE,
+} from "../modules/treatment/components/odontogram-types";
 
 type WizardStep = 1 | 2;
 
@@ -15,7 +23,7 @@ export function TreatmentWizard({ token }: { token: string; doctorId: string }) 
   const [cedula, setCedula] = useState("");
   const [patient, setPatient] = useState<any>(null);
   const [odontogramData, setOdontogramData] = useState<any>(null);
-  const [toothStates, setToothStates] = useState<Record<number, Record<string, string>>>({});
+  const [toothStates, setToothStates] = useState<Record<number, ToothState>>({});
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
@@ -49,22 +57,27 @@ export function TreatmentWizard({ token }: { token: string; doctorId: string }) 
     }).finally(() => setSearching(false));
   }
 
-  const handleToothSurfaceClick = (toothNum: number, surface: string) => {
+  const handleSurfaceChange = useCallback((toothNum: number, surface: Surface, cond: SurfaceCondition) => {
     setToothStates(prev => {
-      const currentTooth = prev[toothNum] || { O: 'none', V: 'none', L: 'none', M: 'none', D: 'none' };
-      const conditions = ['none', 'caries', 'restored', 'completed'];
-      const currentIdx = conditions.indexOf(currentTooth[surface] || 'none');
-      const nextCondition = conditions[(currentIdx + 1) % conditions.length];
-      
-      return {
-        ...prev,
-        [toothNum]: {
-          ...currentTooth,
-          [surface]: nextCondition
-        }
-      };
+      const current = prev[toothNum] ?? { ...EMPTY_TOOTH_STATE, surfaces: { ...EMPTY_SURFACES } };
+      return { ...prev, [toothNum]: { ...current, surfaces: { ...current.surfaces, [surface]: cond } } };
     });
-  };
+  }, []);
+
+  const handleToothConditionChange = useCallback((toothNum: number, cond: ToothCondition) => {
+    setToothStates(prev => {
+      const current = prev[toothNum] ?? { ...EMPTY_TOOTH_STATE, surfaces: { ...EMPTY_SURFACES } };
+      return { ...prev, [toothNum]: { ...current, condition: cond } };
+    });
+  }, []);
+
+  const handleResetTooth = useCallback((toothNum: number) => {
+    setToothStates(prev => {
+      const next = { ...prev };
+      delete next[toothNum];
+      return next;
+    });
+  }, []);
 
   return (
     <div className="wizard-container reveal-up">
@@ -148,7 +161,9 @@ export function TreatmentWizard({ token }: { token: string; doctorId: string }) 
                 </header>
                 <OdontogramChart 
                   toothStates={toothStates} 
-                  onToothClick={handleToothSurfaceClick} 
+                  onSurfaceChange={handleSurfaceChange}
+                  onToothConditionChange={handleToothConditionChange}
+                  onResetTooth={handleResetTooth}
                 />
               </article>
 

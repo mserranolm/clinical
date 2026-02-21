@@ -1,10 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
-
-type Surface = "O" | "V" | "L" | "M" | "D";
+import {
+    type Surface,
+    type SurfaceCondition,
+    type ToothCondition,
+    type ToothState,
+    EMPTY_SURFACES,
+    EMPTY_TOOTH_STATE,
+    deserializeToothState,
+    serializeToothState,
+} from "../modules/treatment/components/odontogram-types";
 
 type PatientData = {
   id: string;
@@ -80,7 +88,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   const [saving, setSaving] = useState(false);
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [history, setHistory] = useState<MedicalHistory>(EMPTY_HISTORY);
-  const [toothStates, setToothStates] = useState<Record<number, Record<Surface, string>>>({});
+  const [toothStates, setToothStates] = useState<Record<number, ToothState>>({});
   const [odontogramId, setOdontogramId] = useState<string | null>(null);
   const [evolutionNotes, setEvolutionNotes] = useState("");
   const [treatmentPlan, setTreatmentPlan] = useState("");
@@ -141,16 +149,9 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         const odn = odnResult.value as { id: string; teeth?: unknown[] };
         setOdontogramId(odn.id);
         if (Array.isArray(odn.teeth)) {
-          const states: Record<number, Record<Surface, string>> = {};
-          (odn.teeth as Array<{ toothNumber: number; surfaces?: Array<{ surface: string; condition: string }> }>).forEach(t => {
-            if (t.surfaces) {
-              const surfMap: Record<Surface, string> = { O: "none", V: "none", L: "none", M: "none", D: "none" };
-              t.surfaces.forEach(s => {
-                const surf = s.surface.charAt(0).toUpperCase() as Surface;
-                surfMap[surf] = s.condition === "caries" ? "caries" : s.condition === "filled" ? "restored" : "none";
-              });
-              states[t.toothNumber] = surfMap;
-            }
+          const states: Record<number, ToothState> = {};
+          (odn.teeth as Array<{ toothNumber: number; isPresent?: boolean; surfaces?: Array<{ surface: string; condition: string; severity?: number }>; generalNotes?: string }>).forEach(t => {
+            states[t.toothNumber] = deserializeToothState(t);
           });
           setToothStates(states);
         }
@@ -162,15 +163,39 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
     }
   }
 
-  function handleToothClick(toothNum: number, surface: Surface) {
+  const handleSurfaceChange = useCallback((toothNum: number, surface: Surface, cond: SurfaceCondition) => {
     if (isClosed) return;
     setToothStates(prev => {
-      const current = prev[toothNum] ?? { O: "none", V: "none", L: "none", M: "none", D: "none" };
-      const cycle = ["none", "caries", "restored", "completed"];
-      const idx = cycle.indexOf(current[surface] ?? "none");
-      return { ...prev, [toothNum]: { ...current, [surface]: cycle[(idx + 1) % cycle.length] } };
+      const current = prev[toothNum] ?? { ...EMPTY_TOOTH_STATE, surfaces: { ...EMPTY_SURFACES } };
+      return {
+        ...prev,
+        [toothNum]: {
+          ...current,
+          surfaces: { ...current.surfaces, [surface]: cond },
+        },
+      };
     });
-  }
+  }, [isClosed]);
+
+  const handleToothConditionChange = useCallback((toothNum: number, cond: ToothCondition) => {
+    if (isClosed) return;
+    setToothStates(prev => {
+      const current = prev[toothNum] ?? { ...EMPTY_TOOTH_STATE, surfaces: { ...EMPTY_SURFACES } };
+      return {
+        ...prev,
+        [toothNum]: { ...current, condition: cond },
+      };
+    });
+  }, [isClosed]);
+
+  const handleResetTooth = useCallback((toothNum: number) => {
+    if (isClosed) return;
+    setToothStates(prev => {
+      const next = { ...prev };
+      delete next[toothNum];
+      return next;
+    });
+  }, [isClosed]);
 
   async function saveHistoria() {
     if (!patient || isClosed) return;
@@ -196,7 +221,12 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         if (!currentId) throw new Error("El servidor no devolvió un ID de odontograma válido");
         setOdontogramId(currentId);
       }
-      await clinicalApi.updateOdontogramTeeth(currentId, toothStates, token);
+      await clinicalApi.updateOdontogramTeeth(
+        currentId,
+        toothStates,
+        token,
+        serializeToothState as unknown as (n: number, s: unknown) => { toothNumber: number; isPresent: boolean; surfaces: unknown[]; generalNotes?: string },
+      );
       notify.success("Odontograma guardado");
     } catch (err) {
       notify.error("Error guardando odontograma", err instanceof Error ? err.message : String(err));
@@ -500,22 +530,27 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         <div className="consulta-section card elite-card">
           <div className="consulta-section-header">
             <h3>Odontograma Dental</h3>
-            <div className="odon-legend-inline">
-              <span className="odon-dot" style={{ background: "white", border: "1.5px solid #334155" }} /> Sano
-              <span className="odon-dot" style={{ background: "#ef4444" }} /> Caries
-              <span className="odon-dot" style={{ background: "#3b82f6" }} /> Restaurado
-              <span className="odon-dot" style={{ background: "#10b981" }} /> Terminado
+            <div className="odn-legend-grid">
+              <span className="odn-legend-item"><span className="odn-legend-swatch" style={{ background: "#fff" }} /> Sano</span>
+              <span className="odn-legend-item"><span className="odn-legend-swatch" style={{ background: "#ef4444" }} /> Caries</span>
+              <span className="odn-legend-item"><span className="odn-legend-swatch" style={{ background: "#3b82f6" }} /> Restauración</span>
+              <span className="odn-legend-item"><span className="odn-legend-swatch" style={{ background: "#ef4444", border: "2px solid #dc2626" }} /> Indicado</span>
+              <span className="odn-legend-item"><span className="odn-legend-swatch" style={{ background: "#2563eb" }} /> Realizado</span>
+              <span className="odn-legend-item"><span className="odn-legend-swatch" style={{ background: "#94a3b8" }} /> Ausente</span>
             </div>
           </div>
           <p className="consulta-hint">
             {isClosed
               ? "Solo lectura — el odontograma de esta consulta no puede modificarse."
-              : "Haz clic en cada superficie del diente para marcar su condición. Cada clic cicla entre los estados."}
+              : "Haz clic en una superficie del diente para abrir el menú de condiciones."}
           </p>
 
           <OdontogramChart
             toothStates={toothStates}
-            onToothClick={isClosed ? undefined : handleToothClick}
+            onSurfaceChange={isClosed ? undefined : handleSurfaceChange}
+            onToothConditionChange={isClosed ? undefined : handleToothConditionChange}
+            onResetTooth={isClosed ? undefined : handleResetTooth}
+            readOnly={isClosed}
             patientAge={age}
           />
 

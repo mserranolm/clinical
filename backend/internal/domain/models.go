@@ -157,6 +157,8 @@ const (
 	ConditionEndodontic ToothCondition = "endodontic" // Endodoncia
 	ConditionFracture   ToothCondition = "fracture"   // Fracturado
 	ConditionMissing    ToothCondition = "missing"    // Ausente
+	ConditionSealant    ToothCondition = "sealant"    // Sellante
+	ConditionEruption   ToothCondition = "eruption"   // Erupción
 )
 
 type TreatmentCode string
