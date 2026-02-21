@@ -27,6 +27,14 @@ type AppointmentRepository interface {
 	ListByPatient(ctx context.Context, patientID string) ([]domain.Appointment, error)
 	Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error)
 	Delete(ctx context.Context, id string) error
+	ScanAllPayments(ctx context.Context) ([]PaymentSummary, error)
+	ScanOrgPayments(ctx context.Context, orgID string) ([]PaymentSummary, error)
+}
+
+type PaymentSummary struct {
+	OrgID         string
+	Status        string
+	PaymentAmount float64
 }
 
 type ConsentRepository interface {
@@ -320,6 +328,26 @@ func (r *memoryAppointmentRepo) Delete(_ context.Context, id string) error {
 	}
 	delete(r.items, id)
 	return nil
+}
+
+func (r *memoryAppointmentRepo) ScanAllPayments(_ context.Context) ([]PaymentSummary, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]PaymentSummary, 0, len(r.items))
+	for _, a := range r.items {
+		out = append(out, PaymentSummary{OrgID: "default", Status: a.Status, PaymentAmount: a.PaymentAmount})
+	}
+	return out, nil
+}
+
+func (r *memoryAppointmentRepo) ScanOrgPayments(_ context.Context, orgID string) ([]PaymentSummary, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]PaymentSummary, 0, len(r.items))
+	for _, a := range r.items {
+		out = append(out, PaymentSummary{OrgID: orgID, Status: a.Status, PaymentAmount: a.PaymentAmount})
+	}
+	return out, nil
 }
 
 type memoryConsentRepo struct {

@@ -294,13 +294,13 @@ export const clinicalApi = {
     ),
 
   getPlatformStats: (token: string) =>
-    request<{ totalOrgs: number; activeOrgs: number; totalUsers: number; totalAdmins: number; totalDoctors: number; totalAssistants: number; totalPatients: number; totalAppointments: number }>(
+    request<{ totalOrgs: number; activeOrgs: number; totalUsers: number; totalAdmins: number; totalDoctors: number; totalAssistants: number; totalPatients: number; totalConsultations: number; totalRevenue: number }>(
       "/platform/stats", { token }
     ),
 
-  getOrgStats: (orgId: string, token: string) =>
-    request<{ totalDoctors: number; totalAssistants: number; totalAdmins: number; totalUsers: number; totalPatients: number; maxDoctors: number; maxAssistants: number; maxPatients: number }>(
-      `/orgs/${orgId}/stats`, { token }
+  getOrgStats: (token: string) =>
+    request<{ totalDoctors: number; totalAssistants: number; totalAdmins: number; totalUsers: number; totalPatients: number; maxDoctors: number; maxAssistants: number; maxPatients: number; totalConsultations: number; totalRevenue: number; pendingRevenue: number }>(
+      "/org/stats", { token }
     ),
 
   getOrg: (orgId: string, token: string) =>

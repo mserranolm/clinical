@@ -56,7 +56,7 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
 
       // Try the new stats endpoint; fall back to counting from user list if not deployed yet
       try {
-        const statsRes = await clinicalApi.getOrgStats(orgId, token);
+        const statsRes = await clinicalApi.getOrgStats(token);
         setStats(statsRes);
       } catch {
         setStats(statsFromUsers(userList));

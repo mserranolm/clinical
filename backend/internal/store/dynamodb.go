@@ -697,6 +697,66 @@ func (r *dynamoAppointmentRepo) Update(ctx context.Context, appointment domain.A
 	return r.Create(ctx, appointment)
 }
 
+func (r *dynamoAppointmentRepo) ScanAllPayments(ctx context.Context) ([]PaymentSummary, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:                aws.String(r.tableName),
+		FilterExpression:         aws.String("begins_with(SK, :skPrefix) AND #st = :completed"),
+		ExpressionAttributeNames: map[string]string{"#st": "Status"},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":skPrefix":  &types.AttributeValueMemberS{Value: "APPOINTMENT#"},
+			":completed": &types.AttributeValueMemberS{Value: "completed"},
+		},
+		ProjectionExpression: aws.String("PK, #st, PaymentAmount"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]PaymentSummary, 0, len(result.Items))
+	for _, item := range result.Items {
+		var s PaymentSummary
+		if pk, ok := item["PK"].(*types.AttributeValueMemberS); ok {
+			s.OrgID = strings.TrimPrefix(pk.Value, "ORG#")
+		}
+		if st, ok := item["Status"].(*types.AttributeValueMemberS); ok {
+			s.Status = st.Value
+		}
+		if pa, ok := item["PaymentAmount"].(*types.AttributeValueMemberN); ok {
+			fmt.Sscanf(pa.Value, "%f", &s.PaymentAmount)
+		}
+		summaries = append(summaries, s)
+	}
+	return summaries, nil
+}
+
+func (r *dynamoAppointmentRepo) ScanOrgPayments(ctx context.Context, orgID string) ([]PaymentSummary, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:                aws.String(r.tableName),
+		FilterExpression:         aws.String("PK = :pk AND begins_with(SK, :skPrefix)"),
+		ExpressionAttributeNames: map[string]string{"#st": "Status"},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "APPOINTMENT#"},
+		},
+		ProjectionExpression: aws.String("PK, #st, PaymentAmount"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]PaymentSummary, 0, len(result.Items))
+	for _, item := range result.Items {
+		var s PaymentSummary
+		s.OrgID = orgID
+		if st, ok := item["Status"].(*types.AttributeValueMemberS); ok {
+			s.Status = st.Value
+		}
+		if pa, ok := item["PaymentAmount"].(*types.AttributeValueMemberN); ok {
+			fmt.Sscanf(pa.Value, "%f", &s.PaymentAmount)
+		}
+		summaries = append(summaries, s)
+	}
+	return summaries, nil
+}
+
 func (r *dynamoAppointmentRepo) Delete(ctx context.Context, id string) error {
 	orgID := orgIDOrDefault(ctx)
 	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{

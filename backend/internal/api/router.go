@@ -188,6 +188,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.getPlatformStats(actx)
 			}
+		case method == "GET" && path == "/org/stats":
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				auth := actx.Value(ctxAuthKey).(service.Authenticated)
+				resp, err = r.getOrgStats(actx, auth.User.OrgID)
+			}
 		case method == "GET" && path == "/platform/orgs":
 			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
 				resp, err = deny, nil

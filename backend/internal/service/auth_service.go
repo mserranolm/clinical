@@ -14,6 +14,7 @@ import (
 type AuthService struct {
 	repo            store.AuthRepository
 	patientRepo     store.PatientRepository
+	appointmentRepo store.AppointmentRepository
 	notifier        notifications.Notifier
 	frontendBaseURL string
 }
@@ -36,6 +37,10 @@ func WithFrontendBaseURL(url string) func(*AuthService) {
 
 func WithAuthPatientRepo(r store.PatientRepository) func(*AuthService) {
 	return func(s *AuthService) { s.patientRepo = r }
+}
+
+func WithAuthAppointmentRepo(r store.AppointmentRepository) func(*AuthService) {
+	return func(s *AuthService) { s.appointmentRepo = r }
 }
 
 type Authenticated struct {
@@ -465,26 +470,31 @@ func (s *AuthService) ListOrganizations(ctx context.Context) ([]OrganizationDTO,
 }
 
 type PlatformStatsDTO struct {
-	TotalOrgs         int `json:"totalOrgs"`
-	ActiveOrgs        int `json:"activeOrgs"`
-	TotalDoctors      int `json:"totalDoctors"`
-	TotalAssistants   int `json:"totalAssistants"`
-	TotalAdmins       int `json:"totalAdmins"`
-	TotalUsers        int `json:"totalUsers"`
-	TotalPatients     int `json:"totalPatients"`
-	TotalAppointments int `json:"totalAppointments"`
+	TotalOrgs          int     `json:"totalOrgs"`
+	ActiveOrgs         int     `json:"activeOrgs"`
+	TotalDoctors       int     `json:"totalDoctors"`
+	TotalAssistants    int     `json:"totalAssistants"`
+	TotalAdmins        int     `json:"totalAdmins"`
+	TotalUsers         int     `json:"totalUsers"`
+	TotalPatients      int     `json:"totalPatients"`
+	TotalAppointments  int     `json:"totalAppointments"`
+	TotalRevenue       float64 `json:"totalRevenue"`
+	TotalConsultations int     `json:"totalConsultations"`
 }
 
 // OrgStatsDTO holds stats scoped to a single organization
 type OrgStatsDTO struct {
-	TotalDoctors    int `json:"totalDoctors"`
-	TotalAssistants int `json:"totalAssistants"`
-	TotalAdmins     int `json:"totalAdmins"`
-	TotalUsers      int `json:"totalUsers"`
-	TotalPatients   int `json:"totalPatients"`
-	MaxDoctors      int `json:"maxDoctors"`
-	MaxAssistants   int `json:"maxAssistants"`
-	MaxPatients     int `json:"maxPatients"`
+	TotalDoctors       int     `json:"totalDoctors"`
+	TotalAssistants    int     `json:"totalAssistants"`
+	TotalAdmins        int     `json:"totalAdmins"`
+	TotalUsers         int     `json:"totalUsers"`
+	TotalPatients      int     `json:"totalPatients"`
+	MaxDoctors         int     `json:"maxDoctors"`
+	MaxAssistants      int     `json:"maxAssistants"`
+	MaxPatients        int     `json:"maxPatients"`
+	TotalRevenue       float64 `json:"totalRevenue"`
+	PendingRevenue     float64 `json:"pendingRevenue"`
+	TotalConsultations int     `json:"totalConsultations"`
 }
 
 // GetOrgStats returns stats for a specific org: user counts by role + real patient count.
@@ -512,7 +522,6 @@ func (s *AuthService) GetOrgStats(ctx context.Context, orgID string) (OrgStatsDT
 
 	// Count real patients from patient table filtered by orgID
 	if s.patientRepo != nil {
-		// ListByDoctor with empty doctorID returns all patients of the org (uses orgID from context)
 		orgCtx := store.ContextWithOrgID(ctx, orgID)
 		if patients, err := s.patientRepo.ListByDoctor(orgCtx, ""); err == nil {
 			stats.TotalPatients = len(patients)
@@ -524,6 +533,21 @@ func (s *AuthService) GetOrgStats(ctx context.Context, orgID string) (OrgStatsDT
 		stats.MaxDoctors = org.Limits.MaxDoctors
 		stats.MaxAssistants = org.Limits.MaxAssistants
 		stats.MaxPatients = org.Limits.MaxPatients
+	}
+
+	// Payment stats
+	if s.appointmentRepo != nil {
+		orgCtx := store.ContextWithOrgID(ctx, orgID)
+		if payments, err := s.appointmentRepo.ScanOrgPayments(orgCtx, orgID); err == nil {
+			for _, p := range payments {
+				stats.TotalConsultations++
+				if p.Status == "completed" {
+					stats.TotalRevenue += p.PaymentAmount
+				} else if p.Status != "cancelled" {
+					stats.PendingRevenue += p.PaymentAmount
+				}
+			}
+		}
 	}
 
 	return stats, nil
@@ -561,6 +585,15 @@ func (s *AuthService) GetPlatformStats(ctx context.Context) (PlatformStatsDTO, e
 	if s.patientRepo != nil {
 		if patients, err := s.patientRepo.ListAll(ctx); err == nil {
 			stats.TotalPatients = len(patients)
+		}
+	}
+	// Payment stats across all orgs
+	if s.appointmentRepo != nil {
+		if payments, err := s.appointmentRepo.ScanAllPayments(ctx); err == nil {
+			for _, p := range payments {
+				stats.TotalConsultations++
+				stats.TotalRevenue += p.PaymentAmount
+			}
 		}
 	}
 	return stats, nil

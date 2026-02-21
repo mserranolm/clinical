@@ -12,7 +12,8 @@ type Org = {
 type Stats = {
   totalOrgs: number; activeOrgs: number; totalDoctors: number;
   totalAssistants: number; totalAdmins: number; totalUsers: number;
-  totalPatients: number; totalAppointments: number;
+  totalPatients: number; totalAppointments?: number;
+  totalConsultations: number; totalRevenue: number;
 };
 
 const EMPTY_FORM = {
@@ -179,10 +180,17 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
             <StatCard value={stats.totalOrgs} label="Organizaciones" color="#ede9fe" icon="🏥" />
             <StatCard value={stats.activeOrgs} label="Activas" color="#d1fae5" icon="✅" />
-            <StatCard value={stats.totalAdmins} label="Admins de org" color="#fef3c7" icon="👤" />
             <StatCard value={stats.totalDoctors} label="Doctores" color="#dbeafe" icon="🩺" />
-            <StatCard value={stats.totalAssistants} label="Asistentes" color="#f0fdf4" icon="🧑‍⚕️" />
+            <StatCard value={stats.totalAssistants} label="Asistentes" color="#f0fdf4" icon="�‍⚕️" />
             <StatCard value={stats.totalPatients} label="Pacientes" color="#fce7f3" icon="🧑" />
+            <StatCard value={stats.totalConsultations ?? 0} label="Consultas finalizadas" color="#fef9c3" icon="📋" />
+            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", gridColumn: "span 2" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>💰</div>
+              <div>
+                <div style={{ fontSize: "1.75rem", fontWeight: 800, lineHeight: 1, color: "#10b981" }}>${(stats.totalRevenue ?? 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: 2 }}>Ingresos totales (todas las orgs)</div>
+              </div>
+            </div>
           </div>
         </div>
       )}

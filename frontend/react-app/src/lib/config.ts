@@ -24,6 +24,8 @@ export const endpointCatalog = {
   confirmAppointment: (appointmentId: string) => `/appointments/${appointmentId}/confirm`,
   closeAppointmentDay: (appointmentId: string) => `/appointments/${appointmentId}/close-day`,
   appointmentUploadUrl: (appointmentId: string) => `/appointments/${appointmentId}/upload-url`,
+  platformStats: "/platform/stats",
+  orgStats: "/org/stats",
   createConsent: "/consents",
   verifyConsent: (consentId: string) => `/consents/verify/${consentId}`,
   createOdontogram: "/odontograms",

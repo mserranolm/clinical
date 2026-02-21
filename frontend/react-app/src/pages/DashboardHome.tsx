@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthSession } from "../types";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
-import { canManageTreatments, canWriteAppointments } from "../lib/rbac";
+import { canManageTreatments, canWriteAppointments, isPlatformAdmin, isOrgAdmin } from "../lib/rbac";
 import { Modal } from "../components/Modal";
 
 const TIME_SLOTS = [
@@ -51,6 +51,20 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
   const [editTime, setEditTime] = useState("");
   const [editDuration, setEditDuration] = useState(30);
   const [saving, setSaving] = useState(false);
+  const [platformStats, setPlatformStats] = useState<{ totalRevenue: number; totalConsultations: number } | null>(null);
+  const [orgStats, setOrgStats] = useState<{ totalRevenue: number; pendingRevenue: number; totalConsultations: number } | null>(null);
+
+  useEffect(() => {
+    if (isPlatformAdmin(user)) {
+      clinicalApi.getPlatformStats(user.token)
+        .then(s => setPlatformStats({ totalRevenue: s.totalRevenue, totalConsultations: s.totalConsultations }))
+        .catch(() => {});
+    } else if (isOrgAdmin(user)) {
+      clinicalApi.getOrgStats(user.token)
+        .then(s => setOrgStats({ totalRevenue: s.totalRevenue, pendingRevenue: s.pendingRevenue, totalConsultations: s.totalConsultations }))
+        .catch(() => {});
+    }
+  }, [user.token, user.role]);
 
   function openEdit(row: AppointmentRow) {
     const d = new Date(row.startAt);
@@ -179,6 +193,49 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
           </article>
         ))}
       </div>
+
+      {/* KPIs de pagos — solo superadmin ve totales de todas las orgs */}
+      {isPlatformAdmin(user) && platformStats && (
+        <div className="stats-grid" style={{ marginTop: 12 }}>
+          <article className="stat-card elite-card" style={{ borderLeft: "4px solid #10b981" }}>
+            <small>💰 Ingresos totales (plataforma)</small>
+            <h3 style={{ color: "#10b981" }}>
+              ${platformStats.totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+            <span>Todas las organizaciones</span>
+          </article>
+          <article className="stat-card elite-card">
+            <small>📋 Consultas finalizadas</small>
+            <h3>{platformStats.totalConsultations}</h3>
+            <span>En toda la plataforma</span>
+          </article>
+        </div>
+      )}
+
+      {/* KPIs de pagos — admin de org ve cobrado vs pendiente de su org */}
+      {isOrgAdmin(user) && orgStats && (
+        <div className="stats-grid" style={{ marginTop: 12 }}>
+          <article className="stat-card elite-card" style={{ borderLeft: "4px solid #10b981" }}>
+            <small>💰 Ingresos cobrados</small>
+            <h3 style={{ color: "#10b981" }}>
+              ${orgStats.totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+            <span>Consultas finalizadas</span>
+          </article>
+          <article className="stat-card elite-card" style={{ borderLeft: "4px solid #f59e0b" }}>
+            <small>⏳ Monto pendiente</small>
+            <h3 style={{ color: "#f59e0b" }}>
+              ${orgStats.pendingRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+            <span>Citas no finalizadas</span>
+          </article>
+          <article className="stat-card elite-card">
+            <small>📋 Total consultas</small>
+            <h3>{orgStats.totalConsultations}</h3>
+            <span>Registradas en la org</span>
+          </article>
+        </div>
+      )}
 
       {showPatientsBreakdown ? (
         <article className="card elite-card" style={{ marginBottom: 24 }}>

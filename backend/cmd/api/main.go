@@ -84,6 +84,7 @@ func main() {
 		service.WithNotifier(notifier),
 		service.WithFrontendBaseURL(cfg.FrontendBaseURL),
 		service.WithAuthPatientRepo(repos.Patients),
+		service.WithAuthAppointmentRepo(repos.Appointments),
 	)
 
 	// Create odontogram services
