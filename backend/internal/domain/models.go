@@ -62,6 +62,7 @@ func (c ConsentSummary) AllAccepted() bool { return c.Total > 0 && c.Accepted >=
 
 type Consent struct {
 	ID             string     `json:"id"`
+	OrgID          string     `json:"orgId,omitempty"` // interno: para persistir en la org correcta (aceptación pública)
 	PatientID      string     `json:"patientId"`
 	DoctorID       string     `json:"doctorId"`
 	AppointmentID  string     `json:"appointmentId,omitempty"`

@@ -810,7 +810,10 @@ type dynamoConsentRepo struct {
 }
 
 func (r *dynamoConsentRepo) Create(ctx context.Context, consent domain.Consent) (domain.Consent, error) {
-	orgID := orgIDOrDefault(ctx)
+	orgID := strings.TrimSpace(consent.OrgID)
+	if orgID == "" {
+		orgID = orgIDOrDefault(ctx)
+	}
 	item := map[string]types.AttributeValue{
 		"PK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
 		"SK":             &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", consent.ID)},
@@ -840,9 +843,10 @@ func (r *dynamoConsentRepo) Create(ctx context.Context, consent domain.Consent) 
 }
 
 func (r *dynamoConsentRepo) Update(ctx context.Context, consent domain.Consent) (domain.Consent, error) {
-	_, err := r.GetByID(ctx, consent.ID)
-	if err != nil {
-		return domain.Consent{}, err
+	if strings.TrimSpace(consent.OrgID) == "" {
+		if _, err := r.GetByID(ctx, consent.ID); err != nil {
+			return domain.Consent{}, err
+		}
 	}
 	return r.Create(ctx, consent)
 }
@@ -872,23 +876,41 @@ func (r *dynamoConsentRepo) GetByToken(ctx context.Context, token string) (domai
 	// Enlace público (aceptar consentimiento desde el correo): no hay org en contexto.
 	// Buscar solo por token en toda la tabla para que el link funcione.
 	if strings.TrimSpace(orgID) == "" || orgID == "default" {
-		result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
-			TableName:        aws.String(r.tableName),
-			FilterExpression: aws.String("begins_with(SK, :skPrefix) AND AcceptToken = :token"),
-			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT#"},
-				":token":    &types.AttributeValueMemberS{Value: token},
-			},
-		})
-		if err != nil {
-			return domain.Consent{}, err
+		var lastKey map[string]types.AttributeValue
+		for {
+			scanInput := &dynamodb.ScanInput{
+				TableName:        aws.String(r.tableName),
+				FilterExpression: aws.String("begins_with(SK, :skPrefix) AND AcceptToken = :token"),
+				ExpressionAttributeValues: map[string]types.AttributeValue{
+					":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT#"},
+					":token":    &types.AttributeValueMemberS{Value: token},
+				},
+			}
+			if lastKey != nil {
+				scanInput.ExclusiveStartKey = lastKey
+			}
+			result, err := r.client.Scan(ctx, scanInput)
+			if err != nil {
+				return domain.Consent{}, err
+			}
+			for _, item := range result.Items {
+				var consent domain.Consent
+				if err := attributevalue.UnmarshalMap(item, &consent); err != nil {
+					continue
+				}
+				if consent.AcceptToken == token {
+					if pk, ok := item["PK"].(*types.AttributeValueMemberS); ok && pk.Value != "" {
+						consent.OrgID = strings.TrimPrefix(pk.Value, "ORG#")
+					}
+					return consent, nil
+				}
+			}
+			lastKey = result.LastEvaluatedKey
+			if lastKey == nil {
+				break
+			}
 		}
-		if len(result.Items) == 0 {
-			return domain.Consent{}, fmt.Errorf("consent not found")
-		}
-		var consent domain.Consent
-		err = attributevalue.UnmarshalMap(result.Items[0], &consent)
-		return consent, err
+		return domain.Consent{}, fmt.Errorf("consent not found")
 	}
 	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),

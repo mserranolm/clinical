@@ -1045,8 +1045,9 @@ func (r *Router) publicAcceptConsent(ctx context.Context, token string) (events.
 	if err != nil {
 		return response(400, map[string]string{"error": err.Error()})
 	}
-	// Also confirm the appointment if linked
-	if consent.AppointmentID != "" {
+	// Also confirm the appointment if linked (con contexto de org para persistir en la correcta)
+	if consent.AppointmentID != "" && consent.OrgID != "" {
+		ctx = store.ContextWithOrgID(ctx, consent.OrgID)
 		_, _ = r.appointments.Confirm(ctx, consent.AppointmentID)
 	}
 	return response(200, map[string]interface{}{
