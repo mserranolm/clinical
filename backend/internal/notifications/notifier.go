@@ -29,6 +29,7 @@ type Notifier interface {
 	SendInvitation(ctx context.Context, toEmail, inviteURL, role, tempPassword string) error
 	SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error
 	SendAppointmentEvent(ctx context.Context, toEmail, patientName, eventType string, startAt, endAt time.Time) error
+	SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentToken string) error
 	SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error
 	SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error
 }
@@ -102,6 +103,75 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 	}
 	log.Printf("[notify:appointment] patient=%s channel=%s message=%s", patientID, channel, message)
 	return nil
+}
+
+func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentToken string) error {
+	frontendBase := os.Getenv("FRONTEND_BASE_URL")
+	if frontendBase == "" {
+		frontendBase = "https://clinisense.aski-tech.net"
+	}
+	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
+	subject := "CliniSense — Tu cita ha sido agendada"
+	var body string
+	if consentToken != "" {
+		consentURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, consentToken)
+		body = fmt.Sprintf(
+			"Hola %s,\n\n"+
+				"Tu cita ha sido agendada para el %s a las %s.\n\n"+
+				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+				"PASO 1 — Confirma tu cita:\n\n"+
+				"   %s\n\n"+
+				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+				"PASO 2 — Firma el consentimiento informado:\n\n"+
+				"   %s\n\n"+
+				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
+				"Si no puedes hacer clic en los enlaces, cópialos y pégalos en tu navegador.\n\n"+
+				"CliniSense",
+			patientName,
+			appt.StartAt.Format("02/01/2006"),
+			appt.StartAt.Format("15:04"),
+			confirmURL,
+			consentURL,
+		)
+	} else {
+		body = fmt.Sprintf(
+			"Hola %s,\n\n"+
+				"Tu cita ha sido agendada para el %s a las %s.\n\n"+
+				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+				"Para CONFIRMAR tu cita haz clic aquí:\n\n"+
+				"   %s\n\n"+
+				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
+				"Si no puedes hacer clic, copia y pega el enlace en tu navegador.\n\n"+
+				"CliniSense",
+			patientName,
+			appt.StartAt.Format("02/01/2006"),
+			appt.StartAt.Format("15:04"),
+			confirmURL,
+		)
+	}
+	log.Printf("[notify:appointment-created] to=%s appointmentId=%s confirmToken=%s consentToken=%s", toEmail, appt.ID, appt.ConfirmToken, consentToken)
+	if !r.sendEmail || r.ses == nil {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = os.Getenv("SES_SENDER_EMAIL")
+	}
+	if sender == "" {
+		sender = "no-reply@clinisense.aski-tech.net"
+	}
+	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(sender),
+		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
+		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+			Subject: &sestypes.Content{Data: aws.String(subject)},
+			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body)}},
+		}},
+	})
+	if err != nil {
+		log.Printf("[notify:appointment-created] ses send failed: %v", err)
+	}
+	return err
 }
 
 func (r *Router) SendConsentRequest(_ context.Context, patientID, channel, message string) error {

@@ -42,6 +42,7 @@ type Appointment struct {
 	PaymentAmount       float64    `json:"paymentAmount"`
 	PaymentMethod       string     `json:"paymentMethod"`
 	PaymentPaid         bool       `json:"paymentPaid"`
+	ConfirmToken        string     `json:"confirmToken,omitempty"`
 	ImageKeys           []string   `json:"imageKeys,omitempty"`
 	ReminderSentAt      *time.Time `json:"reminderSentAt,omitempty"`
 	PatientConfirmedAt  *time.Time `json:"patientConfirmedAt,omitempty"`

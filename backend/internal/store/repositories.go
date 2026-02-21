@@ -23,6 +23,7 @@ type PatientRepository interface {
 type AppointmentRepository interface {
 	Create(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error)
 	GetByID(ctx context.Context, id string) (domain.Appointment, error)
+	GetByConfirmToken(ctx context.Context, token string) (domain.Appointment, error)
 	ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error)
 	ListByPatient(ctx context.Context, patientID string) ([]domain.Appointment, error)
 	Update(ctx context.Context, appointment domain.Appointment) (domain.Appointment, error)
@@ -291,6 +292,17 @@ func (r *memoryAppointmentRepo) GetByID(_ context.Context, id string) (domain.Ap
 		return domain.Appointment{}, fmt.Errorf("appointment not found")
 	}
 	return item, nil
+}
+
+func (r *memoryAppointmentRepo) GetByConfirmToken(_ context.Context, token string) (domain.Appointment, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, item := range r.items {
+		if item.ConfirmToken == token {
+			return item, nil
+		}
+	}
+	return domain.Appointment{}, fmt.Errorf("appointment not found")
 }
 
 func (r *memoryAppointmentRepo) ListByDoctorAndDay(_ context.Context, doctorID string, day time.Time) ([]domain.Appointment, error) {

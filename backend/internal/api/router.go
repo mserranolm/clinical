@@ -93,6 +93,9 @@ func isPublicEndpoint(method, path string) bool {
 	if method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept") {
 		return true
 	}
+	if method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/confirm") {
+		return true
+	}
 	return false
 }
 
@@ -435,6 +438,10 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 		case method == "GET" && strings.HasPrefix(path, "/consents/verify/"):
 			token := strings.TrimPrefix(path, "/consents/verify/")
 			resp, err = r.acceptConsent(ctx, token)
+		// Public appointment confirm endpoint (no API key required — called from email link)
+		case method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/confirm"):
+			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/appointments/"), "/confirm")
+			resp, err = r.publicConfirmAppointment(ctx, token)
 		// Public consent accept endpoint (no API key required — called from email link)
 		case method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept"):
 			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/consents/"), "/accept")
@@ -1041,6 +1048,19 @@ func (r *Router) publicAcceptConsent(ctx context.Context, token string) (events.
 		"status":        "accepted",
 		"appointmentId": consent.AppointmentID,
 		"title":         consent.Title,
+	})
+}
+
+// publicConfirmAppointment is called from the email link — no auth required
+func (r *Router) publicConfirmAppointment(ctx context.Context, token string) (events.APIGatewayV2HTTPResponse, error) {
+	appt, err := r.appointments.ConfirmByToken(ctx, token)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{
+		"status":        "confirmed",
+		"appointmentId": appt.ID,
+		"startAt":       appt.StartAt,
 	})
 }
 

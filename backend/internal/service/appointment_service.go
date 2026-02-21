@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -109,6 +111,7 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 		}
 	}
 
+	confirmToken, _ := generateAppointmentToken()
 	appt := domain.Appointment{
 		ID:              buildID("apt"),
 		DoctorID:        in.DoctorID,
@@ -120,6 +123,7 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 		TreatmentPlan:   in.TreatmentPlan,
 		PaymentAmount:   in.PaymentAmount,
 		PaymentMethod:   in.PaymentMethod,
+		ConfirmToken:    confirmToken,
 	}
 	created, err := s.repo.Create(ctx, appt)
 	if err != nil {
@@ -127,11 +131,14 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	}
 	if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
 		if s.notifier != nil {
-			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "created", created.StartAt.In(loc), created.EndAt.In(loc))
-		}
-		if s.consents != nil {
 			orgID := store.OrgIDFromContext(ctx)
-			_, _ = s.consents.CreateForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc))
+			var consentToken string
+			if s.consents != nil {
+				if c, cerr := s.consents.CreateForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc)); cerr == nil && c.AcceptToken != "" {
+					consentToken = c.AcceptToken
+				}
+			}
+			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, consentToken)
 		}
 	}
 	return created, nil
@@ -346,4 +353,26 @@ func (s *AppointmentService) RegisterPayment(ctx context.Context, id string, in 
 		appt.Status = "completed"
 	}
 	return s.repo.Update(ctx, appt)
+}
+
+func (s *AppointmentService) ConfirmByToken(ctx context.Context, token string) (domain.Appointment, error) {
+	appt, err := s.repo.GetByConfirmToken(ctx, token)
+	if err != nil {
+		return domain.Appointment{}, fmt.Errorf("enlace inválido o expirado")
+	}
+	if appt.Status == "confirmed" || appt.Status == "completed" {
+		return appt, nil // idempotent
+	}
+	now := time.Now().UTC()
+	appt.Status = "confirmed"
+	appt.PatientConfirmedAt = &now
+	return s.repo.Update(ctx, appt)
+}
+
+func generateAppointmentToken() (string, error) {
+	b := make([]byte, 20)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

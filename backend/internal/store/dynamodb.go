@@ -571,6 +571,7 @@ func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.A
 		"PaymentAmount":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%.2f", appointment.PaymentAmount)},
 		"PaymentMethod":   &types.AttributeValueMemberS{Value: appointment.PaymentMethod},
 		"PaymentPaid":     &types.AttributeValueMemberBOOL{Value: appointment.PaymentPaid},
+		"ConfirmToken":    &types.AttributeValueMemberS{Value: appointment.ConfirmToken},
 	}
 
 	// Handle optional time fields
@@ -624,6 +625,27 @@ func (r *dynamoAppointmentRepo) GetByID(ctx context.Context, id string) (domain.
 	}
 
 	return appointment, nil
+}
+
+func (r *dynamoAppointmentRepo) GetByConfirmToken(ctx context.Context, token string) (domain.Appointment, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("ConfirmToken = :token"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":token": &types.AttributeValueMemberS{Value: token},
+		},
+	})
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if len(result.Items) == 0 {
+		return domain.Appointment{}, fmt.Errorf("appointment not found")
+	}
+	var appt domain.Appointment
+	if err := attributevalue.UnmarshalMap(result.Items[0], &appt); err != nil {
+		return domain.Appointment{}, err
+	}
+	return appt, nil
 }
 
 func (r *dynamoAppointmentRepo) ListByDoctorAndDay(ctx context.Context, doctorID string, day time.Time) ([]domain.Appointment, error) {
