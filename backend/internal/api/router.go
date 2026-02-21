@@ -90,6 +90,9 @@ func isPublicEndpoint(method, path string) bool {
 	if method == "POST" && path == "/platform/bootstrap" {
 		return true
 	}
+	if method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept") {
+		return true
+	}
 	return false
 }
 
@@ -148,6 +151,10 @@ func (r *Router) registerPayment(ctx context.Context, id string, req events.APIG
 
 func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler) *Router {
 	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram}
+}
+
+func (r *Router) isPublicConsentAccept(method, path string) bool {
+	return method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept")
 }
 
 // logResponse logs the response details and returns the response
@@ -426,9 +433,39 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = r.createConsent(actx, req)
 			}
 		case method == "GET" && strings.HasPrefix(path, "/consents/verify/"):
-			// Public verification link
 			token := strings.TrimPrefix(path, "/consents/verify/")
 			resp, err = r.acceptConsent(ctx, token)
+		// Public consent accept endpoint (no API key required — called from email link)
+		case method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept"):
+			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/consents/"), "/accept")
+			resp, err = r.publicAcceptConsent(ctx, token)
+		// Consent template endpoints (admin only)
+		case method == "GET" && path == "/consent-templates":
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.listConsentTemplates(actx, req)
+			}
+		case method == "POST" && path == "/consent-templates":
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.createConsentTemplate(actx, req)
+			}
+		case method == "PUT" && strings.HasPrefix(path, "/consent-templates/"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/consent-templates/")
+				resp, err = r.updateConsentTemplate(actx, id, req)
+			}
+		case method == "GET" && strings.HasPrefix(path, "/consent-templates/"):
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/consent-templates/")
+				resp, err = r.getConsentTemplate(actx, id)
+			}
 		case method == "POST" && strings.HasPrefix(path, "/odontograms"):
 			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
 				resp, err = deny, nil
@@ -942,6 +979,69 @@ func (r *Router) sendDoctorEndDayReminder(ctx context.Context, doctorID string, 
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]string{"status": "doctor_reminder_sent"})
+}
+
+// ── Consent template handlers ─────────────────────────────────────────────
+
+func (r *Router) listConsentTemplates(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
+	items, err := r.consents.ListTemplates(ctx, auth.User.OrgID)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{"items": items})
+}
+
+func (r *Router) createConsentTemplate(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
+	var in service.CreateConsentTemplateInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	in.OrgID = auth.User.OrgID
+	in.CreatedBy = auth.User.ID
+	tmpl, err := r.consents.CreateTemplate(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, tmpl)
+}
+
+func (r *Router) updateConsentTemplate(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var in service.UpdateConsentTemplateInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	tmpl, err := r.consents.UpdateTemplate(ctx, id, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, tmpl)
+}
+
+func (r *Router) getConsentTemplate(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
+	tmpl, err := r.consents.GetTemplate(ctx, id)
+	if err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, tmpl)
+}
+
+// publicAcceptConsent is called from the email link — no auth required
+func (r *Router) publicAcceptConsent(ctx context.Context, token string) (events.APIGatewayV2HTTPResponse, error) {
+	consent, err := r.consents.AcceptByToken(ctx, token)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	// Also confirm the appointment if linked
+	if consent.AppointmentID != "" {
+		_, _ = r.appointments.Confirm(ctx, consent.AppointmentID)
+	}
+	return response(200, map[string]interface{}{
+		"status":        "accepted",
+		"appointmentId": consent.AppointmentID,
+		"title":         consent.Title,
+	})
 }
 
 func response(code int, payload any) (events.APIGatewayV2HTTPResponse, error) {

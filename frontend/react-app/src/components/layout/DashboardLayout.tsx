@@ -10,6 +10,7 @@ import { Topbar } from "./Topbar";
 import { ServiceTester } from "../../modules/testing/ServiceTester";
 import { AppointmentsPage } from "../../pages/AppointmentsPage";
 import { ConsentsPage } from "../../pages/ConsentsPage";
+import { ConsentTemplatesPage } from "../../pages/ConsentTemplatesPage";
 import { DashboardHome } from "../../pages/DashboardHome";
 import { OdontogramPage } from "../../pages/OdontogramPage";
 import { PatientsPage } from "../../pages/PatientsPage";
@@ -52,6 +53,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     { to: "/dashboard/pacientes", label: "Pacientes" },
     { to: "/dashboard/citas", label: "Agenda Médica" },
     { to: "/dashboard/consentimientos", label: "Documentos" },
+    { to: "/dashboard/plantillas-consentimiento", label: "Plantillas Consentimiento" },
     { to: "/dashboard/odontograma", label: "Odontograma" },
     { to: "/dashboard/planes", label: "Tratamientos" },
     { to: "/dashboard/testing", label: "Service Tester" },
@@ -153,6 +155,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={scopedDoctorId} />} />
+            <Route path="plantillas-consentimiento" element={<ConsentTemplatesPage token={session.token} />} />
             <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="planes" element={<PlansPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="usuarios" element={<UsersAdminPage session={session} />} />

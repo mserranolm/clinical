@@ -17,6 +17,7 @@ type AppointmentService struct {
 	patientRepo store.PatientRepository
 	authRepo    store.AuthRepository
 	notifier    notifications.Notifier
+	consents    *ConsentService
 }
 
 func NewAppointmentService(repo store.AppointmentRepository, notifier notifications.Notifier, opts ...func(*AppointmentService)) *AppointmentService {
@@ -33,6 +34,10 @@ func WithPatientRepo(r store.PatientRepository) func(*AppointmentService) {
 
 func WithAuthRepo(r store.AuthRepository) func(*AppointmentService) {
 	return func(s *AppointmentService) { s.authRepo = r }
+}
+
+func WithConsentService(cs *ConsentService) func(*AppointmentService) {
+	return func(s *AppointmentService) { s.consents = cs }
 }
 
 func (s *AppointmentService) patientEmail(ctx context.Context, patientID string) (email, name string) {
@@ -120,8 +125,11 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	if err != nil {
 		return domain.Appointment{}, err
 	}
-	if s.notifier != nil {
-		if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
+	if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
+		if s.consents != nil {
+			orgID := store.OrgIDFromContext(ctx)
+			_, _ = s.consents.CreateForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc))
+		} else if s.notifier != nil {
 			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "created", created.StartAt.In(loc), created.EndAt.In(loc))
 		}
 	}

@@ -41,6 +41,16 @@ type ConsentRepository interface {
 	Create(ctx context.Context, consent domain.Consent) (domain.Consent, error)
 	Update(ctx context.Context, consent domain.Consent) (domain.Consent, error)
 	GetByID(ctx context.Context, id string) (domain.Consent, error)
+	GetByToken(ctx context.Context, token string) (domain.Consent, error)
+	GetByAppointmentID(ctx context.Context, appointmentID string) (domain.Consent, error)
+}
+
+type ConsentTemplateRepository interface {
+	Create(ctx context.Context, t domain.ConsentTemplate) (domain.ConsentTemplate, error)
+	Update(ctx context.Context, t domain.ConsentTemplate) (domain.ConsentTemplate, error)
+	GetByID(ctx context.Context, id string) (domain.ConsentTemplate, error)
+	ListByOrg(ctx context.Context, orgID string) ([]domain.ConsentTemplate, error)
+	GetActiveByOrg(ctx context.Context, orgID string) (domain.ConsentTemplate, error)
 }
 
 type AuthUser struct {
@@ -154,22 +164,24 @@ type TreatmentPlanRepository interface {
 }
 
 type InMemoryRepositories struct {
-	Patients       PatientRepository
-	Appointments   AppointmentRepository
-	Consents       ConsentRepository
-	Users          AuthRepository
-	Odontograms    OdontogramRepository
-	TreatmentPlans TreatmentPlanRepository
+	Patients         PatientRepository
+	Appointments     AppointmentRepository
+	Consents         ConsentRepository
+	ConsentTemplates ConsentTemplateRepository
+	Users            AuthRepository
+	Odontograms      OdontogramRepository
+	TreatmentPlans   TreatmentPlanRepository
 }
 
 func NewInMemoryRepositories() *InMemoryRepositories {
 	return &InMemoryRepositories{
-		Patients:       &memoryPatientRepo{items: map[string]domain.Patient{}},
-		Appointments:   &memoryAppointmentRepo{items: map[string]domain.Appointment{}},
-		Consents:       &memoryConsentRepo{items: map[string]domain.Consent{}},
-		Users:          &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, usersByOrg: map[string]map[string]struct{}{}, sessions: map[string]AuthSession{}, invitations: map[string]UserInvitation{}, resetTokens: map[string]PasswordResetToken{}, orgs: map[string]Organization{}},
-		Odontograms:    &memoryOdontogramRepo{items: map[string]domain.Odontogram{}, byPatient: map[string]string{}},
-		TreatmentPlans: &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
+		Patients:         &memoryPatientRepo{items: map[string]domain.Patient{}},
+		Appointments:     &memoryAppointmentRepo{items: map[string]domain.Appointment{}},
+		Consents:         &memoryConsentRepo{items: map[string]domain.Consent{}},
+		ConsentTemplates: &memoryConsentTemplateRepo{items: map[string]domain.ConsentTemplate{}},
+		Users:            &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, usersByOrg: map[string]map[string]struct{}{}, sessions: map[string]AuthSession{}, invitations: map[string]UserInvitation{}, resetTokens: map[string]PasswordResetToken{}, orgs: map[string]Organization{}},
+		Odontograms:      &memoryOdontogramRepo{items: map[string]domain.Odontogram{}, byPatient: map[string]string{}},
+		TreatmentPlans:   &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
 	}
 }
 
@@ -381,6 +393,84 @@ func (r *memoryConsentRepo) GetByID(_ context.Context, id string) (domain.Consen
 		return domain.Consent{}, fmt.Errorf("consent not found")
 	}
 	return item, nil
+}
+
+func (r *memoryConsentRepo) GetByToken(_ context.Context, token string) (domain.Consent, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, item := range r.items {
+		if item.AcceptToken == token {
+			return item, nil
+		}
+	}
+	return domain.Consent{}, fmt.Errorf("consent not found")
+}
+
+func (r *memoryConsentRepo) GetByAppointmentID(_ context.Context, appointmentID string) (domain.Consent, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, item := range r.items {
+		if item.AppointmentID == appointmentID {
+			return item, nil
+		}
+	}
+	return domain.Consent{}, fmt.Errorf("consent not found")
+}
+
+// In-memory consent template repository
+type memoryConsentTemplateRepo struct {
+	mu    sync.RWMutex
+	items map[string]domain.ConsentTemplate
+}
+
+func (r *memoryConsentTemplateRepo) Create(_ context.Context, t domain.ConsentTemplate) (domain.ConsentTemplate, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.items[t.ID] = t
+	return t, nil
+}
+
+func (r *memoryConsentTemplateRepo) Update(_ context.Context, t domain.ConsentTemplate) (domain.ConsentTemplate, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.items[t.ID]; !ok {
+		return domain.ConsentTemplate{}, fmt.Errorf("consent template not found")
+	}
+	r.items[t.ID] = t
+	return t, nil
+}
+
+func (r *memoryConsentTemplateRepo) GetByID(_ context.Context, id string) (domain.ConsentTemplate, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	item, ok := r.items[id]
+	if !ok {
+		return domain.ConsentTemplate{}, fmt.Errorf("consent template not found")
+	}
+	return item, nil
+}
+
+func (r *memoryConsentTemplateRepo) ListByOrg(_ context.Context, orgID string) ([]domain.ConsentTemplate, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.ConsentTemplate
+	for _, item := range r.items {
+		if item.OrgID == orgID {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (r *memoryConsentTemplateRepo) GetActiveByOrg(_ context.Context, orgID string) (domain.ConsentTemplate, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, item := range r.items {
+		if item.OrgID == orgID && item.IsActive {
+			return item, nil
+		}
+	}
+	return domain.ConsentTemplate{}, fmt.Errorf("no active consent template found")
 }
 
 type memoryAuthRepo struct {

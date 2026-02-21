@@ -52,12 +52,27 @@ type Consent struct {
 	ID             string     `json:"id"`
 	PatientID      string     `json:"patientId"`
 	DoctorID       string     `json:"doctorId"`
+	AppointmentID  string     `json:"appointmentId,omitempty"`
+	TemplateID     string     `json:"templateId,omitempty"`
 	Title          string     `json:"title"`
 	Content        string     `json:"content"`
 	DeliveryMethod string     `json:"deliveryMethod"`
 	Status         string     `json:"status"`
+	AcceptToken    string     `json:"acceptToken,omitempty"`
 	AcceptedAt     *time.Time `json:"acceptedAt,omitempty"`
 	CreatedAt      time.Time  `json:"createdAt"`
+}
+
+// ConsentTemplate is a reusable consent template managed by org admins
+type ConsentTemplate struct {
+	ID        string    `json:"id"`
+	OrgID     string    `json:"orgId"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	IsActive  bool      `json:"isActive"`
+	CreatedBy string    `json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // Odontograma Digital Structures

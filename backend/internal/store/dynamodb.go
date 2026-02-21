@@ -30,14 +30,15 @@ type DynamoDBConfig struct {
 
 // DynamoDBRepositories provides all DynamoDB repositories
 type DynamoDBRepositories struct {
-	client         *dynamodb.Client
-	config         DynamoDBConfig
-	Patients       PatientRepository
-	Appointments   AppointmentRepository
-	Consents       ConsentRepository
-	Users          AuthRepository
-	Odontograms    OdontogramRepository
-	TreatmentPlans TreatmentPlanRepository
+	client           *dynamodb.Client
+	config           DynamoDBConfig
+	Patients         PatientRepository
+	Appointments     AppointmentRepository
+	Consents         ConsentRepository
+	ConsentTemplates ConsentTemplateRepository
+	Users            AuthRepository
+	Odontograms      OdontogramRepository
+	TreatmentPlans   TreatmentPlanRepository
 }
 
 // NewDynamoDBRepositories creates new DynamoDB repositories with table auto-creation
@@ -96,14 +97,15 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 	}
 
 	return &DynamoDBRepositories{
-		client:         client,
-		config:         cfg,
-		Patients:       &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName},
-		Appointments:   &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName},
-		Consents:       &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName},
-		Users:          &dynamoAuthRepo{client: client, tableName: cfg.UserTableName},
-		Odontograms:    &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName},
-		TreatmentPlans: &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName},
+		client:           client,
+		config:           cfg,
+		Patients:         &dynamoPatientRepo{client: client, tableName: cfg.PatientTableName},
+		Appointments:     &dynamoAppointmentRepo{client: client, tableName: cfg.AppointmentTableName},
+		Consents:         &dynamoConsentRepo{client: client, tableName: cfg.ConsentTableName},
+		ConsentTemplates: &dynamoConsentTemplateRepo{client: client, tableName: cfg.ConsentTableName},
+		Users:            &dynamoAuthRepo{client: client, tableName: cfg.UserTableName},
+		Odontograms:      &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName},
+		TreatmentPlans:   &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName},
 	}, nil
 }
 
@@ -783,10 +785,13 @@ func (r *dynamoConsentRepo) Create(ctx context.Context, consent domain.Consent) 
 		"ID":             &types.AttributeValueMemberS{Value: consent.ID},
 		"PatientID":      &types.AttributeValueMemberS{Value: consent.PatientID},
 		"DoctorID":       &types.AttributeValueMemberS{Value: consent.DoctorID},
+		"AppointmentID":  &types.AttributeValueMemberS{Value: consent.AppointmentID},
+		"TemplateID":     &types.AttributeValueMemberS{Value: consent.TemplateID},
 		"Title":          &types.AttributeValueMemberS{Value: consent.Title},
 		"Content":        &types.AttributeValueMemberS{Value: consent.Content},
 		"DeliveryMethod": &types.AttributeValueMemberS{Value: consent.DeliveryMethod},
 		"Status":         &types.AttributeValueMemberS{Value: consent.Status},
+		"AcceptToken":    &types.AttributeValueMemberS{Value: consent.AcceptToken},
 		"CreatedAt":      &types.AttributeValueMemberS{Value: consent.CreatedAt.Format(time.RFC3339)},
 	}
 
@@ -803,12 +808,10 @@ func (r *dynamoConsentRepo) Create(ctx context.Context, consent domain.Consent) 
 }
 
 func (r *dynamoConsentRepo) Update(ctx context.Context, consent domain.Consent) (domain.Consent, error) {
-	// First check if exists
 	_, err := r.GetByID(ctx, consent.ID)
 	if err != nil {
 		return domain.Consent{}, err
 	}
-
 	return r.Create(ctx, consent)
 }
 
@@ -821,22 +824,153 @@ func (r *dynamoConsentRepo) GetByID(ctx context.Context, id string) (domain.Cons
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT#%s", id)},
 		},
 	})
-
 	if err != nil {
 		return domain.Consent{}, err
 	}
-
 	if result.Item == nil {
 		return domain.Consent{}, fmt.Errorf("consent not found")
 	}
-
 	var consent domain.Consent
 	err = attributevalue.UnmarshalMap(result.Item, &consent)
+	return consent, err
+}
+
+func (r *dynamoConsentRepo) GetByToken(ctx context.Context, token string) (domain.Consent, error) {
+	orgID := orgIDOrDefault(ctx)
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND AcceptToken = :token"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT#"},
+			":token":    &types.AttributeValueMemberS{Value: token},
+		},
+	})
 	if err != nil {
 		return domain.Consent{}, err
 	}
+	if len(result.Items) == 0 {
+		return domain.Consent{}, fmt.Errorf("consent not found")
+	}
+	var consent domain.Consent
+	err = attributevalue.UnmarshalMap(result.Items[0], &consent)
+	return consent, err
+}
 
-	return consent, nil
+func (r *dynamoConsentRepo) GetByAppointmentID(ctx context.Context, appointmentID string) (domain.Consent, error) {
+	orgID := orgIDOrDefault(ctx)
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND AppointmentID = :apptID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT#"},
+			":apptID":   &types.AttributeValueMemberS{Value: appointmentID},
+		},
+	})
+	if err != nil {
+		return domain.Consent{}, err
+	}
+	if len(result.Items) == 0 {
+		return domain.Consent{}, fmt.Errorf("consent not found")
+	}
+	var consent domain.Consent
+	err = attributevalue.UnmarshalMap(result.Items[0], &consent)
+	return consent, err
+}
+
+// ConsentTemplate DynamoDB repository
+type dynamoConsentTemplateRepo struct {
+	client    *dynamodb.Client
+	tableName string
+}
+
+func (r *dynamoConsentTemplateRepo) Create(ctx context.Context, t domain.ConsentTemplate) (domain.ConsentTemplate, error) {
+	item := map[string]types.AttributeValue{
+		"PK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", t.OrgID)},
+		"SK":        &types.AttributeValueMemberS{Value: fmt.Sprintf("CONSENT_TEMPLATE#%s", t.ID)},
+		"ID":        &types.AttributeValueMemberS{Value: t.ID},
+		"OrgID":     &types.AttributeValueMemberS{Value: t.OrgID},
+		"Title":     &types.AttributeValueMemberS{Value: t.Title},
+		"Content":   &types.AttributeValueMemberS{Value: t.Content},
+		"IsActive":  &types.AttributeValueMemberBOOL{Value: t.IsActive},
+		"CreatedBy": &types.AttributeValueMemberS{Value: t.CreatedBy},
+		"CreatedAt": &types.AttributeValueMemberS{Value: t.CreatedAt.Format(time.RFC3339)},
+		"UpdatedAt": &types.AttributeValueMemberS{Value: t.UpdatedAt.Format(time.RFC3339)},
+	}
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+	return t, err
+}
+
+func (r *dynamoConsentTemplateRepo) Update(ctx context.Context, t domain.ConsentTemplate) (domain.ConsentTemplate, error) {
+	t.UpdatedAt = time.Now().UTC()
+	return r.Create(ctx, t)
+}
+
+func (r *dynamoConsentTemplateRepo) GetByID(ctx context.Context, id string) (domain.ConsentTemplate, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("ID = :id AND begins_with(SK, :skPrefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":id":       &types.AttributeValueMemberS{Value: id},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT_TEMPLATE#"},
+		},
+	})
+	if err != nil {
+		return domain.ConsentTemplate{}, err
+	}
+	if len(result.Items) == 0 {
+		return domain.ConsentTemplate{}, fmt.Errorf("consent template not found")
+	}
+	var t domain.ConsentTemplate
+	err = attributevalue.UnmarshalMap(result.Items[0], &t)
+	return t, err
+}
+
+func (r *dynamoConsentTemplateRepo) ListByOrg(ctx context.Context, orgID string) ([]domain.ConsentTemplate, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT_TEMPLATE#"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []domain.ConsentTemplate
+	for _, item := range result.Items {
+		var t domain.ConsentTemplate
+		if err := attributevalue.UnmarshalMap(item, &t); err == nil {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+func (r *dynamoConsentTemplateRepo) GetActiveByOrg(ctx context.Context, orgID string) (domain.ConsentTemplate, error) {
+	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND IsActive = :active"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":       &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT_TEMPLATE#"},
+			":active":   &types.AttributeValueMemberBOOL{Value: true},
+		},
+	})
+	if err != nil {
+		return domain.ConsentTemplate{}, err
+	}
+	if len(result.Items) == 0 {
+		return domain.ConsentTemplate{}, fmt.Errorf("no active consent template found")
+	}
+	var t domain.ConsentTemplate
+	err = attributevalue.UnmarshalMap(result.Items[0], &t)
+	return t, err
 }
 
 // Auth repository implementation

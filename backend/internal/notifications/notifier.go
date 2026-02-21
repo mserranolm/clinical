@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"clinical-backend/internal/config"
+	"clinical-backend/internal/domain"
 	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,6 +24,7 @@ import (
 type Notifier interface {
 	SendAppointmentReminder(ctx context.Context, patientID, channel, message string) error
 	SendConsentRequest(ctx context.Context, patientID, channel, message string) error
+	SendConsentWithAppointment(ctx context.Context, toEmail, patientName string, consent domain.Consent, startAt time.Time) error
 	SendDoctorDailySummary(ctx context.Context, doctorID, channel, message string) error
 	SendInvitation(ctx context.Context, toEmail, inviteURL, role, tempPassword string) error
 	SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error
@@ -352,6 +354,57 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
 	})
 	if err != nil {
 		log.Printf("[notify:invitation] ses send failed: %v", err)
+	}
+	return err
+}
+
+func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patientName string, consent domain.Consent, startAt time.Time) error {
+	frontendBase := os.Getenv("FRONTEND_BASE_URL")
+	if frontendBase == "" {
+		frontendBase = "https://clinisense.aski-tech.net"
+	}
+	acceptURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, consent.AcceptToken)
+	subject := "CliniSense — Consentimiento informado y confirmación de cita"
+	body := fmt.Sprintf(
+		"Hola %s,\n\n"+
+			"Tu cita ha sido agendada para el %s a las %s.\n\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+			"CONSENTIMIENTO INFORMADO\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
+			"%s\n\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
+			"Para ACEPTAR el consentimiento y CONFIRMAR tu cita, haz clic en el siguiente enlace:\n\n"+
+			"   %s\n\n"+
+			"Si no puedes hacer clic, copia y pega el enlace en tu navegador.\n\n"+
+			"Si tienes alguna duda, contáctanos.\n\n"+
+			"CliniSense",
+		patientName,
+		startAt.Format("02/01/2006"),
+		startAt.Format("15:04"),
+		consent.Content,
+		acceptURL,
+	)
+	log.Printf("[notify:consent] to=%s appointmentId=%s token=%s", toEmail, consent.AppointmentID, consent.AcceptToken)
+	if !r.sendEmail || r.ses == nil {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = os.Getenv("SES_SENDER_EMAIL")
+	}
+	if sender == "" {
+		sender = "no-reply@clinisense.aski-tech.net"
+	}
+	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(sender),
+		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
+		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+			Subject: &sestypes.Content{Data: aws.String(subject)},
+			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body)}},
+		}},
+	})
+	if err != nil {
+		log.Printf("[notify:consent] ses send failed: %v", err)
 	}
 	return err
 }

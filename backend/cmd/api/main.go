@@ -22,12 +22,13 @@ func main() {
 
 	// Initialize repositories based on environment
 	var repos struct {
-		Patients       store.PatientRepository
-		Appointments   store.AppointmentRepository
-		Consents       store.ConsentRepository
-		Users          store.AuthRepository
-		Odontograms    store.OdontogramRepository
-		TreatmentPlans store.TreatmentPlanRepository
+		Patients         store.PatientRepository
+		Appointments     store.AppointmentRepository
+		Consents         store.ConsentRepository
+		ConsentTemplates store.ConsentTemplateRepository
+		Users            store.AuthRepository
+		Odontograms      store.OdontogramRepository
+		TreatmentPlans   store.TreatmentPlanRepository
 	}
 
 	if cfg.ShouldUseDynamoDB() {
@@ -52,6 +53,7 @@ func main() {
 			repos.Patients = memRepos.Patients
 			repos.Appointments = memRepos.Appointments
 			repos.Consents = memRepos.Consents
+			repos.ConsentTemplates = memRepos.ConsentTemplates
 			repos.Users = memRepos.Users
 			repos.Odontograms = memRepos.Odontograms
 			repos.TreatmentPlans = memRepos.TreatmentPlans
@@ -59,6 +61,7 @@ func main() {
 			repos.Patients = dynamoRepos.Patients
 			repos.Appointments = dynamoRepos.Appointments
 			repos.Consents = dynamoRepos.Consents
+			repos.ConsentTemplates = dynamoRepos.ConsentTemplates
 			repos.Users = dynamoRepos.Users
 			repos.Odontograms = dynamoRepos.Odontograms
 			repos.TreatmentPlans = dynamoRepos.TreatmentPlans
@@ -69,17 +72,19 @@ func main() {
 		repos.Patients = memRepos.Patients
 		repos.Appointments = memRepos.Appointments
 		repos.Consents = memRepos.Consents
+		repos.ConsentTemplates = memRepos.ConsentTemplates
 		repos.Users = memRepos.Users
 		repos.Odontograms = memRepos.Odontograms
 		repos.TreatmentPlans = memRepos.TreatmentPlans
 	}
 
+	consents := service.NewConsentService(repos.Consents, repos.ConsentTemplates, notifier)
 	appointments := service.NewAppointmentService(repos.Appointments, notifier,
 		service.WithPatientRepo(repos.Patients),
 		service.WithAuthRepo(repos.Users),
+		service.WithConsentService(consents),
 	)
 	patients := service.NewPatientService(repos.Patients)
-	consents := service.NewConsentService(repos.Consents, notifier)
 	auth := service.NewAuthService(repos.Users,
 		service.WithNotifier(notifier),
 		service.WithFrontendBaseURL(cfg.FrontendBaseURL),

@@ -12,6 +12,7 @@ import { AdminConsoleLayout } from "./components/layout/AdminConsoleLayout";
 import { Landing } from "./pages/Landing";
 import { LoginView } from "./pages/LoginView";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
+import { ConsentAcceptPage } from "./pages/ConsentAcceptPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 
 function loadValidSession(): AuthSession | null {
@@ -69,6 +70,7 @@ export function App() {
         element={session && isPlatformAdmin(session) ? <AdminConsoleLayout session={session} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
       />
       <Route path="/accept-invitation" element={<AcceptInvitationPage onSuccess={handleAuthSuccess} />} />
+      <Route path="/consent" element={<ConsentAcceptPage />} />
       <Route
         path="/change-password"
         element={session ? <ChangePasswordPage session={session} onSuccess={handlePasswordChanged} /> : <Navigate to="/login" replace />}
