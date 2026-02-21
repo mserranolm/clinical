@@ -63,7 +63,7 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
   // Calcular posición del popover: abajo o arriba según espacio disponible
   function getPopoverStyle(): React.CSSProperties {
     if (!rect) return { display: "none" };
-    const popoverH = 320;
+    const popoverH = 360;
     const spaceBelow = window.innerHeight - rect.bottom;
     const top = spaceBelow >= popoverH
       ? rect.bottom + window.scrollY + 4
@@ -72,7 +72,7 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
       position: "absolute",
       top,
       left: rect.left + window.scrollX,
-      width: Math.max(rect.width, 252),
+      width: Math.max(rect.width, 260),
       zIndex: 99999,
     };
   }
@@ -110,6 +110,10 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
             onSelect={handleSelect}
             locale={es}
             defaultMonth={selected ?? new Date()}
+            captionLayout="dropdown"
+            fromYear={new Date().getFullYear() - 110}
+            toYear={new Date().getFullYear()}
+            disabled={{ after: new Date() }}
             components={{
               Chevron: ({ orientation, ...props }) =>
                 orientation === "left"
