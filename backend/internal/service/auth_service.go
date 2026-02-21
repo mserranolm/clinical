@@ -230,6 +230,7 @@ type CreateOrganizationInput struct {
 	Address      string `json:"address"`
 	Email        string `json:"email"`
 	Phone        string `json:"phone"`
+	Timezone     string `json:"timezone"`
 }
 
 type UpdateOrganizationInput struct {
@@ -244,6 +245,7 @@ type UpdateOrganizationInput struct {
 	MaxDoctors    int    `json:"maxDoctors"`
 	MaxAssistants int    `json:"maxAssistants"`
 	MaxPatients   int    `json:"maxPatients"`
+	Timezone      string `json:"timezone"`
 }
 
 type OrgLimitsDTO struct {
@@ -263,6 +265,7 @@ type OrganizationDTO struct {
 	Status        string       `json:"status"`
 	PaymentStatus string       `json:"paymentStatus"`
 	Limits        OrgLimitsDTO `json:"limits"`
+	Timezone      string       `json:"timezone,omitempty"`
 	CreatedAt     time.Time    `json:"createdAt"`
 	UpdatedAt     *time.Time   `json:"updatedAt,omitempty"`
 }
@@ -358,6 +361,7 @@ func orgToDTO(org store.Organization) OrganizationDTO {
 		Status:        org.Status,
 		PaymentStatus: org.PaymentStatus,
 		Limits:        OrgLimitsDTO{MaxDoctors: org.Limits.MaxDoctors, MaxAssistants: org.Limits.MaxAssistants, MaxPatients: org.Limits.MaxPatients},
+		Timezone:      org.Timezone,
 		CreatedAt:     org.CreatedAt,
 		UpdatedAt:     org.UpdatedAt,
 	}
@@ -367,6 +371,10 @@ func (s *AuthService) CreateOrganization(ctx context.Context, in CreateOrganizat
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return OrganizationDTO{}, fmt.Errorf("name is required")
+	}
+	tz := strings.TrimSpace(in.Timezone)
+	if tz == "" {
+		tz = "America/Caracas"
 	}
 	org := store.Organization{
 		ID:            buildID("org"),
@@ -379,6 +387,7 @@ func (s *AuthService) CreateOrganization(ctx context.Context, in CreateOrganizat
 		Status:        "active",
 		PaymentStatus: "current",
 		Limits:        store.OrgLimits{MaxDoctors: 5, MaxAssistants: 2, MaxPatients: 20},
+		Timezone:      tz,
 		CreatedAt:     time.Now().UTC(),
 	}
 	created, err := s.repo.CreateOrganization(ctx, org)
@@ -433,6 +442,9 @@ func (s *AuthService) UpdateOrganization(ctx context.Context, orgID string, in U
 			return OrganizationDTO{}, fmt.Errorf("paymentStatus must be current, overdue or suspended")
 		}
 		org.PaymentStatus = in.PaymentStatus
+	}
+	if v := strings.TrimSpace(in.Timezone); v != "" {
+		org.Timezone = v
 	}
 	if in.MaxDoctors > 0 {
 		org.Limits.MaxDoctors = in.MaxDoctors

@@ -93,6 +93,7 @@ type Organization struct {
 	Status        string     `json:"status"`
 	PaymentStatus string     `json:"paymentStatus"`
 	Limits        OrgLimits  `json:"limits"`
+	Timezone      string     `json:"timezone,omitempty"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	UpdatedAt     *time.Time `json:"updatedAt,omitempty"`
 }

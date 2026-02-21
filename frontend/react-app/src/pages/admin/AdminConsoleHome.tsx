@@ -8,6 +8,7 @@ type Org = {
   id: string; name: string; businessName: string; taxId: string;
   address: string; email: string; phone: string;
   status: string; paymentStatus: string; limits: OrgLimits; createdAt: string;
+  timezone?: string;
 };
 type Stats = {
   totalOrgs: number; activeOrgs: number; totalDoctors: number;
@@ -16,11 +17,37 @@ type Stats = {
   totalConsultations: number; totalRevenue: number;
 };
 
+const TIMEZONES = [
+  { value: "America/Caracas",     label: "Venezuela (UTC-4)" },
+  { value: "America/Bogota",      label: "Colombia (UTC-5)" },
+  { value: "America/Lima",        label: "Perú (UTC-5)" },
+  { value: "America/Guayaquil",   label: "Ecuador (UTC-5)" },
+  { value: "America/Panama",      label: "Panamá (UTC-5)" },
+  { value: "America/Mexico_City", label: "México Centro (UTC-6)" },
+  { value: "America/Monterrey",   label: "México Norte (UTC-6)" },
+  { value: "America/Costa_Rica",  label: "Costa Rica (UTC-6)" },
+  { value: "America/El_Salvador", label: "El Salvador (UTC-6)" },
+  { value: "America/Tegucigalpa", label: "Honduras (UTC-6)" },
+  { value: "America/Managua",     label: "Nicaragua (UTC-6)" },
+  { value: "America/Guatemala",   label: "Guatemala (UTC-6)" },
+  { value: "America/Santo_Domingo", label: "Rep. Dominicana (UTC-4)" },
+  { value: "America/Puerto_Rico", label: "Puerto Rico (UTC-4)" },
+  { value: "America/Santiago",    label: "Chile (UTC-3/-4)" },
+  { value: "America/Argentina/Buenos_Aires", label: "Argentina (UTC-3)" },
+  { value: "America/Sao_Paulo",   label: "Brasil (UTC-3)" },
+  { value: "America/Montevideo",  label: "Uruguay (UTC-3)" },
+  { value: "America/Asuncion",    label: "Paraguay (UTC-4/-3)" },
+  { value: "America/La_Paz",      label: "Bolivia (UTC-4)" },
+  { value: "Europe/Madrid",       label: "España (UTC+1/+2)" },
+  { value: "UTC",                 label: "UTC (sin zona)" },
+];
+
 const EMPTY_FORM = {
   name: "", businessName: "", taxId: "", address: "", email: "", phone: "",
   status: "active", paymentStatus: "current",
   maxDoctors: 5, maxAssistants: 2, maxPatients: 20,
   adminName: "", adminEmail: "", adminPassword: "",
+  timezone: "America/Caracas",
 };
 type OrgForm = typeof EMPTY_FORM;
 
@@ -104,6 +131,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
       maxAssistants: org.limits?.maxAssistants ?? 2,
       maxPatients: org.limits?.maxPatients ?? 20,
       adminName: "", adminEmail: "", adminPassword: "",
+      timezone: org.timezone || "America/Caracas",
     });
     setShowForm(true);
   }
@@ -118,6 +146,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
       maxDoctors: Number(form.maxDoctors),
       maxAssistants: Number(form.maxAssistants),
       maxPatients: Number(form.maxPatients),
+      timezone: form.timezone,
     };
 
     try {
@@ -232,6 +261,15 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                 <label style={lbl}>Email de contacto</label>
                 <input type="email" style={inp} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="contacto@clinica.com" />
               </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={lbl}>Zona horaria (GMT) *</label>
+                <select style={inp} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}>
+                  {TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>{tz.label} — {tz.value}</option>
+                  ))}
+                </select>
+                <p style={{ margin: "4px 0 0", fontSize: "0.72rem", color: "#6b7280" }}>Define el horario local para notificaciones y validación de citas.</p>
+              </div>
             </div>
 
             {/* Estado y pago */}
@@ -343,6 +381,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                     {org.address && <span>📍 {org.address}</span>}
                     {org.email && <span>✉️ {org.email}</span>}
                     {org.phone && <span>📞 {org.phone}</span>}
+                    {org.timezone && <span>🕐 {org.timezone}</span>}
                   </div>
                   {orgAdmins[org.id] ? (
                     <div style={{ marginTop: "0.4rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>

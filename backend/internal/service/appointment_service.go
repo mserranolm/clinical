@@ -95,6 +95,9 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	}
 
 	for _, existing := range existingAppointments {
+		if existing.Status == "cancelled" {
+			continue
+		}
 		if startAt.Before(existing.EndAt) && endAt.After(existing.StartAt) {
 			return domain.Appointment{}, fmt.Errorf("el horario de %s a %s ya está ocupado", startAt.In(loc).Format("15:04"), endAt.In(loc).Format("15:04"))
 		}

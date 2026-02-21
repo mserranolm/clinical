@@ -1152,6 +1152,9 @@ func orgToItem(org Organization) map[string]types.AttributeValue {
 		"MaxPatients":   &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", org.Limits.MaxPatients)},
 		"CreatedAt":     &types.AttributeValueMemberS{Value: org.CreatedAt.Format(time.RFC3339)},
 	}
+	if org.Timezone != "" {
+		item["Timezone"] = &types.AttributeValueMemberS{Value: org.Timezone}
+	}
 	if org.UpdatedAt != nil {
 		item["UpdatedAt"] = &types.AttributeValueMemberS{Value: org.UpdatedAt.Format(time.RFC3339)}
 	}
@@ -1198,6 +1201,9 @@ func itemToOrg(item map[string]types.AttributeValue) Organization {
 	}
 	if v, ok := item["CreatedAt"]; ok {
 		org.CreatedAt, _ = time.Parse(time.RFC3339, v.(*types.AttributeValueMemberS).Value)
+	}
+	if v, ok := item["Timezone"]; ok {
+		org.Timezone = v.(*types.AttributeValueMemberS).Value
 	}
 	if v, ok := item["UpdatedAt"]; ok {
 		t, _ := time.Parse(time.RFC3339, v.(*types.AttributeValueMemberS).Value)
