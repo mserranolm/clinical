@@ -28,6 +28,7 @@ type Notifier interface {
 	SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error
 	SendAppointmentEvent(ctx context.Context, toEmail, patientName, eventType string, startAt, endAt time.Time) error
 	SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error
+	SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error
 }
 
 type Router struct {
@@ -193,6 +194,39 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	})
 	if err != nil {
 		log.Printf("[notify:appointment] ses send failed: %v", err)
+	}
+	return err
+}
+
+func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error {
+	subject := "CliniSense — Plan de tratamiento de tu consulta"
+	body := fmt.Sprintf(
+		"Hola %s,\n\nGracias por tu visita del %s.\n\nA continuación te compartimos el plan de tratamiento indicado por tu doctor:\n\n%s\n\nSi tienes alguna duda, no dudes en contactarnos.\n\nCliniSense",
+		patientName,
+		consultDate.Format("02/01/2006"),
+		treatmentPlan,
+	)
+	log.Printf("[notify:treatment-plan] to=%s date=%s", toEmail, consultDate.Format("02/01/2006"))
+	if !r.sendEmail || r.ses == nil {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = os.Getenv("SES_SENDER_EMAIL")
+	}
+	if sender == "" {
+		sender = "no-reply@clinisense.aski-tech.net"
+	}
+	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(sender),
+		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
+		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
+			Subject: &sestypes.Content{Data: aws.String(subject)},
+			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body)}},
+		}},
+	})
+	if err != nil {
+		log.Printf("[notify:treatment-plan] ses send failed: %v", err)
 	}
 	return err
 }

@@ -153,7 +153,7 @@ export const clinicalApi = {
 
   closeAppointmentDay: (
     appointmentId: string,
-    payload: { evolutionNotes: string; paymentAmount: number; paymentMethod: string },
+    payload: { evolutionNotes: string; paymentAmount: number; paymentMethod: string; treatmentPlan?: string },
     token?: string
   ) =>
     request<AppointmentDTO>(endpointCatalog.closeAppointmentDay(appointmentId), {

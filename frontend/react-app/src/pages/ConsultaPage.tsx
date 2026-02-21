@@ -275,10 +275,8 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         evolutionNotes,
         paymentAmount,
         paymentMethod: "",
+        treatmentPlan,
       }, token);
-      if (treatmentPlan.trim()) {
-        await clinicalApi.updateAppointment(appointmentId, { treatmentPlan }, token);
-      }
       notify.success("Consulta finalizada correctamente");
       navigate("/dashboard/citas");
     } catch (err) {

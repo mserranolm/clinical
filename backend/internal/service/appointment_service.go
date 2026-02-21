@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"clinical-backend/internal/domain"
@@ -173,7 +174,7 @@ func (s *AppointmentService) Confirm(ctx context.Context, appointmentID string) 
 	return updated, nil
 }
 
-func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appointmentID, evolutionNotes string, paymentAmount float64, paymentMethod string) (domain.Appointment, error) {
+func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appointmentID, evolutionNotes string, paymentAmount float64, paymentMethod, treatmentPlan string) (domain.Appointment, error) {
 	item, err := s.repo.GetByID(ctx, appointmentID)
 	if err != nil {
 		return domain.Appointment{}, err
@@ -188,6 +189,9 @@ func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appoint
 	if paymentMethod != "" {
 		item.PaymentMethod = paymentMethod
 	}
+	if strings.TrimSpace(treatmentPlan) != "" {
+		item.TreatmentPlan = treatmentPlan
+	}
 	updated, err := s.repo.Update(ctx, item)
 	if err != nil {
 		return domain.Appointment{}, err
@@ -201,6 +205,9 @@ func (s *AppointmentService) CloseDayForAppointment(ctx context.Context, appoint
 		}
 		if email, name := s.patientEmail(ctx, updated.PatientID); email != "" {
 			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "completed", updated.StartAt.In(loc), updated.EndAt.In(loc))
+			if strings.TrimSpace(updated.TreatmentPlan) != "" {
+				_ = s.notifier.SendTreatmentPlanSummary(ctx, email, name, updated.TreatmentPlan, updated.StartAt.In(loc))
+			}
 		}
 	}
 	return updated, nil

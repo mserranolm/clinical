@@ -876,11 +876,12 @@ func (r *Router) closeAppointmentDay(ctx context.Context, id string, req events.
 		EvolutionNotes string  `json:"evolutionNotes"`
 		PaymentAmount  float64 `json:"paymentAmount"`
 		PaymentMethod  string  `json:"paymentMethod"`
+		TreatmentPlan  string  `json:"treatmentPlan"`
 	}
 	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
 		return response(400, map[string]string{"error": "invalid_json"})
 	}
-	item, err := r.appointments.CloseDayForAppointment(ctx, id, in.EvolutionNotes, in.PaymentAmount, in.PaymentMethod)
+	item, err := r.appointments.CloseDayForAppointment(ctx, id, in.EvolutionNotes, in.PaymentAmount, in.PaymentMethod, in.TreatmentPlan)
 	if err != nil {
 		return response(404, map[string]string{"error": err.Error()})
 	}
