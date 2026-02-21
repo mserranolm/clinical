@@ -120,13 +120,15 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	subject := "CliniSense — Tu cita ha sido agendada"
 	var body string
 	if len(consentLinks) > 0 {
+		// Solo enlaces de consentimiento: el primero (confirmación de asistencia) al aceptarlo también confirma la cita en el backend.
+		// Se elimina el enlace duplicado "Confirma tu cita" para no redundar con "Confirmación de asistencia a la consulta".
 		var consentBlocks string
 		for i, link := range consentLinks {
 			if link.Token == "" {
 				continue
 			}
 			consentURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, link.Token)
-			stepNum := i + 2
+			stepNum := i + 1
 			title := link.Title
 			if title == "" {
 				title = "Consentimiento informado"
@@ -141,9 +143,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 		body = fmt.Sprintf(
 			"Hola %s,\n\n"+
 				"Tu cita ha sido agendada para el %s a las %s.\n\n"+
-				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
-				"PASO 1 — Confirma tu cita:\n\n"+
-				"   %s\n\n"+
+				"Por favor acepta los siguientes consentimientos (el primero confirma tu asistencia):\n\n"+
 				"%s"+
 				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
 				"Si no puedes hacer clic en los enlaces, cópialos y pégalos en tu navegador.\n\n"+
@@ -151,7 +151,6 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 			patientName,
 			appt.StartAt.Format("02/01/2006"),
 			appt.StartAt.Format("15:04"),
-			confirmURL,
 			consentBlocks,
 		)
 	} else {
