@@ -19,6 +19,8 @@ type AppointmentRow = {
   durationMinutes: number;
   status: string;
   paymentAmount?: number;
+  paymentPaid?: boolean;
+  paymentMethod?: string;
 };
 
 const DURATION_BLOCKS = [
@@ -54,6 +56,11 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [editTime, setEditTime] = useState("");
   const [editDuration, setEditDuration] = useState(30);
   const [saving, setSaving] = useState(false);
+  const [payRow, setPayRow] = useState<AppointmentRow | null>(null);
+  const [payPaid, setPayPaid] = useState(true);
+  const [payMethod, setPayMethod] = useState("efectivo");
+  const [payAmount, setPayAmount] = useState(0);
+  const [payingSaving, setPayingSaving] = useState(false);
 
   function openEdit(row: AppointmentRow) {
     const d = new Date(row.startAt);
@@ -177,7 +184,9 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         endAt: item.endAt,
         durationMinutes: item.durationMinutes ?? 30,
         status: item.status,
-        paymentAmount: item.paymentAmount
+        paymentAmount: item.paymentAmount,
+        paymentPaid: (item as { paymentPaid?: boolean }).paymentPaid,
+        paymentMethod: (item as { paymentMethod?: string }).paymentMethod,
       })));
       return appointments;
     });
@@ -219,6 +228,28 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     });
   }
 
+  function openPayModal(row: AppointmentRow) {
+    setPayRow(row);
+    setPayPaid(row.paymentPaid ?? false);
+    setPayMethod(row.paymentMethod || "efectivo");
+    setPayAmount(row.paymentAmount ?? 0);
+  }
+
+  async function savePayment() {
+    if (!payRow) return;
+    setPayingSaving(true);
+    try {
+      await clinicalApi.registerPayment(payRow.id, { paid: payPaid, paymentMethod: payMethod, paymentAmount: payAmount }, token);
+      notify.success(payPaid ? "Pago registrado" : "Marcado como pendiente de pago");
+      setPayRow(null);
+      loadAppointments();
+    } catch (err) {
+      notify.error("Error al registrar pago", err instanceof Error ? err.message : String(err));
+    } finally {
+      setPayingSaving(false);
+    }
+  }
+
   async function onDelete(id: string) {
     if (!window.confirm("¿Eliminar esta cita permanentemente?")) return;
     const promise = clinicalApi.deleteAppointment(id, token);
@@ -231,6 +262,57 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
 
   return (
     <section className="page-section">
+      {payRow && (
+        <Modal onClose={() => setPayRow(null)}>
+          <h3 style={{ marginBottom: 4 }}>Registrar Pago</h3>
+          <p style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: 20 }}>
+            Paciente: <strong>{payRow.patientName || payRow.patientId}</strong>
+          </p>
+          <div className="input-group">
+            <label>Estado del pago</label>
+            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: payPaid ? 700 : 400 }}>
+                <input type="radio" name="paid" checked={payPaid} onChange={() => setPayPaid(true)} />
+                ✅ Pagó
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: !payPaid ? 700 : 400 }}>
+                <input type="radio" name="paid" checked={!payPaid} onChange={() => setPayPaid(false)} />
+                ⏳ Pendiente
+              </label>
+            </div>
+          </div>
+          {payPaid && (
+            <>
+              <div className="input-group">
+                <label>Monto cobrado</label>
+                <input
+                  type="number" min={0} step={0.01}
+                  className="elite-input"
+                  value={payAmount}
+                  onChange={e => setPayAmount(Number(e.target.value))}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="input-group">
+                <label>Método de pago</label>
+                <select className="elite-input" value={payMethod} onChange={e => setPayMethod(e.target.value)}>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="zelle">Zelle</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+            </>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+            <button type="button" className="action-btn action-btn-confirm" onClick={savePayment} disabled={payingSaving}>
+              {payingSaving ? "Guardando..." : "Guardar"}
+            </button>
+            <button type="button" className="action-btn" onClick={() => setPayRow(null)}>Cancelar</button>
+          </div>
+        </Modal>
+      )}
       {editRow && (
         <Modal onClose={() => setEditRow(null)}>
           <h3 style={{ marginBottom: 16 }}>Editar Cita</h3>
@@ -410,10 +492,16 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                           <span>Reenviar</span>
                         </button>
                       )}
-                      {canManageTreatments(session) && isCompleted(row.status) && (
-                        <span className="agenda-done-badge">
-                          ✓ Finalizada
-                        </span>
+                      {canWriteAppointments(session) && isCompleted(row.status) && (
+                        <button
+                          type="button"
+                          className="agenda-btn"
+                          style={{ background: row.paymentPaid ? "#d1fae5" : "#fef3c7", color: row.paymentPaid ? "#065f46" : "#92400e", borderColor: row.paymentPaid ? "#6ee7b7" : "#fcd34d" }}
+                          onClick={() => openPayModal(row)}
+                          title="Registrar pago"
+                        >
+                          <span>{row.paymentPaid ? "💰 Pagado" : "💳 Registrar Pago"}</span>
+                        </button>
                       )}
                       {canManageTreatments(session) && !isCompleted(row.status) && (
                         <button
