@@ -12,6 +12,11 @@ import {
   type ResetPasswordInput
 } from "../types";
 
+export type ConsentSummary = {
+  total: number;
+  accepted: number;
+};
+
 export type AppointmentDTO = {
   id: string;
   doctorId: string;
@@ -23,6 +28,7 @@ export type AppointmentDTO = {
   paymentAmount?: number;
   paymentMethod?: string;
   paymentPaid?: boolean;
+  consentSummary?: ConsentSummary;
 };
 
 export const clinicalApi = {

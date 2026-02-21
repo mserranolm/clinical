@@ -861,7 +861,28 @@ func (r *dynamoConsentRepo) GetByID(ctx context.Context, id string) (domain.Cons
 }
 
 func (r *dynamoConsentRepo) GetByToken(ctx context.Context, token string) (domain.Consent, error) {
-	orgID := orgIDOrDefault(ctx)
+	orgID := OrgIDFromContext(ctx)
+	// Enlace público (aceptar consentimiento desde el correo): no hay org en contexto.
+	// Buscar solo por token en toda la tabla para que el link funcione.
+	if strings.TrimSpace(orgID) == "" || orgID == "default" {
+		result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
+			TableName:        aws.String(r.tableName),
+			FilterExpression: aws.String("begins_with(SK, :skPrefix) AND AcceptToken = :token"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":skPrefix": &types.AttributeValueMemberS{Value: "CONSENT#"},
+				":token":    &types.AttributeValueMemberS{Value: token},
+			},
+		})
+		if err != nil {
+			return domain.Consent{}, err
+		}
+		if len(result.Items) == 0 {
+			return domain.Consent{}, fmt.Errorf("consent not found")
+		}
+		var consent domain.Consent
+		err = attributevalue.UnmarshalMap(result.Items[0], &consent)
+		return consent, err
+	}
 	result, err := r.client.Scan(ctx, &dynamodb.ScanInput{
 		TableName:        aws.String(r.tableName),
 		FilterExpression: aws.String("PK = :pk AND begins_with(SK, :skPrefix) AND AcceptToken = :token"),

@@ -857,25 +857,30 @@ func (r *Router) createAppointment(ctx context.Context, req events.APIGatewayV2H
 }
 
 func (r *Router) listAppointments(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	var items []domain.Appointment
+	var err error
 	patientID := req.QueryStringParameters["patientId"]
 	if patientID != "" {
-		items, err := r.appointments.ListByPatient(ctx, patientID)
-		if err != nil {
-			return response(400, map[string]string{"error": err.Error()})
-		}
-		if items == nil {
-			items = []domain.Appointment{}
-		}
-		return response(200, map[string]any{"items": items})
+		items, err = r.appointments.ListByPatient(ctx, patientID)
+	} else {
+		doctorID := req.QueryStringParameters["doctorId"]
+		date := req.QueryStringParameters["date"]
+		items, err = r.appointments.ListByDoctorAndDate(ctx, doctorID, date)
 	}
-	doctorID := req.QueryStringParameters["doctorId"]
-	date := req.QueryStringParameters["date"]
-	items, err := r.appointments.ListByDoctorAndDate(ctx, doctorID, date)
 	if err != nil {
 		return response(400, map[string]string{"error": err.Error()})
 	}
 	if items == nil {
 		items = []domain.Appointment{}
+	}
+	ids := make([]string, len(items))
+	for i := range items {
+		ids[i] = items[i].ID
+	}
+	summaries := r.consents.GetSummariesForAppointments(ctx, ids)
+	for i := range items {
+		s := summaries[items[i].ID]
+		items[i].ConsentSummary = &s
 	}
 	return response(200, map[string]any{"items": items})
 }

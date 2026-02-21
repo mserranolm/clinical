@@ -222,6 +222,23 @@ func (s *ConsentService) GetByAppointmentID(ctx context.Context, appointmentID s
 	return s.repo.GetByAppointmentID(ctx, appointmentID)
 }
 
+// GetSummariesForAppointments returns consent summary (total/accepted) per appointment ID.
+func (s *ConsentService) GetSummariesForAppointments(ctx context.Context, appointmentIDs []string) map[string]domain.ConsentSummary {
+	out := make(map[string]domain.ConsentSummary)
+	for _, id := range appointmentIDs {
+		list, _ := s.repo.ListByAppointmentID(ctx, id)
+		total := len(list)
+		accepted := 0
+		for _, c := range list {
+			if c.Status == "accepted" {
+				accepted++
+			}
+		}
+		out[id] = domain.ConsentSummary{Total: total, Accepted: accepted}
+	}
+	return out
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 func generateToken() (string, error) {

@@ -22,6 +22,7 @@ type AppointmentRow = {
   paymentAmount?: number;
   paymentPaid?: boolean;
   paymentMethod?: string;
+  consentSummary?: { total: number; accepted: number };
 };
 
 const DURATION_BLOCKS = [
@@ -95,20 +96,21 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       clinicalApi.listOrgUsers(session.orgId, token).then((res) => {
         const docs = (res.items ?? []).filter((u) => u.role === "doctor" && u.status === "active");
         const list: { id: string; name: string }[] = docs.map((u) => ({ id: u.id, name: u.name }));
-        // Admin org puede asignarse a sí mismo como doctor
         if (isAdmin && session.userId && !list.find((d) => d.id === session.userId)) {
           list.unshift({ id: session.userId, name: `${session.name || "Administrador"} (yo)` });
         }
+        // Admin puede ver toda la agenda de la organización
+        if (isAdmin) list.unshift({ id: "", name: "Toda la agenda" });
         setDoctors(list);
         if (list.length > 0) setSelectedDoctorId(list[0].id);
       }).catch(() => {});
     }
-  }, [canSelectDoctor, session.orgId]);
+  }, [canSelectDoctor, session.orgId, isAdmin, session.userId, session.name, token]);
 
   const effectiveDoctorId = isDoctor ? doctorId : selectedDoctorId;
 
   useEffect(() => {
-    if (effectiveDoctorId) loadAppointments(date, effectiveDoctorId);
+    loadAppointments(date, effectiveDoctorId);
   }, [location.key, effectiveDoctorId, date]);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
@@ -192,6 +194,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         paymentAmount: item.paymentAmount,
         paymentPaid: item.paymentPaid,
         paymentMethod: item.paymentMethod,
+        consentSummary: item.consentSummary,
       })));
       return appointments;
     });
@@ -215,7 +218,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   }
 
   async function onResend(id: string) {
-    const promise = clinicalApi.resendAppointmentConfirmation(id, token);
+    const promise = clinicalApi.resendAppointmentConfirmation(id, token).then((r) => {
+      loadAppointments(date, effectiveDoctorId);
+      return r;
+    });
     notify.promise(promise, {
       loading: "Reenviando confirmación...",
       success: () => "Confirmación reenviada",
@@ -455,6 +461,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                 <th>Paciente</th>
                 <th>Horario</th>
                 <th>Estado</th>
+                <th>Consentimientos</th>
                 <th>Acción</th>
               </tr>
             </thead>
@@ -470,6 +477,21 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                     <span className={`badge ${statusClass[row.status] ?? "status-unconfirmed"}`}>
                       {statusLabel[row.status] ?? row.status}
                     </span>
+                  </td>
+                  <td>
+                    {row.consentSummary && row.consentSummary.total > 0 ? (
+                      row.consentSummary.accepted >= row.consentSummary.total ? (
+                        <span className="badge badge-success" title="Todos firmados">
+                          {row.consentSummary.accepted}/{row.consentSummary.total}
+                        </span>
+                      ) : (
+                        <span className="badge badge-neutral" title="Pendientes">
+                          {row.consentSummary.accepted}/{row.consentSummary.total}
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -491,7 +513,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                           <span>Cancelar</span>
                         </button>
                       )}
-                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "in_progress" && row.status !== "cancelled" && (
+                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "in_progress" && row.status !== "cancelled" && !(row.consentSummary && row.consentSummary.total > 0 && row.consentSummary.accepted >= row.consentSummary.total) && (
                         <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
                           <span className="icon">✉️</span>
                           <span>Reenviar</span>
@@ -533,7 +555,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="empty-state">Sin citas programadas para esta fecha.</td>
+                  <td colSpan={6} className="empty-state">Sin citas programadas para esta fecha.</td>
                 </tr>
               )}
             </tbody>

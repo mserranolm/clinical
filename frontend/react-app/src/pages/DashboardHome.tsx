@@ -40,6 +40,7 @@ type AppointmentRow = {
   startAt: string;
   status: string;
   paymentAmount?: number;
+  consentSummary?: { total: number; accepted: number };
 };
 
 export function DashboardHome({ user, rows, loading, error, date, onDateChange, onRefresh }: { 
@@ -369,6 +370,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                   <th>Paciente</th>
                   <th>Horario</th>
                   <th>Estado</th>
+                  <th>Consentimientos</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -394,6 +396,21 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                     </td>
                     <td>
                       <span className={`badge ${statusClass(row.status)}`}>{statusLabel(row.status)}</span>
+                    </td>
+                    <td>
+                      {row.consentSummary && row.consentSummary.total > 0 ? (
+                        row.consentSummary.accepted >= row.consentSummary.total ? (
+                          <span className="badge badge-success" title="Todos los consentimientos aceptados">
+                            {row.consentSummary.accepted}/{row.consentSummary.total} firmados
+                          </span>
+                        ) : (
+                          <span className="badge badge-neutral" title="Pendientes de firma">
+                            {row.consentSummary.accepted}/{row.consentSummary.total} firmados
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="agenda-actions">
@@ -425,8 +442,8 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                             <CheckCircle size={12} strokeWidth={1.5} /> Finalizada
                           </span>
                         )}
-                        {!isCompleted(row.status) && row.status !== "cancelled" && (
-                          <button type="button" className="agenda-btn" onClick={() => onResend(row.id)} title="Reenviar confirmación">
+                        {!isCompleted(row.status) && row.status !== "cancelled" && !(row.consentSummary && row.consentSummary.total > 0 && row.consentSummary.accepted >= row.consentSummary.total) && (
+                          <button type="button" className="agenda-btn" onClick={() => onResend(row.id)} title="Reenviar confirmación y consentimientos">
                             <Send size={13} strokeWidth={1.5} />
                           </button>
                         )}

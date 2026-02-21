@@ -27,6 +27,7 @@ type DashboardAppointmentRow = {
   startAt: string;
   status: string;
   paymentAmount?: number;
+  consentSummary?: { total: number; accepted: number };
 };
 
 export function DashboardLayout({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
@@ -87,7 +88,8 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
         patientName: patientById.get(appointment.patientId),
         startAt: appointment.startAt,
         status: appointment.status,
-        paymentAmount: appointment.paymentAmount
+        paymentAmount: appointment.paymentAmount,
+        consentSummary: appointment.consentSummary
       }));
 
       setAppointmentRows(normalizedRows);

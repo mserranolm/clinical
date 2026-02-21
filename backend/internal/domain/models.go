@@ -47,7 +47,17 @@ type Appointment struct {
 	ReminderSentAt      *time.Time `json:"reminderSentAt,omitempty"`
 	PatientConfirmedAt  *time.Time `json:"patientConfirmedAt,omitempty"`
 	DoctorDailyClosedAt *time.Time `json:"doctorDailyClosedAt,omitempty"`
+	// ConsentSummary se rellena en listados (no se persiste en DB).
+	ConsentSummary *ConsentSummary `json:"consentSummary,omitempty"`
 }
+
+// ConsentSummary is attached to appointment list responses (no persist).
+type ConsentSummary struct {
+	Total   int `json:"total"`
+	Accepted int `json:"accepted"`
+}
+
+func (c ConsentSummary) AllAccepted() bool { return c.Total > 0 && c.Accepted >= c.Total }
 
 type Consent struct {
 	ID             string     `json:"id"`
