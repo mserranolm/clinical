@@ -481,13 +481,9 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   <td>
                     {row.consentSummary && row.consentSummary.total > 0 ? (
                       row.consentSummary.accepted >= row.consentSummary.total ? (
-                        <span className="badge badge-success" title="Todos firmados">
-                          {row.consentSummary.accepted}/{row.consentSummary.total}
-                        </span>
+                        <span className="badge badge-success" title="Todos firmados">Completo</span>
                       ) : (
-                        <span className="badge badge-neutral" title="Pendientes">
-                          {row.consentSummary.accepted}/{row.consentSummary.total}
-                        </span>
+                        <span className="badge badge-neutral" title="Pendientes">Pendiente</span>
                       )
                     ) : (
                       <span className="text-muted">—</span>

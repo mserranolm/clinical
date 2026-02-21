@@ -400,13 +400,9 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                     <td>
                       {row.consentSummary && row.consentSummary.total > 0 ? (
                         row.consentSummary.accepted >= row.consentSummary.total ? (
-                          <span className="badge badge-success" title="Todos los consentimientos aceptados">
-                            {row.consentSummary.accepted}/{row.consentSummary.total} firmados
-                          </span>
+                          <span className="badge badge-success" title="Todos los consentimientos aceptados">Completo</span>
                         ) : (
-                          <span className="badge badge-neutral" title="Pendientes de firma">
-                            {row.consentSummary.accepted}/{row.consentSummary.total} firmados
-                          </span>
+                          <span className="badge badge-neutral" title="Pendientes de firma">Pendiente</span>
                         )
                       ) : (
                         <span className="text-muted">—</span>
