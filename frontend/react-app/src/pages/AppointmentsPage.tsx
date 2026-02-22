@@ -1,15 +1,15 @@
+import { RefreshCw, Stethoscope } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
-import { notify } from "../lib/notify";
-import { PatientSearch } from "../modules/appointments/components/PatientSearch";
-import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
-import { canDeleteAppointments, canWriteAppointments, canManageTreatments } from "../lib/rbac";
-import { RefreshCw, Stethoscope } from "lucide-react";
+import { isoToLocalDateTime, localDateTimeToISO } from "../lib/datetime";
+import { notify } from "../lib/notify";
+import { canDeleteAppointments, canManageTreatments, canWriteAppointments } from "../lib/rbac";
+import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
+import { PatientSearch } from "../modules/appointments/components/PatientSearch";
 import type { AuthSession } from "../types";
-import { localDateTimeToISO, isoToLocalDateTime } from "../lib/datetime";
 
 type AppointmentRow = {
   id: string;
@@ -42,11 +42,31 @@ const DURATION_BLOCKS = [
   { label: "3 horas", value: 180 },
 ];
 
+const TIME_SLOTS = [
+  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
+  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
+  "15:00","15:30","16:00","16:30","17:00","17:30","18:00",
+];
+
+function toLocalDateString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatTimeRange(startAt: string, endAt: string): string {
   const start = new Date(startAt);
   const end = new Date(endAt);
   const fmt = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return `${fmt(start)} – ${fmt(end)}`;
+}
+
+function formatSlotLabel(slot: string): string {
+  const [h, m] = slot.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 export function AppointmentsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
@@ -70,6 +90,11 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const isPastDateTime = (dateStr: string, timeStr: string) => {
+    const dt = new Date(localDateTimeToISO(dateStr, timeStr));
+    return dt.getTime() < Date.now();
+  };
+
   function openEdit(row: AppointmentRow) {
     const { date, time } = isoToLocalDateTime(row.startAt);
     setEditRow(row);
@@ -77,6 +102,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     setEditTime(time);
     setEditDuration(row.durationMinutes || 30);
   }
+
+  const todayLocal = toLocalDateString(new Date());
+  const isCreateDateToday = createDate === todayLocal;
+  const hasCreateTimeSlots = TIME_SLOTS.some((slot) => !isCreateDateToday || !isPastDateTime(createDate, slot));
 
   async function saveEdit() {
     if (!editRow || !editDate || !editTime) return;
@@ -145,7 +174,22 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       notify.error("Selecciona un doctor", "Debes asignar un doctor a la cita.");
       return;
     }
-    const startAt = localDateTimeToISO(String(fd.get('date')), String(fd.get('time')));
+    if (!selectedPatient?.id) {
+      notify.error("Selecciona un paciente", "Debes elegir un paciente antes de confirmar el espacio.");
+      return;
+    }
+    const selectedDate = String(fd.get("date") || createDate);
+    const selectedTime = String(fd.get("time") || "");
+    if (!selectedDate || !selectedTime) {
+      notify.error("Fecha y hora requeridas", "Selecciona fecha y hora de inicio para agendar.");
+      return;
+    }
+    if (isPastDateTime(selectedDate, selectedTime)) {
+      notify.error("Hora no válida", "La cita debe ser a futuro. Si es hoy, selecciona una hora igual o posterior a la actual.");
+      return;
+    }
+
+    const startAt = localDateTimeToISO(selectedDate, selectedTime);
     const promise = clinicalApi.createAppointment(
       {
         doctorId: effectiveDoctorId,
@@ -404,36 +448,27 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             <div className="row-inputs">
               <div className="input-group">
                 <label>Fecha</label>
-                <DatePicker value={createDate} onChange={setCreateDate} name="date" required />
+                <DatePicker value={createDate} onChange={setCreateDate} name="date" required minDate={new Date()} />
               </div>
               <div className="input-group">
                 <label>Hora de inicio</label>
                 <select name="time" required>
                   <option value="">Seleccione una hora</option>
-                  <option value="07:00">07:00 AM</option>
-                  <option value="07:30">07:30 AM</option>
-                  <option value="08:00">08:00 AM</option>
-                  <option value="08:30">08:30 AM</option>
-                  <option value="09:00">09:00 AM</option>
-                  <option value="09:30">09:30 AM</option>
-                  <option value="10:00">10:00 AM</option>
-                  <option value="10:30">10:30 AM</option>
-                  <option value="11:00">11:00 AM</option>
-                  <option value="11:30">11:30 AM</option>
-                  <option value="12:00">12:00 PM</option>
-                  <option value="12:30">12:30 PM</option>
-                  <option value="13:00">01:00 PM</option>
-                  <option value="13:30">01:30 PM</option>
-                  <option value="14:00">02:00 PM</option>
-                  <option value="14:30">02:30 PM</option>
-                  <option value="15:00">03:00 PM</option>
-                  <option value="15:30">03:30 PM</option>
-                  <option value="16:00">04:00 PM</option>
-                  <option value="16:30">04:30 PM</option>
-                  <option value="17:00">05:00 PM</option>
-                  <option value="17:30">05:30 PM</option>
-                  <option value="18:00">06:00 PM</option>
+                  {TIME_SLOTS.map((slot) => (
+                    <option
+                      key={slot}
+                      value={slot}
+                      disabled={isCreateDateToday && isPastDateTime(createDate, slot)}
+                    >
+                      {formatSlotLabel(slot)}
+                    </option>
+                  ))}
                 </select>
+                {isCreateDateToday && !hasCreateTimeSlots && (
+                  <small style={{ color: "#b45309", fontSize: "0.75rem" }}>
+                    Ya no hay horarios disponibles para hoy. Selecciona una fecha futura.
+                  </small>
+                )}
               </div>
             </div>
             <div className="input-group">

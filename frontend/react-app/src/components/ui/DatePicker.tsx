@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { DayPicker } from "react-day-picker";
+import { format, isValid, parse } from "date-fns";
 import { es } from "date-fns/locale";
-import { format, parse, isValid } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { DayPicker, type Matcher } from "react-day-picker";
+import { createPortal } from "react-dom";
 
 interface DatePickerProps {
   value: string; // "YYYY-MM-DD"
@@ -11,9 +11,23 @@ interface DatePickerProps {
   name?: string;
   required?: boolean;
   placeholder?: string;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
-export function DatePicker({ value, onChange, name, required, placeholder = "Seleccionar fecha" }: DatePickerProps) {
+function toCalendarDate(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+export function DatePicker({
+  value,
+  onChange,
+  name,
+  required,
+  placeholder = "Seleccionar fecha",
+  minDate,
+  maxDate,
+}: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -21,6 +35,14 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
   const parsed = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
   const selected = parsed && isValid(parsed) ? parsed : undefined;
   const displayValue = selected ? format(selected, "d 'de' MMMM, yyyy", { locale: es }) : "";
+  const normalizedMinDate = minDate ? toCalendarDate(minDate) : undefined;
+  const normalizedMaxDate = maxDate ? toCalendarDate(maxDate) : undefined;
+  const currentYear = new Date().getFullYear();
+  const fromYear = normalizedMinDate ? normalizedMinDate.getFullYear() : currentYear - 110;
+  const toYear = normalizedMaxDate ? normalizedMaxDate.getFullYear() : currentYear + 20;
+  const disabledMatchers: Matcher[] = [];
+  if (normalizedMinDate) disabledMatchers.push({ before: normalizedMinDate });
+  if (normalizedMaxDate) disabledMatchers.push({ after: normalizedMaxDate });
 
   // Recalcular posición cada vez que se abre o el trigger se mueve
   useLayoutEffect(() => {
@@ -113,11 +135,11 @@ export function DatePicker({ value, onChange, name, required, placeholder = "Sel
             selected={selected}
             onSelect={handleSelect}
             locale={es}
-            defaultMonth={selected ?? new Date()}
+            defaultMonth={selected ?? normalizedMinDate ?? new Date()}
             captionLayout="dropdown"
-            fromYear={new Date().getFullYear() - 110}
-            toYear={new Date().getFullYear()}
-            disabled={{ after: new Date() }}
+            fromYear={fromYear}
+            toYear={toYear}
+            disabled={disabledMatchers.length > 0 ? disabledMatchers : undefined}
             components={{
               Chevron: ({ orientation, ...props }) =>
                 orientation === "left"

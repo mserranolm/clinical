@@ -726,7 +726,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
 
             <div className="input-group">
               <label>Fecha de Nacimiento</label>
-              <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" />
+              <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" maxDate={new Date()} />
             </div>
 
             <div className="modal-actions">
