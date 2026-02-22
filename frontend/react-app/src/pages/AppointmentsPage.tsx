@@ -1,4 +1,4 @@
-import { RefreshCw, Stethoscope } from "lucide-react";
+import { CalendarDays, List, RefreshCw, Stethoscope } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
@@ -25,6 +25,9 @@ type AppointmentRow = {
   consentSummary?: { total: number; accepted: number };
 };
 
+type ViewMode = "day" | "week" | "month";
+type DisplayMode = "list" | "calendar";
+
 const AUTO_REFRESH_OPTS = [
   { value: 0, label: "Desactivada" },
   { value: 10, label: "Cada 10 s" },
@@ -32,6 +35,17 @@ const AUTO_REFRESH_OPTS = [
   { value: 30, label: "Cada 30 s" },
   { value: 60, label: "Cada 60 s" },
 ] as const;
+
+const VIEW_MODE_OPTS: Array<{ value: ViewMode; label: string }> = [
+  { value: "day", label: "Día" },
+  { value: "week", label: "Semana" },
+  { value: "month", label: "Mes" },
+];
+
+const DISPLAY_MODE_OPTS: Array<{ value: DisplayMode; label: string }> = [
+  { value: "calendar", label: "Calendario" },
+  { value: "list", label: "Lista" },
+];
 
 const DURATION_BLOCKS = [
   { label: "30 minutos", value: 30 },
@@ -55,6 +69,41 @@ function toLocalDateString(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function parseLocalDate(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDays(base: Date, days: number): Date {
+  const next = new Date(base);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getDateRangeByView(anchorDate: string, viewMode: ViewMode): string[] {
+  const anchor = parseLocalDate(anchorDate);
+  const dates: string[] = [];
+
+  if (viewMode === "day") return [toLocalDateString(anchor)];
+
+  if (viewMode === "week") {
+    const dayOfWeek = anchor.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = addDays(anchor, diffToMonday);
+    for (let i = 0; i < 7; i += 1) {
+      dates.push(toLocalDateString(addDays(weekStart, i)));
+    }
+    return dates;
+  }
+
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  for (let d = new Date(monthStart); d <= monthEnd; d = addDays(d, 1)) {
+    dates.push(toLocalDateString(d));
+  }
+  return dates;
+}
+
 function formatTimeRange(startAt: string, endAt: string): string {
   const start = new Date(startAt);
   const end = new Date(endAt);
@@ -75,6 +124,9 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [createDate, setCreateDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<AppointmentRow[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("list");
+  const [hideCompletedCancelled, setHideCompletedCancelled] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string; } | null>(null);
   const [duration, setDuration] = useState<number>(30);
   const [editRow, setEditRow] = useState<AppointmentRow | null>(null);
@@ -101,6 +153,23 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     setEditDate(date);
     setEditTime(time);
     setEditDuration(row.durationMinutes || 30);
+  }
+
+  function formatAgendaDate(startAt: string): string {
+    const dateValue = new Date(startAt);
+    return dateValue.toLocaleDateString("es-ES", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    });
+  }
+
+  function formatCalendarDayLabel(localDate: string): string {
+    return parseLocalDate(localDate).toLocaleDateString("es-ES", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    });
   }
 
   const todayLocal = toLocalDateString(new Date());
@@ -149,8 +218,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const effectiveDoctorId = isDoctor ? doctorId : selectedDoctorId;
 
   useEffect(() => {
-    loadAppointments(date, effectiveDoctorId);
-  }, [location.key, effectiveDoctorId, date]);
+    loadAppointments(date, effectiveDoctorId, viewMode);
+  }, [location.key, effectiveDoctorId, date, viewMode]);
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -158,12 +227,12 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
       intervalRef.current = null;
     }
     if (autoRefreshSeconds > 0) {
-      intervalRef.current = setInterval(() => loadAppointments(date, effectiveDoctorId), autoRefreshSeconds * 1000);
+      intervalRef.current = setInterval(() => loadAppointments(date, effectiveDoctorId, viewMode), autoRefreshSeconds * 1000);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [autoRefreshSeconds, date, effectiveDoctorId]);
+  }, [autoRefreshSeconds, date, effectiveDoctorId, viewMode]);
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -230,6 +299,22 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     cancelled: "status-cancelled",
   };
 
+  const visibleRows = hideCompletedCancelled
+    ? rows.filter((row) => row.status !== "completed" && row.status !== "cancelled")
+    : rows;
+
+  const visibleDates = getDateRangeByView(date, viewMode);
+  const rowsByDate: Record<string, AppointmentRow[]> = visibleDates.reduce((acc, localDate) => {
+    acc[localDate] = [];
+    return acc;
+  }, {} as Record<string, AppointmentRow[]>);
+
+  visibleRows.forEach((row) => {
+    const localDate = toLocalDateString(new Date(row.startAt));
+    if (!rowsByDate[localDate]) rowsByDate[localDate] = [];
+    rowsByDate[localDate].push(row);
+  });
+
   const goToTreatment = async (row: AppointmentRow) => {
     if (row.status !== "in_progress") {
       try {
@@ -239,18 +324,85 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     navigate(`/dashboard/consulta?appointmentId=${encodeURIComponent(row.id)}&patientId=${encodeURIComponent(row.patientId)}`);
   };
 
-  function loadAppointments(forDate?: string, forDoctorId?: string) {
+  function renderRowActions(row: AppointmentRow) {
+    return (
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
+          <button type="button" className="action-btn" onClick={() => openEdit(row)}>
+            <span className="icon">✏️</span>
+            <span>Editar</span>
+          </button>
+        )}
+        {canWriteAppointments(session) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
+          <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
+            <span className="icon">✓</span>
+            <span>Confirmar</span>
+          </button>
+        )}
+        {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
+          <button type="button" className="action-btn" onClick={() => onCancel(row.id)}>
+            <span className="icon">✕</span>
+            <span>Cancelar</span>
+          </button>
+        )}
+        {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "in_progress" && row.status !== "cancelled" && !(row.consentSummary && row.consentSummary.total > 0 && row.consentSummary.accepted >= row.consentSummary.total) && (
+          <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
+            <span className="icon">✉️</span>
+            <span>Reenviar</span>
+          </button>
+        )}
+        {canWriteAppointments(session) && isCompleted(row.status) && (
+          <button
+            type="button"
+            className="agenda-btn"
+            style={{ background: row.paymentPaid ? "#d1fae5" : "#fef3c7", color: row.paymentPaid ? "#065f46" : "#92400e", borderColor: row.paymentPaid ? "#6ee7b7" : "#fcd34d", opacity: row.paymentPaid ? 0.7 : 1, cursor: row.paymentPaid ? "default" : "pointer" }}
+            onClick={() => !row.paymentPaid && openPayModal(row)}
+            disabled={row.paymentPaid}
+            title={row.paymentPaid ? "Pago ya registrado" : "Registrar pago"}
+          >
+            <span>{row.paymentPaid ? "💰 Pagado" : "💳 Registrar Pago"}</span>
+          </button>
+        )}
+        {canManageTreatments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
+          <button
+            type="button"
+            className="agenda-btn agenda-btn-treat"
+            onClick={() => (isConfirmed(row.status) || row.status === "in_progress") ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
+            title={(isConfirmed(row.status) || row.status === "in_progress") ? "Atender paciente" : "Confirma primero"}
+            style={!(isConfirmed(row.status) || row.status === "in_progress") ? { opacity: 0.45, cursor: "not-allowed" } : {}}
+          >
+            <Stethoscope size={13} strokeWidth={1.5} />
+            <span>Atender</span>
+          </button>
+        )}
+        {canDeleteAppointments(session) && (
+          <button type="button" className="action-btn action-btn-delete" onClick={() => onDelete(row.id)}>
+            <span className="icon">🗑️</span>
+            <span>Eliminar</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function loadAppointments(forDate?: string, forDoctorId?: string, forViewMode: ViewMode = viewMode) {
     const d = forDate ?? date;
     const did = forDoctorId ?? effectiveDoctorId;
+    const requestedDates = getDateRangeByView(d, forViewMode);
+
     const promise = Promise.all([
-      clinicalApi.listAppointments(did, d, token),
+      Promise.all(requestedDates.map((day) => clinicalApi.listAppointments(did, day, token))),
       clinicalApi.listPatients("", token)
-    ]).then(([appointments, patients]) => {
+    ]).then(([appointmentsByDate, patients]) => {
+      const allAppointments = appointmentsByDate.flatMap((appointmentPage) => appointmentPage.items || []);
       const patientById = new Map(
         (patients.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
       );
 
-      setRows((appointments.items || []).map((item) => ({
+      setRows(allAppointments
+        .slice()
+        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+        .map((item) => ({
         id: item.id,
         patientId: item.patientId,
         patientName: patientById.get(item.patientId),
@@ -263,13 +415,13 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         paymentMethod: item.paymentMethod,
         consentSummary: item.consentSummary,
       })));
-      return appointments;
+      return { total: allAppointments.length };
     });
 
     notify.promise(promise, {
       loading: "Sincronizando agenda...",
       success: (_r) => "Agenda actualizada",
-      successDesc: (r) => `${r.items.length} citas encontradas.`,
+      successDesc: (r) => `${r.total} citas encontradas.`,
       error: () => { setRows([]); return "Error de sincronización"; },
       errorDesc: (err) => err instanceof Error ? err.message : "Intenta de nuevo.",
     });
@@ -505,9 +657,38 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
 
       <article className="card elite-card" style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-          <h3 style={{ margin: 0 }}>Calendario Diario de Atención</h3>
+          <h3 style={{ margin: 0 }}>
+            {viewMode === "day" ? "Calendario Diario de Atención" : viewMode === "week" ? "Calendario Semanal de Atención" : "Calendario Mensual de Atención"}
+          </h3>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="button" className="agenda-btn" onClick={() => loadAppointments(date, effectiveDoctorId)} title="Actualizar agenda">
+            <div className="agenda-view-switch" role="tablist" aria-label="Modo de visualización de agenda">
+              {VIEW_MODE_OPTS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`agenda-view-btn ${viewMode === option.value ? "is-active" : ""}`}
+                  onClick={() => setViewMode(option.value)}
+                  aria-pressed={viewMode === option.value}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="agenda-view-switch" role="tablist" aria-label="Formato de visualización de agenda">
+              {DISPLAY_MODE_OPTS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`agenda-view-btn ${displayMode === option.value ? "is-active" : ""}`}
+                  onClick={() => setDisplayMode(option.value)}
+                  aria-pressed={displayMode === option.value}
+                >
+                  {option.value === "calendar" ? <CalendarDays size={13} strokeWidth={1.7} /> : <List size={13} strokeWidth={1.7} />}
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="agenda-btn" onClick={() => loadAppointments(date, effectiveDoctorId, viewMode)} title="Actualizar agenda">
               <RefreshCw size={13} strokeWidth={1.5} />
               <span>Actualizar</span>
             </button>
@@ -523,112 +704,112 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                 ))}
               </select>
             </label>
+            <label className="agenda-filter-check">
+              <input
+                type="checkbox"
+                checked={hideCompletedCancelled}
+                onChange={(e) => setHideCompletedCancelled(e.target.checked)}
+              />
+              <span>Ocultar finalizadas y canceladas</span>
+            </label>
           </div>
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Referencia</th>
-                <th>Paciente</th>
-                <th>Horario</th>
-                <th>Estado</th>
-                <th>Consentimientos</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="mono">{row.id.split("-")[0]}...</td>
-                  <td>
-                    <strong>{row.patientName || row.patientId}</strong>
-                  </td>
-                  <td>{formatTimeRange(row.startAt, row.endAt)}</td>
-                  <td>
-                    <span className={`badge ${statusClass[row.status] ?? "status-unconfirmed"}`}>
-                      {statusLabel[row.status] ?? row.status}
-                    </span>
-                  </td>
-                  <td>
-                    {row.consentSummary && row.consentSummary.total > 0 ? (
-                      row.consentSummary.accepted >= row.consentSummary.total ? (
-                        <span className="badge status-confirmed" title="Todos firmados">Completo</span>
+        {displayMode === "list" ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Referencia</th>
+                  <th>Paciente</th>
+                  {viewMode !== "day" && <th>Fecha</th>}
+                  <th>Horario</th>
+                  <th>Estado</th>
+                  <th>Consentimientos</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="mono">{row.id.split("-")[0]}...</td>
+                    <td>
+                      <strong>{row.patientName || row.patientId}</strong>
+                    </td>
+                    {viewMode !== "day" && <td>{formatAgendaDate(row.startAt)}</td>}
+                    <td>{formatTimeRange(row.startAt, row.endAt)}</td>
+                    <td>
+                      <span className={`badge ${statusClass[row.status] ?? "status-unconfirmed"}`}>
+                        {statusLabel[row.status] ?? row.status}
+                      </span>
+                    </td>
+                    <td>
+                      {row.consentSummary && row.consentSummary.total > 0 ? (
+                        row.consentSummary.accepted >= row.consentSummary.total ? (
+                          <span className="badge status-confirmed" title="Todos firmados">Completo</span>
+                        ) : (
+                          <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} aceptados. El paciente debe abrir todos los enlaces del correo.`}>Pendiente</span>
+                        )
                       ) : (
-                        <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} aceptados. El paciente debe abrir todos los enlaces del correo.`}>Pendiente</span>
-                      )
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button type="button" className="action-btn" onClick={() => openEdit(row)}>
-                          <span className="icon">✏️</span>
-                          <span>Editar</span>
-                        </button>
+                        <span className="text-muted">—</span>
                       )}
-                      {canWriteAppointments(session) && !isConfirmed(row.status) && !isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button type="button" className="action-btn action-btn-confirm" onClick={() => onConfirm(row.id)}>
-                          <span className="icon">✓</span>
-                          <span>Confirmar</span>
-                        </button>
-                      )}
-                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button type="button" className="action-btn" onClick={() => onCancel(row.id)}>
-                          <span className="icon">✕</span>
-                          <span>Cancelar</span>
-                        </button>
-                      )}
-                      {canWriteAppointments(session) && !isCompleted(row.status) && row.status !== "in_progress" && row.status !== "cancelled" && !(row.consentSummary && row.consentSummary.total > 0 && row.consentSummary.accepted >= row.consentSummary.total) && (
-                        <button type="button" className="action-btn" onClick={() => onResend(row.id)}>
-                          <span className="icon">✉️</span>
-                          <span>Reenviar</span>
-                        </button>
-                      )}
-                      {canWriteAppointments(session) && isCompleted(row.status) && (
-                        <button
-                          type="button"
-                          className="agenda-btn"
-                          style={{ background: row.paymentPaid ? "#d1fae5" : "#fef3c7", color: row.paymentPaid ? "#065f46" : "#92400e", borderColor: row.paymentPaid ? "#6ee7b7" : "#fcd34d", opacity: row.paymentPaid ? 0.7 : 1, cursor: row.paymentPaid ? "default" : "pointer" }}
-                          onClick={() => !row.paymentPaid && openPayModal(row)}
-                          disabled={row.paymentPaid}
-                          title={row.paymentPaid ? "Pago ya registrado" : "Registrar pago"}
-                        >
-                          <span>{row.paymentPaid ? "💰 Pagado" : "💳 Registrar Pago"}</span>
-                        </button>
-                      )}
-                      {canManageTreatments(session) && !isCompleted(row.status) && row.status !== "cancelled" && (
-                        <button
-                          type="button"
-                          className="agenda-btn agenda-btn-treat"
-                          onClick={() => (isConfirmed(row.status) || row.status === "in_progress") ? goToTreatment(row) : notify.error("Cita no confirmada", "Confirma la cita antes de atender al paciente.")}
-                          title={(isConfirmed(row.status) || row.status === "in_progress") ? "Atender paciente" : "Confirma primero"}
-                          style={!(isConfirmed(row.status) || row.status === "in_progress") ? { opacity: 0.45, cursor: "not-allowed" } : {}}
-                        >
-                          <Stethoscope size={13} strokeWidth={1.5} />
-                          <span>Atender</span>
-                        </button>
-                      )}
-                      {canDeleteAppointments(session) && (
-                        <button type="button" className="action-btn action-btn-delete" onClick={() => onDelete(row.id)}>
-                          <span className="icon">🗑️</span>
-                          <span>Eliminar</span>
-                        </button>
+                    </td>
+                    <td>{renderRowActions(row)}</td>
+                  </tr>
+                ))}
+                {visibleRows.length === 0 && (
+                  <tr>
+                    <td colSpan={viewMode === "day" ? 6 : 7} className="empty-state">
+                      {hideCompletedCancelled
+                        ? "No hay citas visibles con el filtro actual."
+                        : viewMode === "day"
+                        ? "Sin citas programadas para esta fecha."
+                        : viewMode === "week"
+                          ? "Sin citas programadas para esta semana."
+                          : "Sin citas programadas para este mes."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="agenda-calendar-wrap">
+            <div className={`agenda-calendar-grid ${viewMode === "day" ? "is-day" : ""}`}>
+              {visibleDates.map((localDate) => {
+                const dateRows = rowsByDate[localDate] ?? [];
+                return (
+                  <section className="agenda-calendar-column" key={localDate}>
+                    <header className="agenda-calendar-column-header">
+                      <strong>{formatCalendarDayLabel(localDate)}</strong>
+                      <small>{dateRows.length} cita{dateRows.length === 1 ? "" : "s"}</small>
+                    </header>
+                    <div className="agenda-calendar-column-body">
+                      {dateRows.length === 0 ? (
+                        <div className="agenda-calendar-empty">Sin citas</div>
+                      ) : (
+                        dateRows.map((row) => (
+                          <article key={row.id} className="agenda-calendar-item">
+                            <div className="agenda-calendar-top">
+                              <span className="agenda-calendar-time">{formatTimeRange(row.startAt, row.endAt)}</span>
+                              <span className={`badge ${statusClass[row.status] ?? "status-unconfirmed"}`}>
+                                {statusLabel[row.status] ?? row.status}
+                              </span>
+                            </div>
+                            <div className="agenda-calendar-patient">
+                              <strong>{row.patientName || row.patientId}</strong>
+                              <small className="mono">{row.id.split("-")[0]}...</small>
+                            </div>
+                            <div className="agenda-calendar-actions">{renderRowActions(row)}</div>
+                          </article>
+                        ))
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="empty-state">Sin citas programadas para esta fecha.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </article>
     </section>
   );

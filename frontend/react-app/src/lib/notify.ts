@@ -7,8 +7,8 @@ const successStyles = {
 };
 
 const errorStyles = {
-  title: "text-white! font-semibold!",
-  description: "text-red-400!",
+  title: "text-red-400! font-semibold!",
+  description: "text-white!",
   badge: "bg-red-500/20! text-red-400!",
 };
 

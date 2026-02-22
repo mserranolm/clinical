@@ -1803,12 +1803,12 @@ button {
   font-size: 0.875rem;
   letter-spacing: -0.01em;
 }
-button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.odn-view-btn):not(.patient-detail-tab-btn):not(.auth-tabs button):not(.search-clear):not(.search-remote-btn):not(.datepicker-trigger):not(.lp-btn-ghost):not(.lp-btn-primary):not(.lp-btn-cta-primary):not(.lp-btn-cta-secondary):not([data-sileo-toast]):not([data-sileo-button]):not([data-sileo-close-button]) {
+button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.odn-view-btn):not(.patient-detail-tab-btn):not(.auth-tabs button):not(.search-clear):not(.search-remote-btn):not(.datepicker-trigger):not(.agenda-view-btn):not(.lp-btn-ghost):not(.lp-btn-primary):not(.lp-btn-cta-primary):not(.lp-btn-cta-secondary):not([data-sileo-toast]):not([data-sileo-button]):not([data-sileo-close-button]) {
   background: #0ea5e9;
   color: white;
   box-shadow: 0 2px 8px rgba(14,165,233,0.20);
 }
-button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.odn-view-btn):not(.patient-detail-tab-btn):not(.search-clear):not(.search-remote-btn):not(.datepicker-trigger):not(.lp-btn-ghost):not(.lp-btn-primary):not(.lp-btn-cta-primary):not(.lp-btn-cta-secondary):not([data-sileo-toast]):not([data-sileo-button]):not([data-sileo-close-button]):hover {
+button:not(.ghost):not(.mini-btn):not(.link-btn):not(.logout-trigger):not(.sidebar-logout):not(.odn-view-btn):not(.patient-detail-tab-btn):not(.search-clear):not(.search-remote-btn):not(.datepicker-trigger):not(.agenda-view-btn):not(.lp-btn-ghost):not(.lp-btn-primary):not(.lp-btn-cta-primary):not(.lp-btn-cta-secondary):not([data-sileo-toast]):not([data-sileo-button]):not([data-sileo-close-button]):hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(14,165,233,0.28);
   background: #0284c7;
@@ -5027,6 +5027,175 @@ td { border-bottom: 1px solid #f8fafc !important; }
   box-shadow: none;
 }
 
+.agenda-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid #dbe3ee;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.agenda-view-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agenda-view-btn:hover {
+  color: #1e293b;
+  transform: none;
+  box-shadow: none;
+}
+
+.agenda-view-btn.is-active {
+  color: #ffffff;
+  background: #0ea5e9;
+  box-shadow: 0 3px 10px rgba(14, 165, 233, 0.35);
+}
+
+.agenda-filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.agenda-filter-check input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #0ea5e9;
+}
+
+.agenda-calendar-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agenda-calendar-grid {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-width: max-content;
+}
+
+.agenda-calendar-grid.is-day {
+  min-width: 100%;
+}
+
+.agenda-calendar-grid.is-day .agenda-calendar-column {
+  min-width: 100%;
+}
+
+.agenda-calendar-column {
+  min-width: 300px;
+  max-width: 340px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.agenda-calendar-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.agenda-calendar-column-header strong {
+  font-size: 0.8rem;
+  color: #334155;
+  text-transform: capitalize;
+}
+
+.agenda-calendar-column-header small {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.agenda-calendar-column-body {
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.agenda-calendar-item {
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.agenda-calendar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agenda-calendar-time {
+  font-size: 0.75rem;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-weight: 700;
+}
+
+.agenda-calendar-patient {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.agenda-calendar-patient strong {
+  font-size: 0.86rem;
+  color: #1e293b;
+}
+
+.agenda-calendar-actions {
+  border-top: 1px solid #f8fafc;
+  padding-top: 8px;
+}
+
+.agenda-calendar-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
 .agenda-btn-confirm {
   background: #f0f9ff;
   border-color: #bae6fd;
@@ -5138,6 +5307,53 @@ td { border-bottom: 1px solid #f8fafc !important; }
 [data-theme="dark"] .agenda-btn:hover {
   background: rgba(148,163,184,0.14);
   color: #cbd5e1;
+}
+[data-theme="dark"] .agenda-view-switch {
+  border-color: rgba(148,163,184,0.26);
+  background: linear-gradient(180deg, #334155 0%, #1f2937 100%);
+  box-shadow: inset 0 1px 1px rgba(148,163,184,0.18);
+}
+[data-theme="dark"] .agenda-view-btn {
+  color: #94a3b8;
+}
+[data-theme="dark"] .agenda-view-btn:hover {
+  color: #cbd5e1;
+}
+[data-theme="dark"] .agenda-view-btn.is-active {
+  background: #38bdf8;
+  color: #0f172a;
+  box-shadow: 0 3px 12px rgba(56, 189, 248, 0.35);
+}
+[data-theme="dark"] .agenda-filter-check {
+  color: #94a3b8;
+  background: rgba(148,163,184,0.08);
+  border-color: rgba(148,163,184,0.15);
+}
+[data-theme="dark"] .agenda-calendar-column {
+  background: #1e293b;
+  border-color: rgba(148,163,184,0.15);
+}
+[data-theme="dark"] .agenda-calendar-column-header {
+  background: #263348;
+  border-bottom-color: rgba(148,163,184,0.12);
+}
+[data-theme="dark"] .agenda-calendar-column-header strong { color: #cbd5e1; }
+[data-theme="dark"] .agenda-calendar-column-header small { color: #64748b; }
+[data-theme="dark"] .agenda-calendar-item {
+  background: #1f2c41;
+  border-color: rgba(148,163,184,0.12);
+}
+[data-theme="dark"] .agenda-calendar-time {
+  background: rgba(56,189,248,0.14);
+  border-color: rgba(56,189,248,0.30);
+  color: #7dd3fc;
+}
+[data-theme="dark"] .agenda-calendar-patient strong { color: #e2e8f0; }
+[data-theme="dark"] .agenda-calendar-actions { border-top-color: rgba(148,163,184,0.10); }
+[data-theme="dark"] .agenda-calendar-empty {
+  background: rgba(148,163,184,0.05);
+  border-color: rgba(148,163,184,0.25);
+  color: #64748b;
 }
 [data-theme="dark"] .agenda-btn-confirm {
   background: rgba(56,189,248,0.12);
@@ -5508,6 +5724,12 @@ td { border-bottom: 1px solid #f8fafc !important; }
 .btn-warning:hover { background: #d97706; }
 [data-theme="dark"] .btn-warning { background: #b45309; }
 [data-theme="dark"] .btn-warning:hover { background: #92400e; }
+
+/* Sileo Toast overrides */
+[data-sileo-toast] p,
+[data-sileo-toast] [data-sileo-description] {
+  color: #ffffff !important;
+}
 
 /* ─── Patient Detail Page ─────────────────────────────────────── */
 .patient-detail-page {
