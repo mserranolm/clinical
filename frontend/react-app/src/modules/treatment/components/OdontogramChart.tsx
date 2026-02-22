@@ -381,14 +381,13 @@ export const OdontogramChart: React.FC<{
     if (onSurfaceChange || onToothConditionChange) {
       // Buscar la posición del diente en el DOM
       const toothEl = document.querySelector(`[data-tooth="${toothNum}"]`);
-      const container = toothEl?.closest('.odn-chart');
-      if (toothEl && container) {
+      if (toothEl) {
         const rect = toothEl.getBoundingClientRect();
-        const cRect = container.getBoundingClientRect();
+        // Usar coordenadas absolutas de la ventana para el portal
         setRadialMenu({
           visible: true,
-          x: rect.left - cRect.left + rect.width / 2,
-          y: rect.top - cRect.top + rect.height / 2,
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
           toothNum,
           surface,
         });
