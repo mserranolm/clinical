@@ -1,6 +1,6 @@
+import { Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
 import { clinicalApi } from "../../api/clinical";
 import { AuthSession } from "../../types";
 import { Sidebar } from "./Sidebar";
@@ -8,17 +8,18 @@ import { Topbar } from "./Topbar";
 
 // Page components
 import { ServiceTester } from "../../modules/testing/ServiceTester";
+import { AdminConsoleHome } from "../../pages/admin/AdminConsoleHome";
 import { AppointmentsPage } from "../../pages/AppointmentsPage";
 import { ConsentsPage } from "../../pages/ConsentsPage";
 import { ConsentTemplatesPage } from "../../pages/ConsentTemplatesPage";
+import { ConsultaPage } from "../../pages/ConsultaPage";
 import { DashboardHome } from "../../pages/DashboardHome";
 import { OdontogramPage } from "../../pages/OdontogramPage";
+import { PatientDetailPage } from "../../pages/PatientDetailPage";
 import { PatientsPage } from "../../pages/PatientsPage";
 import { PlansPage } from "../../pages/PlansPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
-import { ConsultaPage } from "../../pages/ConsultaPage";
 import { UsersAdminPage } from "../../pages/UsersAdminPage";
-import { AdminConsoleHome } from "../../pages/admin/AdminConsoleHome";
 
 type DashboardAppointmentRow = {
   id: string;
@@ -179,6 +180,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
             <Route path="consulta" element={<ConsultaPage token={session.token} doctorId={session.userId} />} />
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId="" session={session} />} />
+            <Route path="pacientes/:patientId" element={<PatientDetailPage token={session.token} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="consentimientos" element={<ConsentsPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="plantillas-consentimiento" element={<ConsentTemplatesPage token={session.token} />} />

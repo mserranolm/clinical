@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
-import { notify } from "../lib/notify";
-import { canWritePatients, canDeletePatients } from "../lib/rbac";
-import { DatePicker } from "../components/ui/DatePicker";
 import { Modal } from "../components/Modal";
+import { DatePicker } from "../components/ui/DatePicker";
+import { notify } from "../lib/notify";
+import { canDeletePatients, canWritePatients } from "../lib/rbac";
 import type { AuthSession } from "../types";
 
 type PatientRow = {
@@ -136,6 +137,7 @@ function exportPDF(patient: PatientRow, consultas: ConsultaHistorial[], patientD
 }
 
 export function PatientsPage({ token, doctorId, session }: { token: string; doctorId: string; session: AuthSession }) {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<PatientRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -367,6 +369,14 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                     <td><span className="badge status-confirmed">Activo</span></td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          className="action-btn"
+                          onClick={() => navigate(`/dashboard/pacientes/${row.id}`)}
+                        >
+                          <span className="icon">👁️</span>
+                          <span>Consultar</span>
+                        </button>
                         {canWritePatients(session) && (
                           <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
                             <span className="icon">✏️</span>
