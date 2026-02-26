@@ -154,8 +154,21 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 	}
 	if email, name := s.patientEmail(ctx, created.PatientID); email != "" {
 		if s.notifier != nil {
-			// Módulo de consentimiento deshabilitado: el correo solo incluye el enlace de confirmación de cita.
-			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, nil)
+			ctx, orgID := s.ensureOrgContext(ctx, created.DoctorID)
+			var consentLinks []notifications.ConsentLink
+			if s.consents != nil && orgID != "" {
+				if list, cerr := s.consents.CreateConsentsForAppointment(ctx, created.ID, orgID, created.PatientID, created.DoctorID, email, name, created.StartAt.In(loc)); cerr == nil {
+					for _, c := range list {
+						if c.AcceptToken != "" {
+							consentLinks = append(consentLinks, notifications.ConsentLink{Title: c.Title, Token: c.AcceptToken})
+						}
+					}
+				}
+			}
+			if len(consentLinks) == 0 && orgID != "" {
+				log.Printf("[appointment] create: no consent templates active for org %s — configure plantillas de consentimiento (asistencia + tratamiento)", orgID)
+			}
+			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, consentLinks)
 		}
 	}
 	return created, nil
@@ -255,11 +268,25 @@ func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID,
 	if time.Until(item.StartAt).Hours() > 24.1 || time.Until(item.StartAt).Hours() < 23.9 {
 		return fmt.Errorf("appointment is not in 24h window")
 	}
-	// Módulo de consentimiento deshabilitado: el recordatorio 24h solo incluye el enlace de confirmación.
+	// Mismo email que creación/reenvío: confirmación + todos los consentimientos (asistencia y tratamiento)
 	if s.notifier != nil {
 		email, name := s.patientEmail(ctx, item.PatientID)
 		if email != "" {
-			_ = s.notifier.SendAppointmentCreated(ctx, email, name, item, nil)
+			ctx, orgID := s.ensureOrgContext(ctx, item.DoctorID)
+			var consentLinks []notifications.ConsentLink
+			if s.consents != nil && orgID != "" {
+				if list, cerr := s.consents.CreateConsentsForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil {
+					for _, c := range list {
+						if c.AcceptToken != "" {
+							consentLinks = append(consentLinks, notifications.ConsentLink{Title: c.Title, Token: c.AcceptToken})
+						}
+					}
+				}
+			}
+			if len(consentLinks) == 0 && orgID != "" {
+				log.Printf("[appointment] 24h reminder: no consent templates active for org %s", orgID)
+			}
+			_ = s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks)
 		}
 	}
 	now := time.Now().UTC()

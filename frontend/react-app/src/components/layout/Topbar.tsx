@@ -11,6 +11,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/citas": { title: "Agenda Médica", subtitle: "Programación de consultas" },
   "/dashboard/odontograma": { title: "Odontograma", subtitle: "Registro dental interactivo" },
   "/dashboard/planes": { title: "Tratamientos", subtitle: "Planes y seguimiento clínico" },
+  "/dashboard/consentimientos": { title: "Documentos", subtitle: "Consentimientos y registros legales" },
   "/dashboard/usuarios": { title: "Usuarios", subtitle: "Gestión de equipo y roles" },
   "/dashboard/testing": { title: "Service Tester", subtitle: "Pruebas de integración de API" },
 };

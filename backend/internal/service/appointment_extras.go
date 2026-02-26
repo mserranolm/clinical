@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"clinical-backend/internal/notifications"
 )
 
 const reminderCooldown = 3 * time.Minute
 
-// SendReminderAnytime resends the appointment confirmation email (solo enlace de confirmación de cita).
+// SendReminderAnytime resends the appointment confirmation email (with confirm + consent links).
 // Rate-limited to once every 3 minutes using ReminderSentAt.
 func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmentID, channel string) error {
 	item, err := s.repo.GetByID(ctx, appointmentID)
@@ -33,8 +35,18 @@ func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmen
 		if email == "" {
 			return fmt.Errorf("el paciente no tiene email registrado")
 		}
-		// Módulo de consentimiento deshabilitado: el reenvío solo incluye el enlace de confirmación.
-		if err := s.notifier.SendAppointmentCreated(ctx, email, name, item, nil); err != nil {
+		ctx, orgID := s.ensureOrgContext(ctx, item.DoctorID)
+		var consentLinks []notifications.ConsentLink
+		if s.consents != nil && orgID != "" {
+			if list, cerr := s.consents.CreateConsentsForAppointment(ctx, item.ID, orgID, item.PatientID, item.DoctorID, email, name, item.StartAt); cerr == nil {
+				for _, c := range list {
+					if c.AcceptToken != "" {
+						consentLinks = append(consentLinks, notifications.ConsentLink{Title: c.Title, Token: c.AcceptToken})
+					}
+				}
+			}
+		}
+		if err := s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks); err != nil {
 			return err
 		}
 	}
