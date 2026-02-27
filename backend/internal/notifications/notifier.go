@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	sestypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
 )
 
 type Notifier interface {
@@ -30,6 +32,7 @@ type Notifier interface {
 	SendWelcome(ctx context.Context, toEmail, name, role, password, loginURL string) error
 	SendAppointmentEvent(ctx context.Context, toEmail, patientName, eventType string, startAt, endAt time.Time) error
 	SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentLinks []ConsentLink) error
+	SendAppointmentCreatedSMS(ctx context.Context, toPhone, patientName string, appt domain.Appointment) error
 	SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error
 	SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error
 }
@@ -46,10 +49,16 @@ type Router struct {
 	cfg       config.Config
 	ddb       *dynamodb.Client
 	ses       *sesv2.Client
+	sns       *sns.Client
 }
 
 func NewRouter(cfg config.Config) *Router {
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
+	ctx := context.Background()
+	var opts []func(*awsconfig.LoadOptions) error
+	if cfg.AWSProfile != "" {
+		opts = append(opts, awsconfig.WithSharedConfigProfile(cfg.AWSProfile))
+	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		log.Printf("[notify] warn: failed to load aws cfg: %v", err)
 	}
@@ -57,8 +66,32 @@ func NewRouter(cfg config.Config) *Router {
 	if err == nil {
 		r.ddb = dynamodb.NewFromConfig(awsCfg)
 		r.ses = sesv2.NewFromConfig(awsCfg)
+		r.sns = sns.NewFromConfig(awsCfg)
 	}
 	return r
+}
+
+// normalizePhoneForSMS returns E.164 phone for SNS (only digits and leading +). Empty if invalid.
+func normalizePhoneForSMS(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return ""
+	}
+	digits := regexp.MustCompile(`\D`).ReplaceAllString(phone, "")
+	if digits == "" {
+		return ""
+	}
+	// Colombia 10 dígitos empezando en 3 -> +57
+	if len(digits) == 10 && digits[0] == '3' {
+		return "+57" + digits
+	}
+	if strings.HasPrefix(phone, "+") {
+		return "+" + digits
+	}
+	if len(digits) >= 10 {
+		return "+" + digits
+	}
+	return ""
 }
 
 func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel, message string) error {
@@ -192,6 +225,43 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 		log.Printf("[notify:appointment-created] ses send failed: %v", err)
 	}
 	return err
+}
+
+func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patientName string, appt domain.Appointment) error {
+	e164 := normalizePhoneForSMS(toPhone)
+	if e164 == "" {
+		log.Printf("[notify:sms] skip: paciente sin teléfono válido (patientName=%s)", patientName)
+		return nil
+	}
+	if !r.sendSMS || r.sns == nil {
+		log.Printf("[notify:sms] skip: SMS deshabilitado o cliente nil")
+		return nil
+	}
+	frontendBase := os.Getenv("FRONTEND_BASE_URL")
+	if frontendBase == "" {
+		frontendBase = "https://clinisense.aski-tech.net"
+	}
+	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
+	msg := fmt.Sprintf("CliniSense: Hola %s. Tu cita es el %s a las %s. Confirmar: %s",
+		strings.TrimSpace(patientName),
+		appt.StartAt.Format("02/01/2006"),
+		appt.StartAt.Format("15:04"),
+		confirmURL,
+	)
+	if len(msg) > 160 {
+		msg = fmt.Sprintf("CliniSense: Cita %s a las %s. Confirmar: %s",
+			appt.StartAt.Format("02/01/2006"), appt.StartAt.Format("15:04"), confirmURL)
+	}
+	_, err := r.sns.Publish(ctx, &sns.PublishInput{
+		PhoneNumber: aws.String(e164),
+		Message:     aws.String(msg),
+	})
+	if err != nil {
+		log.Printf("[notify:sms] send failed to %s: %v", e164, err)
+		return err
+	}
+	log.Printf("[notify:sms] sent to %s appointmentId=%s", e164, appt.ID)
+	return nil
 }
 
 func (r *Router) SendConsentRequest(_ context.Context, patientID, channel, message string) error {

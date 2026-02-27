@@ -37,10 +37,6 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   const adminItems: NavItemDef[] = [
     { to: "/dashboard/usuarios", label: "Usuarios", icon: <Users {...iconProps} /> },
   ];
-  // Solo admin organización: gestión de plantillas de consentimiento.
-  const adminOnlyTools: NavItemDef[] = [
-    { to: "/dashboard/plantillas-consentimiento", label: "Plantillas Consentimiento", icon: <ShieldCheck {...iconProps} /> },
-  ];
 
   if (isPlatformAdmin) {
     return (
@@ -90,18 +86,6 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
             </NavLink>
           ))}
         </div>
-
-        {isAdmin && (
-          <div className="nav-group">
-            <span className="nav-group-label">Herramientas</span>
-            {adminOnlyTools.map((item) => (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-                <span className="nav-item-icon">{item.icon}</span>
-                <span className="nav-item-label">{item.label}</span>
-              </NavLink>
-            ))}
-          </div>
-        )}
 
         {isAdmin && (
           <div className="nav-group">

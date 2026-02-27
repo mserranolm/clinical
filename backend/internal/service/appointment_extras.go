@@ -49,6 +49,9 @@ func (s *AppointmentService) SendReminderAnytime(ctx context.Context, appointmen
 		if err := s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks); err != nil {
 			return err
 		}
+		if phone := s.patientPhone(ctx, item.PatientID); phone != "" {
+			_ = s.notifier.SendAppointmentCreatedSMS(ctx, phone, name, item)
+		}
 	}
 
 	now := time.Now().UTC()

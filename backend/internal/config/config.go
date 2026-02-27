@@ -29,8 +29,11 @@ func Load() Config {
 	// Use in-memory storage for local development unless explicitly disabled
 	useInMemory := !isLambda && getEnv("USE_DYNAMODB", "false") != "true"
 
-	// AWS Profile for local development (SSO profile)
+	// AWS Profile for local development (SSO profile). Sandbox/cuenta aski: usar profile "aski".
 	awsProfile := getEnv("AWS_PROFILE", "")
+	if !isLambda && awsProfile == "" {
+		awsProfile = "aski"
+	}
 
 	return Config{
 		Environment:          getEnv("ENVIRONMENT", "dev"),

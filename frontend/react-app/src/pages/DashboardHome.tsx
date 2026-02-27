@@ -376,7 +376,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
               type="button"
               className="agenda-btn"
               onClick={onRefresh}
-              title="Actualizar citas y consentimientos"
+              title="Actualizar citas"
               disabled={loading}
               style={{ display: "flex", alignItems: "center", gap: 6 }}
             >
@@ -450,9 +450,9 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                     <td>
                       {row.consentSummary && row.consentSummary.total > 0 ? (
                         row.consentSummary.accepted >= row.consentSummary.total ? (
-                          <span className="badge status-confirmed" title="Todos los consentimientos aceptados">Completo</span>
+                          <span className="badge status-confirmed" title="Confirmación enviada">Completo</span>
                         ) : (
-                          <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} aceptados. El paciente debe abrir y aceptar todos los enlaces del correo.`}>Pendiente</span>
+                          <span className="badge badge-neutral" title={`${row.consentSummary.accepted}/${row.consentSummary.total} enlaces abiertos.`}>Pendiente</span>
                         )
                       ) : (
                         <span className="text-muted">—</span>
@@ -489,7 +489,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                           </span>
                         )}
                         {!isCompleted(row.status) && row.status !== "cancelled" && !(row.consentSummary && row.consentSummary.total > 0 && row.consentSummary.accepted >= row.consentSummary.total) && (
-                          <button type="button" className="agenda-btn" onClick={() => onResend(row.id)} title="Reenviar confirmación y consentimientos">
+                          <button type="button" className="agenda-btn" onClick={() => onResend(row.id)} title="Reenviar confirmación">
                             <Send size={13} strokeWidth={1.5} />
                           </button>
                         )}

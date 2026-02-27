@@ -54,6 +54,18 @@ func (s *AppointmentService) patientEmail(ctx context.Context, patientID string)
 	return p.Email, p.FirstName + " " + p.LastName
 }
 
+// patientPhone returns the patient's phone number if present in DB (validado para envío SMS).
+func (s *AppointmentService) patientPhone(ctx context.Context, patientID string) string {
+	if s.patientRepo == nil {
+		return ""
+	}
+	p, err := s.patientRepo.GetByID(ctx, patientID)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(p.Phone)
+}
+
 // ensureOrgContext returns ctx with OrgID set and the orgID to use for consent templates.
 // If context already has OrgID, returns as-is. Otherwise tries to resolve from doctor (DoctorID = user ID).
 func (s *AppointmentService) ensureOrgContext(ctx context.Context, doctorID string) (context.Context, string) {
@@ -169,6 +181,9 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 				log.Printf("[appointment] create: no consent templates active for org %s — configure plantillas de consentimiento (asistencia + tratamiento)", orgID)
 			}
 			_ = s.notifier.SendAppointmentCreated(ctx, email, name, created, consentLinks)
+			if phone := s.patientPhone(ctx, created.PatientID); phone != "" {
+				_ = s.notifier.SendAppointmentCreatedSMS(ctx, phone, name, created)
+			}
 		}
 	}
 	return created, nil
@@ -287,6 +302,9 @@ func (s *AppointmentService) Send24hReminder(ctx context.Context, appointmentID,
 				log.Printf("[appointment] 24h reminder: no consent templates active for org %s", orgID)
 			}
 			_ = s.notifier.SendAppointmentCreated(ctx, email, name, item, consentLinks)
+			if phone := s.patientPhone(ctx, item.PatientID); phone != "" {
+				_ = s.notifier.SendAppointmentCreatedSMS(ctx, phone, name, item)
+			}
 		}
 	}
 	now := time.Now().UTC()
