@@ -175,6 +175,11 @@ Resources:
         - Statement:
           - Effect: Allow
             Action:
+              - sns:Publish
+            Resource: "*"
+        - Statement:
+          - Effect: Allow
+            Action:
               - dynamodb:CreateTable
               - dynamodb:DescribeTable
               - dynamodb:ListTables
@@ -208,6 +213,11 @@ Resources:
               - ses:SendEmail
               - ses:SendRawEmail
             Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
+        - Statement:
+          - Effect: Allow
+            Action:
+              - sns:Publish
+            Resource: "*"
       Events:
         Every15Minutes:
           Type: Schedule

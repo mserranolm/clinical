@@ -337,6 +337,7 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	}
 	log.Printf("[notify:appointment] to=%s event=%s start=%s", toEmail, eventType, startAt)
 	if !r.sendEmail || r.ses == nil {
+		log.Printf("[notify:appointment] skip send: sendEmail=%v sesNil=%v", r.sendEmail, r.ses == nil)
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -356,8 +357,10 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	})
 	if err != nil {
 		log.Printf("[notify:appointment] ses send failed: %v", err)
+		return err
 	}
-	return err
+	log.Printf("[notify:appointment] ses sent to=%s event=%s", toEmail, eventType)
+	return nil
 }
 
 func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error {
