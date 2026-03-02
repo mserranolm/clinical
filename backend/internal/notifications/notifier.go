@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	sestypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 )
 
 type Notifier interface {
@@ -252,9 +253,16 @@ func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patient
 		msg = fmt.Sprintf("CliniSense: Cita %s a las %s. Confirmar: %s",
 			appt.StartAt.Format("02/01/2006"), appt.StartAt.Format("15:04"), confirmURL)
 	}
+	// Modo producción: tipo Transactional para recordatorios de cita (mayor prioridad de entrega).
 	_, err := r.sns.Publish(ctx, &sns.PublishInput{
 		PhoneNumber: aws.String(e164),
 		Message:     aws.String(msg),
+		MessageAttributes: map[string]snstypes.MessageAttributeValue{
+			"AWS.SNS.SMS.SMSType": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String("Transactional"),
+			},
+		},
 	})
 	if err != nil {
 		log.Printf("[notify:sms] send failed to %s: %v", e164, err)
