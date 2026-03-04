@@ -182,10 +182,7 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 	}
 	endpoint := fmt.Sprintf("%s %s", method, path)
 
-	// Log request details with debugging
-	log.Printf("[REQUEST] %s - Body: %s", endpoint, req.Body)
-	log.Printf("[DEBUG] RawPath: '%s', HTTP.Path: '%s', Method: '%s'", req.RawPath, req.RequestContext.HTTP.Path, req.RequestContext.HTTP.Method)
-	log.Printf("[DEBUG] Route Key: '%s'", req.RouteKey)
+	log.Printf("[REQUEST] %s", endpoint)
 
 	var resp events.APIGatewayV2HTTPResponse
 	var err error

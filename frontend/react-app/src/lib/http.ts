@@ -7,6 +7,10 @@ type RequestConfig = {
   token?: string;
 };
 
+/**
+ * Generic HTTP client that wraps fetch with JSON serialization, auth headers,
+ * and error normalization. Throws an Error with the API error message on non-2xx responses.
+ */
 export async function request<T>(path: string, config: RequestConfig = {}): Promise<T> {
   const method = config.method ?? "GET";
   const apiKey = import.meta.env.VITE_API_KEY as string | undefined;

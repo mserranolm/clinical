@@ -59,10 +59,9 @@ func validatePassword(password string) error {
 	}
 
 	var (
-		hasUpper   bool
-		hasLower   bool
-		hasNumber  bool
-		hasSpecial bool
+		hasUpper  bool
+		hasLower  bool
+		hasNumber bool
 	)
 
 	for _, char := range password {
@@ -73,8 +72,6 @@ func validatePassword(password string) error {
 			hasLower = true
 		case char >= '0' && char <= '9':
 			hasNumber = true
-		case strings.ContainsRune("!@#$%^&*()_+-=[]{}|;:,.<>?", char):
-			hasSpecial = true
 		}
 	}
 
@@ -82,36 +79,7 @@ func validatePassword(password string) error {
 		return fmt.Errorf("password must contain uppercase, lowercase, and numbers")
 	}
 
-	// hasSpecial is optional but tracked for future requirements
-	_ = hasSpecial
-
 	return nil
-}
-
-// sanitizeInput removes leading/trailing whitespace and normalizes
-func sanitizeInput(input string) string {
-	return strings.TrimSpace(input)
-}
-
-// isValidRole checks if the role is valid
-func isValidRole(role string) bool {
-	validRoles := map[string]bool{
-		"admin":     true,
-		"doctor":    true,
-		"assistant": true,
-		"patient":   true,
-	}
-	return validRoles[strings.ToLower(role)]
-}
-
-// isValidStatus checks if the status is valid
-func isValidStatus(status string) bool {
-	validStatuses := map[string]bool{
-		"active":   true,
-		"inactive": true,
-		"disabled": true,
-	}
-	return validStatuses[strings.ToLower(status)]
 }
 
 // formatPhoneNumber formats phone number for consistency

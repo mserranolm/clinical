@@ -2,12 +2,14 @@ package domain
 
 import "time"
 
+// Specialty identifies the medical specialty for a patient or doctor.
 type Specialty string
 
 const (
 	SpecialtyOdontology Specialty = "odontology"
 )
 
+// Patient represents a patient registered in the system.
 type Patient struct {
 	ID                 string              `json:"id"`
 	DoctorID           string              `json:"doctorId"`
@@ -24,11 +26,13 @@ type Patient struct {
 	UpdatedAt          *time.Time          `json:"updatedAt,omitempty"`
 }
 
+// MedicalBackground records a patient's medical history entry.
 type MedicalBackground struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
 }
 
+// Appointment represents a scheduled clinical appointment between a doctor and patient.
 type Appointment struct {
 	ID                  string     `json:"id"`
 	OrgID               string     `json:"orgId,omitempty"` // interno: para persistir en la org correcta (ej. confirmación pública)
@@ -54,12 +58,13 @@ type Appointment struct {
 
 // ConsentSummary is attached to appointment list responses (no persist).
 type ConsentSummary struct {
-	Total   int `json:"total"`
+	Total    int `json:"total"`
 	Accepted int `json:"accepted"`
 }
 
 func (c ConsentSummary) AllAccepted() bool { return c.Total > 0 && c.Accepted >= c.Total }
 
+// Consent represents an informed consent document sent to a patient for digital acceptance.
 type Consent struct {
 	ID             string     `json:"id"`
 	OrgID          string     `json:"orgId,omitempty"` // interno: para persistir en la org correcta (aceptación pública)
@@ -90,6 +95,7 @@ type ConsentTemplate struct {
 
 // Odontograma Digital Structures
 
+// ToothNumber represents a tooth using FDI (Fédération Dentaire Internationale) numbering.
 type ToothNumber int
 
 const (

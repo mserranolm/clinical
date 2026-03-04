@@ -1,2 +1,33 @@
 /frontend/react-app/node_modules
 /backend/.aws-sam/
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+
+# Compiled binaries
+backend/api
+backend/bootstrap
+
+# Environment / secrets
+.env
+.env.local
+.env.*
+
+# Build artifacts
+dist/
+build/
+frontend/react-app/dist/
+
+# Test coverage
+coverage.out
+*.out
+
+# Logs
+*.log
+
+# npm (global safety net)
+node_modules/

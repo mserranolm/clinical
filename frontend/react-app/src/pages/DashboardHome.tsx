@@ -5,6 +5,7 @@ import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { canManageTreatments, canWriteAppointments, isPlatformAdmin, isOrgAdmin } from "../lib/rbac";
 import { localDateTimeToISO, isoToLocalDateTime } from "../lib/datetime";
+import { AUTO_REFRESH_OPTS, DURATION_BLOCKS, TIME_SLOTS, fmtTimeSlot } from "../lib/constants";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
 import {
@@ -12,26 +13,6 @@ import {
   CalendarCheck, DollarSign, ClipboardList, ClipboardCheck,
   Pencil, Stethoscope, Send, RefreshCw,
 } from "lucide-react";
-
-const TIME_SLOTS = [
-  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
-  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
-  "15:00","15:30","16:00","16:30","17:00","17:30","18:00",
-];
-const DURATION_BLOCKS = [
-  { label: "30 minutos", value: 30 },
-  { label: "1 hora", value: 60 },
-  { label: "1 hora 30 min", value: 90 },
-  { label: "2 horas", value: 120 },
-  { label: "2 horas 30 min", value: 150 },
-  { label: "3 horas", value: 180 },
-];
-function fmtTime(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
-}
 
 type AppointmentRow = {
   id: string;
@@ -42,14 +23,6 @@ type AppointmentRow = {
   paymentAmount?: number;
   consentSummary?: { total: number; accepted: number };
 };
-
-const AUTO_REFRESH_OPTS = [
-  { value: 0, label: "Desactivada" },
-  { value: 10, label: "Cada 10 s" },
-  { value: 15, label: "Cada 15 s" },
-  { value: 30, label: "Cada 30 s" },
-  { value: 60, label: "Cada 60 s" },
-] as const;
 
 export function DashboardHome({ user, rows, loading, error, date, onDateChange, onRefresh, autoRefreshSeconds = 0, onAutoRefreshChange }: { 
   user: AuthSession; 
@@ -187,7 +160,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <label>Hora de inicio</label>
             <select value={editTime} onChange={(e) => setEditTime(e.target.value)}>
               <option value="">Seleccione una hora</option>
-              {TIME_SLOTS.map((s) => <option key={s} value={s}>{fmtTime(s)}</option>)}
+              {TIME_SLOTS.map((s) => <option key={s} value={s}>{fmtTimeSlot(s)}</option>)}
             </select>
           </div>
           <div className="input-group">

@@ -5,6 +5,7 @@ import { clinicalApi } from "../api/clinical";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
 import { isoToLocalDateTime, localDateTimeToISO } from "../lib/datetime";
+import { AUTO_REFRESH_OPTS, DURATION_BLOCKS, TIME_SLOTS } from "../lib/constants";
 import { notify } from "../lib/notify";
 import { canDeleteAppointments, canManageTreatments, canWriteAppointments } from "../lib/rbac";
 import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
@@ -28,14 +29,6 @@ type AppointmentRow = {
 type ViewMode = "day" | "week" | "month";
 type DisplayMode = "list" | "calendar";
 
-const AUTO_REFRESH_OPTS = [
-  { value: 0, label: "Desactivada" },
-  { value: 10, label: "Cada 10 s" },
-  { value: 15, label: "Cada 15 s" },
-  { value: 30, label: "Cada 30 s" },
-  { value: 60, label: "Cada 60 s" },
-] as const;
-
 const VIEW_MODE_OPTS: Array<{ value: ViewMode; label: string }> = [
   { value: "day", label: "Día" },
   { value: "week", label: "Semana" },
@@ -45,21 +38,6 @@ const VIEW_MODE_OPTS: Array<{ value: ViewMode; label: string }> = [
 const DISPLAY_MODE_OPTS: Array<{ value: DisplayMode; label: string }> = [
   { value: "calendar", label: "Calendario" },
   { value: "list", label: "Lista" },
-];
-
-const DURATION_BLOCKS = [
-  { label: "30 minutos", value: 30 },
-  { label: "1 hora", value: 60 },
-  { label: "1 hora 30 min", value: 90 },
-  { label: "2 horas", value: 120 },
-  { label: "2 horas 30 min", value: 150 },
-  { label: "3 horas", value: 180 },
-];
-
-const TIME_SLOTS = [
-  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
-  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
-  "15:00","15:30","16:00","16:30","17:00","17:30","18:00",
 ];
 
 function toLocalDateString(d: Date): string {

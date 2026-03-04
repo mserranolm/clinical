@@ -264,13 +264,6 @@ export const clinicalApi = {
       }
     ),
 
-  // legacy section (kept for backwards compatibility with earlier imports)
-  _legacyGetPatient: (patientId: string, token?: string) =>
-    request(endpointCatalog.getPatient(patientId), {
-      method: "GET",
-      token
-    }),
-
   // Platform admin endpoints
   listOrgs: (token: string) =>
     request<{ items: Array<{ id: string; name: string; businessName: string; taxId: string; address: string; email: string; phone: string; status: string; paymentStatus: string; limits: { maxDoctors: number; maxAssistants: number; maxPatients: number }; createdAt: string }> }>("/platform/orgs", { token }),

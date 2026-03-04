@@ -27,14 +27,11 @@ Sistema completo de gestión clínica (odontología adaptable a otras especialid
 
 ### Setup inicial (una sola vez)
 
-```bash
-cd backend
-./scripts/setup-local-dev.sh
-```
+Configure tu perfil AWS SSO o credenciales locales antes de iniciar.
 
-**¿Por qué conectar a AWS en local?** 
+**¿Por qué conectar a AWS en local?**
 - Debugging real con DynamoDB
-- Testing completo antes del deploy  
+- Testing completo antes del deploy
 - Verificar permisos y configuración
 - Detectar problemas temprano
 
@@ -42,56 +39,37 @@ cd backend
 
 ```bash
 cd backend
-./scripts/run-local.sh
+make local
 ```
 
-Este script automáticamente:
-- ✅ Carga `.env.local` con perfil **aski**
-- ✅ Verifica/activa AWS SSO si es necesario
-- ✅ Conecta a DynamoDB real por defecto
-- ✅ Fallback a in-memory si AWS falla
-- ✅ Inicia servidor en `http://localhost:3000`
+O directamente:
+
+```bash
+cd backend
+USE_DYNAMODB=false LOCAL_HTTP=true LOCAL_HTTP_PORT=3000 go run ./cmd/api
+```
 
 ### Ejecutar tests
 
 ```bash
-# Todos los tests (unitarios + integración + endpoints)
-./scripts/run-tests.sh
+cd backend
+make test
 
-# Solo tests unitarios
-./scripts/run-tests.sh unit
-
-# Solo tests de integración (con DynamoDB)
-./scripts/run-tests.sh integration  
-
-# Solo tests de endpoints (requiere servidor activo)
-./scripts/run-tests.sh endpoint
-
-# Ver reporte de cobertura
-./scripts/run-tests.sh coverage
+# Con cobertura
+go test -v -race -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 ```
 
 ## 🔄 CI/CD Pipeline
 
 ### Configurar Pipeline con CodePipeline
 
-#### Opción 1: CodeCommit (recomendado para AWS)
-
 ```bash
-cd backend
-./scripts/deploy-pipeline.sh -e staging -c clinical-backend -b main
-```
+# Deploy backend pipeline
+../scripts/deploy-backend-pipeline.sh
 
-#### Opción 2: GitHub
-
-```bash
-cd backend
-./scripts/deploy-pipeline.sh \
-  -e production \
-  -g yourusername/clinical \
-  -t ghp_your_github_token \
-  -b main \
-  -n admin@example.com
+# After deploying, fix API Gateway stage if needed
+../scripts/fix-apigw-after-deploy.sh
 ```
 
 ### Pipeline automático
@@ -146,8 +124,8 @@ sam deploy --guided
 ### Con Pipeline completo
 
 ```bash
-cd backend
-./scripts/deploy-pipeline.sh --help  # Ver todas las opciones
+# Ver scripts disponibles en la raíz del proyecto
+ls ../scripts/
 ```
 
 ## 📡 API Endpoints
@@ -235,7 +213,8 @@ backend/
 └── go.mod                   # Dependencias Go
 
 infrastructure/
-└── pipeline.yaml            # Template del pipeline CI/CD
+├── backend-pipeline.yaml    # Pipeline CI/CD del backend
+└── frontend-pipeline.yaml   # Pipeline CI/CD del frontend
 ```
 
 ## 🚨 Troubleshooting

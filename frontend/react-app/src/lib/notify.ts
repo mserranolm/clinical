@@ -14,15 +14,23 @@ const errorStyles = {
 
 const fill = "#0f172a";
 
+/**
+ * Notification helper built on top of `sileo`.
+ * Provides success/error toasts and a promise-based variant that shows
+ * loading → success/error automatically.
+ */
 export const notify = {
+  /** Shows a success toast. */
   success(title: string, description?: string) {
     sileo.success({ title, description, fill, styles: successStyles });
   },
 
+  /** Shows an error toast. */
   error(title: string, description?: string) {
     sileo.error({ title, description, fill, styles: errorStyles });
   },
 
+  /** Wraps a Promise, showing a loading toast that transitions to success or error. */
   promise<T>(
     promise: Promise<T>,
     opts: {

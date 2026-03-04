@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react-swc";
+import path from "path";
 import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
@@ -7,6 +8,16 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "src"),
+        "@pages": path.resolve(__dirname, "src/pages"),
+        "@components": path.resolve(__dirname, "src/components"),
+        "@modules": path.resolve(__dirname, "src/modules"),
+        "@lib": path.resolve(__dirname, "src/lib"),
+        "@api": path.resolve(__dirname, "src/api"),
+      },
+    },
     server: {
       host: true,
       port: 5173,
