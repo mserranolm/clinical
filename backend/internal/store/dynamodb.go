@@ -581,6 +581,7 @@ func (r *dynamoAppointmentRepo) Create(ctx context.Context, appointment domain.A
 		"PaymentMethod":   &types.AttributeValueMemberS{Value: appointment.PaymentMethod},
 		"PaymentPaid":     &types.AttributeValueMemberBOOL{Value: appointment.PaymentPaid},
 		"ConfirmToken":    &types.AttributeValueMemberS{Value: appointment.ConfirmToken},
+		"Reason":          &types.AttributeValueMemberS{Value: appointment.Reason},
 	}
 
 	// Handle optional time fields

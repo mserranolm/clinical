@@ -728,8 +728,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
             <table>
               <thead>
                 <tr>
-                  <th>Motivo</th>
                   <th>Paciente</th>
+                  <th>Motivo</th>
                   {viewMode !== "day" && <th>Fecha</th>}
                   <th>Horario</th>
                   <th>Estado</th>
@@ -740,10 +740,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
               <tbody>
                 {visibleRows.map((row) => (
                   <tr key={row.id}>
-                    <td style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>{row.reason || "—"}</td>
                     <td>
                       <strong>{row.patientName || row.patientId}</strong>
                     </td>
+                    <td style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>{row.reason || "—"}</td>
                     {viewMode !== "day" && <td>{formatAgendaDate(row.startAt)}</td>}
                     <td>{formatTimeRange(row.startAt, row.endAt)}</td>
                     <td>
