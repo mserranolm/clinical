@@ -78,7 +78,7 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
           <button className="back-link-panel" onClick={() => navigate("/")}>← Inicio</button>
           <div className="login-brand">
             <div className="login-brand-icon">🦷</div>
-            <h2>Clini<span>Sense</span></h2>
+            <h2>DOCCO</h2>
             <small>Sistema Clínico Elite</small>
           </div>
           <ul className="login-features">
@@ -104,7 +104,7 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
               {mode === "login" ? "🔐 Acceso Profesional" : "📝 Registro Médico"}
             </div>
             <h1>{mode === "login" ? "Bienvenido de vuelta" : "Crea tu cuenta"}</h1>
-            <p>{mode === "login" ? "Ingresa tus credenciales para acceder a tu panel clínico." : "Únete a CliniSense y digitaliza tu práctica médica."}</p>
+            <p>{mode === "login" ? "Ingresa tus credenciales para acceder a tu panel clínico." : "Únete a DOCCO y digitaliza tu práctica médica."}</p>
           </header>
 
           <div className="auth-tabs">
@@ -162,7 +162,7 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
           </form>
 
           <footer className="auth-footer">
-            <small>© 2026 CliniSense Elite · Todos los derechos reservados</small>
+            <small>© 2026 DOCCO · Todos los derechos reservados</small>
           </footer>
         </article>
       </section>

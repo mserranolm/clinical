@@ -125,7 +125,7 @@ function exportPDF(patient: PatientRow, consultas: ConsultaHistorial[], patientD
   </div>
   ${bgs.length > 0 ? `<div class="antecedentes"><strong>Antecedentes médicos:</strong> ${antecedentes}</div>` : ""}
   ${consultasHTML}
-  <div class="footer">CliniSense — ${consultas.length} consulta${consultas.length !== 1 ? "s" : ""} registrada${consultas.length !== 1 ? "s" : ""}</div>
+  <div class="footer">DOCCO — ${consultas.length} consulta${consultas.length !== 1 ? "s" : ""} registrada${consultas.length !== 1 ? "s" : ""}</div>
   </body></html>`;
 
   const win = window.open("", "_blank", "width=800,height=900");
@@ -154,10 +154,41 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [detailCita, setDetailCita] = useState<ConsultaHistorial | null>(null);
 
+  // Extended patient form fields
+  const [documentType, setDocumentType] = useState("V");
+  const [secondName, setSecondName] = useState("");
+  const [secondLastName, setSecondLastName] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [insurance, setInsurance] = useState("");
+  const [homePhone, setHomePhone] = useState("");
+  const [emergencyContact, setEmergencyContact] = useState("");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [birthCountry, setBirthCountry] = useState("");
+  const [residenceCountry, setResidenceCountry] = useState("");
+  const [residenceAddress, setResidenceAddress] = useState("");
+  const [gender, setGender] = useState("");
+  const [civilStatus, setCivilStatus] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [bloodType, setBloodType] = useState("");
+  const [patientNotes, setPatientNotes] = useState("");
+  const [isRepresentative, setIsRepresentative] = useState(false);
+  const [representativeName, setRepresentativeName] = useState("");
+  const [representativeId, setRepresentativeId] = useState("");
+  const [representativeRelation, setRepresentativeRelation] = useState("");
+
   const closeModal = () => {
     setShowModal(false);
     setEditingPatient(null);
     formRef.current?.reset();
+    setBirthDate("");
+    setDocumentType("V");
+    setSecondName(""); setSecondLastName(""); setOccupation(""); setInsurance("");
+    setHomePhone(""); setEmergencyContact(""); setEmergencyPhone("");
+    setBirthCountry(""); setResidenceCountry(""); setResidenceAddress("");
+    setGender(""); setCivilStatus(""); setHeightCm(""); setWeightKg(""); setBloodType("");
+    setPatientNotes(""); setIsRepresentative(false);
+    setRepresentativeName(""); setRepresentativeId(""); setRepresentativeRelation("");
   };
 
   const loadPatients = () => {
@@ -216,8 +247,28 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
       lastName: String(fd.get("lastName") || ""),
       phone: String(fd.get("phone") || ""),
       email: String(fd.get("email") || ""),
-      birthDate: String(fd.get("birthDate") || ""),
-      documentId: String(fd.get("documentId") || ""),
+      birthDate: birthDate,
+      documentId: documentType + String(fd.get("documentNumber") || ""),
+      documentType,
+      secondName,
+      secondLastName,
+      occupation,
+      insurance,
+      homePhone,
+      emergencyContact,
+      emergencyPhone,
+      birthCountry,
+      residenceCountry,
+      residenceAddress,
+      gender,
+      civilStatus,
+      heightCm: heightCm ? Number(heightCm) : undefined,
+      weightKg: weightKg ? Number(weightKg) : undefined,
+      bloodType,
+      patientNotes,
+      representativeName: isRepresentative ? representativeName : undefined,
+      representativeId: isRepresentative ? representativeId : undefined,
+      representativeRelation: isRepresentative ? representativeRelation : undefined,
     };
 
     setSaving(true);
@@ -244,6 +295,13 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
     setEditingPatient(patient);
     setBirthDate(patient.birthDate ?? "");
     setShowModal(true);
+    // Reset extended fields for editing (server will fill them if getPatient is extended)
+    setDocumentType("V"); setSecondName(""); setSecondLastName(""); setOccupation("");
+    setInsurance(""); setHomePhone(""); setEmergencyContact(""); setEmergencyPhone("");
+    setBirthCountry(""); setResidenceCountry(""); setResidenceAddress("");
+    setGender(""); setCivilStatus(""); setHeightCm(""); setWeightKg(""); setBloodType("");
+    setPatientNotes(""); setIsRepresentative(false);
+    setRepresentativeName(""); setRepresentativeId(""); setRepresentativeRelation("");
   };
 
   const handleDelete = (patient: PatientRow) => {
@@ -696,37 +754,178 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
             <button className="modal-close" onClick={closeModal}>✕</button>
           </div>
 
-          <form ref={formRef} className="card-form modal-form" onSubmit={onSave}>
-            <div className="row-inputs">
-              <div className="input-group">
-                <label>Nombre(s) <span className="required">*</span></label>
-                <input name="firstName" placeholder="Juan" required defaultValue={editingPatient?.firstName} />
-              </div>
-              <div className="input-group">
-                <label>Apellido(s) <span className="required">*</span></label>
-                <input name="lastName" placeholder="Pérez" required defaultValue={editingPatient?.lastName} />
+          <form ref={formRef} className="card-form modal-form" onSubmit={onSave} style={{ maxHeight: "75vh", overflowY: "auto", paddingRight: 4 }}>
+
+            {/* ── Tipo de Paciente ── */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0369a1", borderBottom: "1px solid #e2e8f0", paddingBottom: 6, marginBottom: 12 }}>Tipo de Paciente</h4>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.875rem" }}>
+                <input
+                  type="checkbox"
+                  checked={isRepresentative}
+                  onChange={e => setIsRepresentative(e.target.checked)}
+                  style={{ width: 16, height: 16 }}
+                />
+                El paciente es menor de edad o requiere representante
+              </label>
+              {isRepresentative && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 12 }}>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Nombre del representante</label>
+                    <input className="elite-input" value={representativeName} onChange={e => setRepresentativeName(e.target.value)} placeholder="María López" />
+                  </div>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Cédula representante</label>
+                    <input className="elite-input" value={representativeId} onChange={e => setRepresentativeId(e.target.value)} placeholder="V-10000000" />
+                  </div>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Parentesco</label>
+                    <input className="elite-input" value={representativeRelation} onChange={e => setRepresentativeRelation(e.target.value)} placeholder="Madre, Padre, Tutor..." />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Identificación ── */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0369a1", borderBottom: "1px solid #e2e8f0", paddingBottom: 6, marginBottom: 12 }}>Identificación</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Primer Nombre <span className="required">*</span></label>
+                  <input name="firstName" className="elite-input" placeholder="Juan" required defaultValue={editingPatient?.firstName} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Segundo Nombre</label>
+                  <input className="elite-input" value={secondName} onChange={e => setSecondName(e.target.value)} placeholder="Carlos" />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Primer Apellido <span className="required">*</span></label>
+                  <input name="lastName" className="elite-input" placeholder="Pérez" required defaultValue={editingPatient?.lastName} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Segundo Apellido</label>
+                  <input className="elite-input" value={secondLastName} onChange={e => setSecondLastName(e.target.value)} placeholder="González" />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Tipo de documento</label>
+                  <select className="elite-input" value={documentType} onChange={e => setDocumentType(e.target.value)}>
+                    <option value="V">V — Venezolano</option>
+                    <option value="E">E — Extranjero</option>
+                    <option value="P">P — Pasaporte</option>
+                    <option value="J">J — Jurídico</option>
+                  </select>
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Número de documento</label>
+                  <input name="documentNumber" className="elite-input" placeholder="12345678" defaultValue={editingPatient?.documentId?.replace(/^[VEPJ]-?/, "")} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Ocupación / Profesión</label>
+                  <input className="elite-input" value={occupation} onChange={e => setOccupation(e.target.value)} placeholder="Ingeniero, Estudiante..." />
+                </div>
               </div>
             </div>
 
-            <div className="input-group">
-              <label>Cédula / Documento de Identidad</label>
-              <input name="documentId" placeholder="V-12345678" defaultValue={editingPatient?.documentId} />
+            {/* ── Contacto ── */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0369a1", borderBottom: "1px solid #e2e8f0", paddingBottom: 6, marginBottom: 12 }}>Contacto</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Teléfono celular</label>
+                  <input name="phone" className="elite-input" placeholder="+58 414 000 0000" defaultValue={editingPatient?.phone} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Teléfono fijo / habitación</label>
+                  <input className="elite-input" value={homePhone} onChange={e => setHomePhone(e.target.value)} placeholder="+58 212 000 0000" />
+                </div>
+                <div className="input-group" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                  <label>Correo electrónico</label>
+                  <input name="email" type="email" className="elite-input" placeholder="paciente@email.com" defaultValue={editingPatient?.email} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Seguro médico</label>
+                  <input className="elite-input" value={insurance} onChange={e => setInsurance(e.target.value)} placeholder="Seguros Caracas, PDVSA..." />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Contacto de emergencia</label>
+                  <input className="elite-input" value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} placeholder="Nombre del contacto" />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Teléfono de emergencia</label>
+                  <input className="elite-input" value={emergencyPhone} onChange={e => setEmergencyPhone(e.target.value)} placeholder="+58 414 111 2222" />
+                </div>
+              </div>
             </div>
 
-            <div className="row-inputs">
-              <div className="input-group">
-                <label>Email de contacto</label>
-                <input name="email" type="email" placeholder="paciente@email.com" defaultValue={editingPatient?.email} />
-              </div>
-              <div className="input-group">
-                <label>Teléfono</label>
-                <input name="phone" placeholder="+58 414 000 0000" defaultValue={editingPatient?.phone} />
+            {/* ── Datos Personales ── */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0369a1", borderBottom: "1px solid #e2e8f0", paddingBottom: 6, marginBottom: 12 }}>Datos Personales</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Fecha de Nacimiento</label>
+                  <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" maxDate={new Date()} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Género</label>
+                  <select className="elite-input" value={gender} onChange={e => setGender(e.target.value)}>
+                    <option value="">— Seleccionar —</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Estado civil</label>
+                  <select className="elite-input" value={civilStatus} onChange={e => setCivilStatus(e.target.value)}>
+                    <option value="">— Seleccionar —</option>
+                    <option value="soltero">Soltero/a</option>
+                    <option value="casado">Casado/a</option>
+                    <option value="divorciado">Divorciado/a</option>
+                    <option value="viudo">Viudo/a</option>
+                    <option value="union_libre">Unión libre</option>
+                  </select>
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Tipo de sangre</label>
+                  <select className="elite-input" value={bloodType} onChange={e => setBloodType(e.target.value)}>
+                    <option value="">— Desconocido —</option>
+                    {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Talla (cm)</label>
+                  <input type="number" className="elite-input" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="170" min={50} max={250} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>Peso (kg)</label>
+                  <input type="number" className="elite-input" value={weightKg} onChange={e => setWeightKg(e.target.value)} placeholder="70" min={1} max={300} />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>País de nacimiento</label>
+                  <input className="elite-input" value={birthCountry} onChange={e => setBirthCountry(e.target.value)} placeholder="Venezuela" />
+                </div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label>País de residencia</label>
+                  <input className="elite-input" value={residenceCountry} onChange={e => setResidenceCountry(e.target.value)} placeholder="Venezuela" />
+                </div>
+                <div className="input-group" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                  <label>Dirección de residencia</label>
+                  <input className="elite-input" value={residenceAddress} onChange={e => setResidenceAddress(e.target.value)} placeholder="Av. Principal, Edificio X, Apto Y..." />
+                </div>
               </div>
             </div>
 
-            <div className="input-group">
-              <label>Fecha de Nacimiento</label>
-              <DatePicker value={birthDate} onChange={setBirthDate} name="birthDate" maxDate={new Date()} />
+            {/* ── Notas clínicas ── */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0369a1", borderBottom: "1px solid #e2e8f0", paddingBottom: 6, marginBottom: 12 }}>Notas Clínicas</h4>
+              <textarea
+                rows={3}
+                className="elite-input"
+                value={patientNotes}
+                onChange={e => setPatientNotes(e.target.value)}
+                placeholder="Observaciones generales del paciente, alergias conocidas, condiciones especiales..."
+                style={{ width: "100%", resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.6 }}
+              />
             </div>
 
             <div className="modal-actions">
@@ -734,7 +933,7 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                 Cancelar
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? <><span className="auth-spinner" />Guardando...</> : (editingPatient ? 'Guardar Cambios' : 'Registrar Paciente')}
+                {saving ? <><span className="auth-spinner" />Guardando...</> : (editingPatient ? "Guardar Cambios" : "Registrar Paciente")}
               </button>
             </div>
           </form>

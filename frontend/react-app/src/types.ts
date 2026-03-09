@@ -47,6 +47,30 @@ export type CreatePatientInput = {
   birthDate?: string;
   medicalBackgrounds: { type: string; description: string }[];
   imageKeys: string[];
+  // Extended fields (Feature 3)
+  documentType?: string;
+  secondName?: string;
+  secondLastName?: string;
+  occupation?: string;
+  insurance?: string;
+  homePhone?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
+  birthCountry?: string;
+  residenceCountry?: string;
+  residenceAddress?: string;
+  gender?: string;
+  civilStatus?: string;
+  heightCm?: number;
+  weightKg?: number;
+  bloodType?: string;
+  patientNotes?: string;
+  hasRepresentative?: boolean;
+  representativeRelation?: string;
+  representativeName?: string;
+  representativeDocType?: string;
+  representativeDocId?: string;
+  representativePhone?: string;
 };
 
 export type CreateAppointmentInput = {
@@ -58,6 +82,7 @@ export type CreateAppointmentInput = {
   treatmentPlan?: string;
   paymentAmount?: number;
   paymentMethod?: string;
+  reason?: string;
 };
 
 export type CreateConsentInput = {
@@ -79,4 +104,44 @@ export type CreateTreatmentPlanInput = {
   odontogramId?: string;
   title: string;
   description?: string;
+};
+
+export type PaymentRecord = {
+  id: string;
+  orgId: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  amount: number;
+  paymentType: string;
+  paymentMethod: string;
+  currency: string;
+  notes: string;
+  createdAt: string;
+};
+
+export type BudgetItem = {
+  id: string;
+  description: string;
+  tooth?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  status: string;
+};
+
+export type Budget = {
+  id: string;
+  orgId: string;
+  patientId: string;
+  doctorId: string;
+  title: string;
+  items: BudgetItem[];
+  totalAmount: number;
+  currency: string;
+  status: string;
+  notes: string;
+  validUntil?: string;
+  createdAt: string;
+  updatedAt: string;
 };

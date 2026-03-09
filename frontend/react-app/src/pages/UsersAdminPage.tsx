@@ -4,6 +4,7 @@ import type { AuthSession } from "../types";
 import { UserForm } from "../components/users/UserForm";
 import { UserTable } from "../components/users/UserTable";
 import { OrgUser } from "../components/users/UserBadges";
+import { useThemeTokens } from "../lib/use-is-dark";
 
 type OrgStats = {
   totalDoctors: number;
@@ -37,6 +38,7 @@ function statsFromUsers(users: OrgUser[]): Partial<OrgStats> {
 export function UsersAdminPage({ session }: { session: AuthSession }) {
   const orgId = session.orgId ?? "";
   const token = session.token;
+  const t = useThemeTokens();
 
   const [users, setUsers]     = useState<OrgUser[]>([]);
   const [stats, setStats]     = useState<Partial<OrgStats>>({});
@@ -73,39 +75,27 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
   return (
     <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
       <div style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "1.875rem", fontWeight: 800, color: "#111827", margin: "0 0 0.5rem 0" }}>
+        <h1 style={{ fontSize: "1.875rem", fontWeight: 800, color: t.text, margin: "0 0 0.5rem 0" }}>
           Gestión de Usuarios
         </h1>
-        <p style={{ color: "#6b7280", margin: 0, fontSize: "1rem" }}>
+        <p style={{ color: t.textSub, margin: 0, fontSize: "1rem" }}>
           Administra los usuarios de tu organización y sus roles
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "1rem",
-        marginBottom: "2rem"
-      }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
         {STAT_CARDS.map(({ key, label, maxKey }) => {
           const value  = stats[key] ?? 0;
           const maxVal = maxKey ? stats[maxKey] : undefined;
           return (
-            <div key={key} style={{
-              background: "#fff", padding: "1.5rem", borderRadius: 12,
-              border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
-            }}>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "#111827" }}>
+            <div key={key} style={{ background: t.surface, padding: "1.5rem", borderRadius: 12, border: `1px solid ${t.border}`, boxShadow: t.isDark ? "none" : "0 1px 3px rgba(0,0,0,0.08)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: t.text }}>
                 {loading ? "—" : value}
               </div>
-              <div style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.25rem" }}>
-                {label}
-              </div>
+              <div style={{ fontSize: "0.875rem", color: t.textSub, marginTop: "0.25rem" }}>{label}</div>
               {maxVal !== undefined && (
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem" }}>
-                  Límite: {maxVal}
-                </div>
+                <div style={{ fontSize: "0.75rem", color: t.textMuted, marginTop: "0.25rem" }}>Límite: {maxVal}</div>
               )}
             </div>
           );
@@ -115,46 +105,28 @@ export function UsersAdminPage({ session }: { session: AuthSession }) {
       {/* Actions */}
       <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827", margin: 0 }}>
-            Lista de Usuarios
-          </h2>
-          <p style={{ color: "#6b7280", margin: "0.25rem 0 0 0", fontSize: "0.875rem" }}>
-            Total: {users.length} usuarios registrados
-          </p>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: t.text, margin: 0 }}>Lista de Usuarios</h2>
+          <p style={{ color: t.textSub, margin: "0.25rem 0 0 0", fontSize: "0.875rem" }}>Total: {users.length} usuarios registrados</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          style={{
-            background: "#2563eb", color: "#fff", border: "none", borderRadius: 8,
-            padding: "0.75rem 1.5rem", fontWeight: 600, cursor: "pointer",
-            fontSize: "0.875rem"
-          }}
-        >
+        <button onClick={() => setShowForm(true)}
+          style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, padding: "0.75rem 1.5rem", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>
           + Nuevo Usuario
         </button>
       </div>
 
       {error && (
-        <div style={{
-          background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8,
-          padding: "1rem", marginBottom: "1rem", color: "#dc2626"
-        }}>
+        <div style={{ background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, borderRadius: 8, padding: "1rem", marginBottom: "1rem", color: t.danger }}>
           ⚠️ {error}
         </div>
       )}
       {success && (
-        <div style={{
-          background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8,
-          padding: "1rem", marginBottom: "1rem", color: "#166534"
-        }}>
+        <div style={{ background: t.successBg, border: `1px solid ${t.successBorder}`, borderRadius: 8, padding: "1rem", marginBottom: "1rem", color: t.successText }}>
           ✅ {success}
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>
-          Cargando...
-        </div>
+        <div style={{ textAlign: "center", padding: "3rem", color: t.textSub }}>Cargando...</div>
       ) : (
         <UserTable
           users={users}

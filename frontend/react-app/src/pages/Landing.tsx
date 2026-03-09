@@ -27,7 +27,7 @@ const mockAppointments = [
 const mockBars = [65, 80, 55, 90, 72, 88, 76];
 const barDays  = ["L","M","X","J","V","S","D"];
 
-export function Landing() {
+export function Landing(_props?: { resolvedTheme?: "light" | "dark" }) {
   const navigate = useNavigate();
 
   return (
@@ -39,7 +39,7 @@ export function Landing() {
       <header className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
-            <Logo variant="color" className="lp-nav-logo-svg" />
+            <Logo variant="dark" className="lp-nav-logo-svg" />
           </div>
           <div className="lp-nav-actions">
             <button className="lp-btn-ghost" onClick={() => navigate("/login")}>
@@ -71,7 +71,7 @@ export function Landing() {
             </h1>
 
             <p className="lp-subtitle lp-anim lp-anim-3">
-              CliniSense redefine la eficiencia administrativa para consultorios.
+              DOCCO redefine la eficiencia administrativa para consultorios.
               Una plataforma diseñada para médicos que exigen precisión,
               trazabilidad y una experiencia de usuario excepcional.
             </p>

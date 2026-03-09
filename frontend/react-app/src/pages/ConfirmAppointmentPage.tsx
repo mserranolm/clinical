@@ -48,7 +48,7 @@ export default function ConfirmAppointmentPage() {
     <div className="consent-page">
       <div className="consent-card">
         <div className="consent-logo">
-          <span className="consent-logo-text">CliniSense</span>
+          <span className="consent-logo-text">DOCCO</span>
         </div>
 
         {state === "loading" && (

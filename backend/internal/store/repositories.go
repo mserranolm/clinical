@@ -166,6 +166,22 @@ type TreatmentPlanRepository interface {
 	UpdateTreatmentStatus(ctx context.Context, planID, treatmentIndex string, status domain.PlannedTreatmentStatus, completedTreatmentID *string) error
 }
 
+// PaymentRepository for payment records (Feature 1).
+type PaymentRepository interface {
+	Create(ctx context.Context, p domain.PaymentRecord) (domain.PaymentRecord, error)
+	ListByOrg(ctx context.Context, limit int) ([]domain.PaymentRecord, error)
+	ListByPatient(ctx context.Context, patientID string) ([]domain.PaymentRecord, error)
+}
+
+// BudgetRepository for patient budgets (Feature 6).
+type BudgetRepository interface {
+	Create(ctx context.Context, b domain.Budget) (domain.Budget, error)
+	GetByID(ctx context.Context, id string) (domain.Budget, error)
+	ListByPatient(ctx context.Context, patientID string) ([]domain.Budget, error)
+	Update(ctx context.Context, b domain.Budget) (domain.Budget, error)
+	Delete(ctx context.Context, id string) error
+}
+
 type InMemoryRepositories struct {
 	Patients         PatientRepository
 	Appointments     AppointmentRepository
@@ -174,6 +190,8 @@ type InMemoryRepositories struct {
 	Users            AuthRepository
 	Odontograms      OdontogramRepository
 	TreatmentPlans   TreatmentPlanRepository
+	Payments         PaymentRepository
+	Budgets          BudgetRepository
 }
 
 func NewInMemoryRepositories() *InMemoryRepositories {
@@ -185,6 +203,8 @@ func NewInMemoryRepositories() *InMemoryRepositories {
 		Users:            &memoryAuthRepo{usersByID: map[string]AuthUser{}, emailIndex: map[string]string{}, usersByOrg: map[string]map[string]struct{}{}, sessions: map[string]AuthSession{}, invitations: map[string]UserInvitation{}, resetTokens: map[string]PasswordResetToken{}, orgs: map[string]Organization{}},
 		Odontograms:      &memoryOdontogramRepo{items: map[string]domain.Odontogram{}, byPatient: map[string]string{}},
 		TreatmentPlans:   &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
+		Payments:         &memoryPaymentRepo{items: []domain.PaymentRecord{}},
+		Budgets:          &memoryBudgetRepo{items: map[string]domain.Budget{}},
 	}
 }
 
@@ -1041,5 +1061,90 @@ func (r *memoryTreatmentPlanRepo) UpdateTreatmentStatus(_ context.Context, planI
 	plan.UpdatedAt = time.Now()
 	r.items[planID] = plan
 
+	return nil
+}
+
+// In-memory PaymentRepository
+type memoryPaymentRepo struct {
+	mu    sync.RWMutex
+	items []domain.PaymentRecord
+}
+
+func (r *memoryPaymentRepo) Create(_ context.Context, p domain.PaymentRecord) (domain.PaymentRecord, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.items = append(r.items, p)
+	return p, nil
+}
+
+func (r *memoryPaymentRepo) ListByOrg(_ context.Context, limit int) ([]domain.PaymentRecord, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make([]domain.PaymentRecord, len(r.items))
+	copy(result, r.items)
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (r *memoryPaymentRepo) ListByPatient(_ context.Context, patientID string) ([]domain.PaymentRecord, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []domain.PaymentRecord
+	for _, p := range r.items {
+		if p.PatientID == patientID {
+			result = append(result, p)
+		}
+	}
+	return result, nil
+}
+
+// In-memory BudgetRepository
+type memoryBudgetRepo struct {
+	mu    sync.RWMutex
+	items map[string]domain.Budget
+}
+
+func (r *memoryBudgetRepo) Create(_ context.Context, b domain.Budget) (domain.Budget, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.items[b.ID] = b
+	return b, nil
+}
+
+func (r *memoryBudgetRepo) GetByID(_ context.Context, id string) (domain.Budget, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	b, ok := r.items[id]
+	if !ok {
+		return domain.Budget{}, fmt.Errorf("budget not found")
+	}
+	return b, nil
+}
+
+func (r *memoryBudgetRepo) ListByPatient(_ context.Context, patientID string) ([]domain.Budget, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []domain.Budget
+	for _, b := range r.items {
+		if b.PatientID == patientID {
+			result = append(result, b)
+		}
+	}
+	return result, nil
+}
+
+func (r *memoryBudgetRepo) Update(_ context.Context, b domain.Budget) (domain.Budget, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.items[b.ID] = b
+	return b, nil
+}
+
+func (r *memoryBudgetRepo) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.items, id)
 	return nil
 }

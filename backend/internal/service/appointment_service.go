@@ -97,6 +97,7 @@ type CreateAppointmentInput struct {
 	TreatmentPlan   string  `json:"treatmentPlan"`
 	PaymentAmount   float64 `json:"paymentAmount"`
 	PaymentMethod   string  `json:"paymentMethod"`
+	Reason          string  `json:"reason"`
 }
 
 func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInput) (domain.Appointment, error) {
@@ -158,6 +159,7 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 		TreatmentPlan:   in.TreatmentPlan,
 		PaymentAmount:   in.PaymentAmount,
 		PaymentMethod:   in.PaymentMethod,
+		Reason:          in.Reason,
 		ConfirmToken:    confirmToken,
 	}
 	created, err := s.repo.Create(ctx, appt)
@@ -328,6 +330,7 @@ type UpdateAppointmentInput struct {
 	PaymentAmount float64  `json:"paymentAmount"`
 	PaymentMethod string   `json:"paymentMethod"`
 	ImageKeys     []string `json:"imageKeys"`
+	Reason        string   `json:"reason"`
 }
 
 func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, in UpdateAppointmentInput) (domain.Appointment, error) {
@@ -371,6 +374,9 @@ func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, i
 	}
 	if len(in.ImageKeys) > 0 {
 		appt.ImageKeys = append(appt.ImageKeys, in.ImageKeys...)
+	}
+	if in.Reason != "" {
+		appt.Reason = in.Reason
 	}
 	updated, err := s.repo.Update(ctx, appt)
 	if err != nil {

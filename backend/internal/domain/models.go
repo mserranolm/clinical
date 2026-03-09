@@ -24,6 +24,30 @@ type Patient struct {
 	ImageKeys          []string            `json:"imageKeys"`
 	CreatedAt          time.Time           `json:"createdAt"`
 	UpdatedAt          *time.Time          `json:"updatedAt,omitempty"`
+	// Extended fields (Feature 3)
+	DocumentType            string  `json:"documentType,omitempty"`
+	SecondName              string  `json:"secondName,omitempty"`
+	SecondLastName          string  `json:"secondLastName,omitempty"`
+	Occupation              string  `json:"occupation,omitempty"`
+	Insurance               string  `json:"insurance,omitempty"`
+	HomePhone               string  `json:"homePhone,omitempty"`
+	EmergencyContact        string  `json:"emergencyContact,omitempty"`
+	EmergencyPhone          string  `json:"emergencyPhone,omitempty"`
+	BirthCountry            string  `json:"birthCountry,omitempty"`
+	ResidenceCountry        string  `json:"residenceCountry,omitempty"`
+	ResidenceAddress        string  `json:"residenceAddress,omitempty"`
+	Gender                  string  `json:"gender,omitempty"`
+	CivilStatus             string  `json:"civilStatus,omitempty"`
+	HeightCm                int     `json:"heightCm,omitempty"`
+	WeightKg                float64 `json:"weightKg,omitempty"`
+	BloodType               string  `json:"bloodType,omitempty"`
+	PatientNotes            string  `json:"patientNotes,omitempty"`
+	HasRepresentative       bool    `json:"hasRepresentative,omitempty"`
+	RepresentativeRelation  string  `json:"representativeRelation,omitempty"`
+	RepresentativeName      string  `json:"representativeName,omitempty"`
+	RepresentativeDocType   string  `json:"representativeDocType,omitempty"`
+	RepresentativeDocId     string  `json:"representativeDocId,omitempty"`
+	RepresentativePhone     string  `json:"representativePhone,omitempty"`
 }
 
 // MedicalBackground records a patient's medical history entry.
@@ -47,6 +71,8 @@ type Appointment struct {
 	PaymentAmount       float64    `json:"paymentAmount"`
 	PaymentMethod       string     `json:"paymentMethod"`
 	PaymentPaid         bool       `json:"paymentPaid"`
+	PaymentType         string     `json:"paymentType,omitempty"` // "pago_completo", "abono"
+	Reason              string     `json:"reason,omitempty"`
 	ConfirmToken        string     `json:"confirmToken,omitempty"`
 	ImageKeys           []string   `json:"imageKeys,omitempty"`
 	ReminderSentAt      *time.Time `json:"reminderSentAt,omitempty"`
@@ -299,3 +325,46 @@ const (
 	PlannedStatusCompleted PlannedTreatmentStatus = "completed" // Completado
 	PlannedStatusSkipped   PlannedTreatmentStatus = "skipped"   // Omitido
 )
+
+// PaymentRecord registers a payment linked to an appointment (Feature 1).
+type PaymentRecord struct {
+	ID            string    `json:"id"`
+	OrgID         string    `json:"orgId"`
+	AppointmentID string    `json:"appointmentId"`
+	PatientID     string    `json:"patientId"`
+	DoctorID      string    `json:"doctorId"`
+	Amount        float64   `json:"amount"`
+	PaymentType   string    `json:"paymentType"`   // "pago_completo", "abono"
+	PaymentMethod string    `json:"paymentMethod"` // efectivo, transferencia, etc.
+	Currency      string    `json:"currency"`      // USD, VES
+	Notes         string    `json:"notes"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+// Budget represents a patient treatment budget (Feature 6).
+type Budget struct {
+	ID          string       `json:"id"`
+	OrgID       string       `json:"orgId"`
+	PatientID   string       `json:"patientId"`
+	DoctorID    string       `json:"doctorId"`
+	Title       string       `json:"title"`
+	Items       []BudgetItem `json:"items"`
+	TotalAmount float64      `json:"totalAmount"`
+	Currency    string       `json:"currency"`  // USD, VES
+	Status      string       `json:"status"`    // draft, sent, approved, partial, paid
+	Notes       string       `json:"notes"`
+	ValidUntil  *time.Time   `json:"validUntil,omitempty"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	UpdatedAt   time.Time    `json:"updatedAt"`
+}
+
+// BudgetItem is a line item in a budget.
+type BudgetItem struct {
+	ID          string  `json:"id"`
+	Description string  `json:"description"`
+	Tooth       string  `json:"tooth,omitempty"` // tooth number or "general"
+	Quantity    int     `json:"quantity"`
+	UnitPrice   float64 `json:"unitPrice"`
+	Total       float64 `json:"total"`
+	Status      string  `json:"status"` // pending, paid
+}

@@ -25,6 +25,8 @@ type DynamoDBConfig struct {
 	OdontogramTableName      string
 	TreatmentPlanTableName   string
 	UserTableName            string
+	PaymentTableName         string
+	BudgetTableName          string
 	UseLocalProfile          bool
 	ProfileName              string
 }
@@ -40,6 +42,8 @@ type DynamoDBRepositories struct {
 	Users            AuthRepository
 	Odontograms      OdontogramRepository
 	TreatmentPlans   TreatmentPlanRepository
+	Payments         PaymentRepository
+	Budgets          BudgetRepository
 }
 
 // NewDynamoDBRepositories creates new DynamoDB repositories with table auto-creation
@@ -108,6 +112,8 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 		Users:            &dynamoAuthRepo{client: client, tableName: cfg.UserTableName},
 		Odontograms:      &dynamoOdontogramRepo{client: client, tableName: cfg.OdontogramTableName},
 		TreatmentPlans:   &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName},
+		Payments:         &dynamoPaymentRepo{client: client, tableName: cfg.PaymentTableName},
+		Budgets:          &dynamoBudgetRepo{client: client, tableName: cfg.BudgetTableName},
 	}, nil
 }
 
@@ -1709,5 +1715,192 @@ func (r *dynamoAuthRepo) MarkResetTokenUsed(ctx context.Context, token string) e
 		ConditionExpression: aws.String("attribute_exists(PK)"),
 	})
 
+	return err
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payment DynamoDB Repository (Feature 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type dynamoPaymentRepo struct {
+	client    *dynamodb.Client
+	tableName string
+}
+
+func (r *dynamoPaymentRepo) Create(ctx context.Context, p domain.PaymentRecord) (domain.PaymentRecord, error) {
+	orgID := orgIDOrDefault(ctx)
+	sk := fmt.Sprintf("PAYMENT#%s#%s", p.CreatedAt.UTC().Format("20060102T150405"), p.ID)
+	item := map[string]types.AttributeValue{
+		"PK":            &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+		"SK":            &types.AttributeValueMemberS{Value: sk},
+		"ID":            &types.AttributeValueMemberS{Value: p.ID},
+		"OrgID":         &types.AttributeValueMemberS{Value: orgID},
+		"AppointmentID": &types.AttributeValueMemberS{Value: p.AppointmentID},
+		"PatientID":     &types.AttributeValueMemberS{Value: p.PatientID},
+		"DoctorID":      &types.AttributeValueMemberS{Value: p.DoctorID},
+		"PaymentType":   &types.AttributeValueMemberS{Value: p.PaymentType},
+		"PaymentMethod": &types.AttributeValueMemberS{Value: p.PaymentMethod},
+		"Currency":      &types.AttributeValueMemberS{Value: p.Currency},
+		"Notes":         &types.AttributeValueMemberS{Value: p.Notes},
+		"CreatedAt":     &types.AttributeValueMemberS{Value: p.CreatedAt.Format(time.RFC3339)},
+	}
+	amtAV, _ := attributevalue.Marshal(p.Amount)
+	item["Amount"] = amtAV
+
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      item,
+	})
+	if err != nil {
+		return domain.PaymentRecord{}, err
+	}
+	p.OrgID = orgID
+	return p, nil
+}
+
+func (r *dynamoPaymentRepo) ListByOrg(ctx context.Context, limit int) ([]domain.PaymentRecord, error) {
+	orgID := orgIDOrDefault(ctx)
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(r.tableName),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":sk": &types.AttributeValueMemberS{Value: "PAYMENT#"},
+		},
+		ScanIndexForward: aws.Bool(false),
+	}
+	if limit > 0 {
+		input.Limit = aws.Int32(int32(limit))
+	}
+	result, err := r.client.Query(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("query payments: %w", err)
+	}
+	var payments []domain.PaymentRecord
+	for _, item := range result.Items {
+		var p domain.PaymentRecord
+		if err := attributevalue.UnmarshalMap(item, &p); err != nil {
+			continue
+		}
+		payments = append(payments, p)
+	}
+	return payments, nil
+}
+
+func (r *dynamoPaymentRepo) ListByPatient(ctx context.Context, patientID string) ([]domain.PaymentRecord, error) {
+	orgID := orgIDOrDefault(ctx)
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(r.tableName),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		FilterExpression:       aws.String("PatientID = :pid"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":  &types.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			":sk":  &types.AttributeValueMemberS{Value: "PAYMENT#"},
+			":pid": &types.AttributeValueMemberS{Value: patientID},
+		},
+	}
+	result, err := r.client.Query(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("query payments by patient: %w", err)
+	}
+	var payments []domain.PaymentRecord
+	for _, item := range result.Items {
+		var p domain.PaymentRecord
+		if err := attributevalue.UnmarshalMap(item, &p); err != nil {
+			continue
+		}
+		payments = append(payments, p)
+	}
+	return payments, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Budget DynamoDB Repository (Feature 6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type dynamoBudgetRepo struct {
+	client    *dynamodb.Client
+	tableName string
+}
+
+func (r *dynamoBudgetRepo) Create(ctx context.Context, b domain.Budget) (domain.Budget, error) {
+	orgID := orgIDOrDefault(ctx)
+	b.OrgID = orgID
+	data, err := attributevalue.MarshalMap(b)
+	if err != nil {
+		return domain.Budget{}, err
+	}
+	data["PK"] = &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", b.PatientID)}
+	data["SK"] = &types.AttributeValueMemberS{Value: fmt.Sprintf("BUDGET#%s", b.ID)}
+	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      data,
+	})
+	return b, err
+}
+
+func (r *dynamoBudgetRepo) GetByID(ctx context.Context, id string) (domain.Budget, error) {
+	input := &dynamodb.ScanInput{
+		TableName:        aws.String(r.tableName),
+		FilterExpression: aws.String("ID = :id"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":id": &types.AttributeValueMemberS{Value: id},
+		},
+	}
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return domain.Budget{}, err
+	}
+	if len(result.Items) == 0 {
+		return domain.Budget{}, fmt.Errorf("budget not found")
+	}
+	var b domain.Budget
+	if err := attributevalue.UnmarshalMap(result.Items[0], &b); err != nil {
+		return domain.Budget{}, err
+	}
+	return b, nil
+}
+
+func (r *dynamoBudgetRepo) ListByPatient(ctx context.Context, patientID string) ([]domain.Budget, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(r.tableName),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", patientID)},
+			":sk": &types.AttributeValueMemberS{Value: "BUDGET#"},
+		},
+		ScanIndexForward: aws.Bool(false),
+	}
+	result, err := r.client.Query(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("query budgets: %w", err)
+	}
+	var budgets []domain.Budget
+	for _, item := range result.Items {
+		var b domain.Budget
+		if err := attributevalue.UnmarshalMap(item, &b); err != nil {
+			continue
+		}
+		budgets = append(budgets, b)
+	}
+	return budgets, nil
+}
+
+func (r *dynamoBudgetRepo) Update(ctx context.Context, b domain.Budget) (domain.Budget, error) {
+	return r.Create(ctx, b)
+}
+
+func (r *dynamoBudgetRepo) Delete(ctx context.Context, id string) error {
+	b, err := r.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	_, err = r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", b.PatientID)},
+			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("BUDGET#%s", b.ID)},
+		},
+	})
 	return err
 }

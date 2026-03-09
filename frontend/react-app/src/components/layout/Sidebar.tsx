@@ -3,10 +3,16 @@ import {
   LayoutDashboard,
   Users,
   Calendar,
+  CalendarRange,
   ShieldCheck,
   LogOut,
+  FileText,
+  Receipt,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Logo } from "../ui/Logo";
+import { useTheme } from "../../App";
+import { resolveTheme } from "../../lib/theme";
 
 const ROLE_LABELS: Record<string, string> = {
   platform_admin: "Super Admin",
@@ -19,11 +25,16 @@ const ROLE_LABELS: Record<string, string> = {
 type NavItemDef = { to: string; label: string; icon: React.ReactNode; end?: boolean };
 
 export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; userName?: string; role?: string }) {
+  const { theme } = useTheme();
+  const logoVariant = resolveTheme(theme) === "dark" ? "light" : "dark";
   const initials = userName
     ? userName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
     : "SA";
   const isPlatformAdmin = role === "platform_admin";
   const isAdmin = role === "admin";
+  const isDoctor = role === "doctor";
+  const canSeeFinanzas = isAdmin || isDoctor;
+  const canSeeDocumentos = isAdmin || isDoctor;
 
   const iconProps = { size: 15, strokeWidth: 1.5 };
 
@@ -33,6 +44,12 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   const clinicaItems: NavItemDef[] = [
     { to: "/dashboard/pacientes", label: "Pacientes", icon: <Users {...iconProps} /> },
     { to: "/dashboard/citas", label: "Agenda Médica", icon: <Calendar {...iconProps} /> },
+    { to: "/dashboard/calendario", label: "Calendario", icon: <CalendarRange {...iconProps} /> },
+    ...(canSeeDocumentos ? [{ to: "/dashboard/documentos", label: "Documentos", icon: <FileText {...iconProps} /> }] : []),
+  ];
+  const finanzasItems: NavItemDef[] = [
+    { to: "/dashboard/pagos", label: "Pagos", icon: <Receipt {...iconProps} /> },
+    { to: "/dashboard/presupuestos", label: "Presupuestos", icon: <FileSpreadsheet {...iconProps} /> },
   ];
   const adminItems: NavItemDef[] = [
     { to: "/dashboard/usuarios", label: "Usuarios", icon: <Users {...iconProps} /> },
@@ -42,7 +59,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
     return (
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <Logo variant="color" className="sidebar-logo-svg" />
+          <Logo variant={logoVariant} className="sidebar-logo-svg" />
           <small className="sidebar-brand-tag">Plataforma</small>
         </div>
         <nav className="sidebar-nav">
@@ -62,7 +79,7 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <Logo variant="color" className="sidebar-logo-svg" />
+        <Logo variant={logoVariant} className="sidebar-logo-svg" />
         <small className="sidebar-brand-tag">Medical Suite</small>
       </div>
 
@@ -86,6 +103,18 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
             </NavLink>
           ))}
         </div>
+
+        {canSeeFinanzas && (
+          <div className="nav-group">
+            <span className="nav-group-label">Finanzas</span>
+            {finanzasItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+                <span className="nav-item-icon">{item.icon}</span>
+                <span className="nav-item-label">{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
 
         {isAdmin && (
           <div className="nav-group">

@@ -10,12 +10,16 @@ import { Topbar } from "./Topbar";
 import { ServiceTester } from "../../modules/testing/ServiceTester";
 import { AdminConsoleHome } from "../../pages/admin/AdminConsoleHome";
 import { AppointmentsPage } from "../../pages/AppointmentsPage";
+import { CalendarPage } from "../../pages/CalendarPage";
 import { ConsultaPage } from "../../pages/ConsultaPage";
 import { DashboardHome } from "../../pages/DashboardHome";
+import { DocumentosPage } from "../../pages/DocumentosPage";
 import { OdontogramPage } from "../../pages/OdontogramPage";
 import { PatientDetailPage } from "../../pages/PatientDetailPage";
 import { PatientsPage } from "../../pages/PatientsPage";
+import { PaymentsPage } from "../../pages/PaymentsPage";
 import { PlansPage } from "../../pages/PlansPage";
+import { PresupuestoPage, PresupuestosListPage } from "../../pages/PresupuestoPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
 import { UsersAdminPage } from "../../pages/UsersAdminPage";
 
@@ -178,6 +182,11 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId="" session={session} />} />
             <Route path="pacientes/:patientId" element={<PatientDetailPage token={session.token} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
+            <Route path="calendario" element={<CalendarPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
+            <Route path="documentos" element={<DocumentosPage token={session.token} session={session} />} />
+            <Route path="pagos" element={<PaymentsPage token={session.token} session={session} />} />
+            <Route path="presupuestos" element={<PresupuestosListPage token={session.token} session={session} />} />
+            <Route path="pacientes/:patientId/presupuesto" element={<PresupuestoPage token={session.token} session={session} />} />
             <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="planes" element={<PlansPage token={session.token} doctorId={scopedDoctorId} />} />
             <Route path="usuarios" element={<UsersAdminPage session={session} />} />

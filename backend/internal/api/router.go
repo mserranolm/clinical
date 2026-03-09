@@ -120,6 +120,8 @@ type Router struct {
 	consents     *service.ConsentService
 	auth         *service.AuthService
 	odontogram   *OdontogramHandler
+	payments     *service.PaymentService
+	budgets      *service.BudgetService
 }
 
 func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -152,8 +154,8 @@ func (r *Router) registerPayment(ctx context.Context, id string, req events.APIG
 	return response(200, appt)
 }
 
-func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler) *Router {
-	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram}
+func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService) *Router {
+	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram, payments: payments, budgets: budgets}
 }
 
 func (r *Router) isPublicConsentAccept(method, path string) bool {
@@ -520,6 +522,62 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = deny, nil
 			} else {
 				resp, err = r.odontogram.UpdateTreatmentPlan(actx, req)
+			}
+		// Payment routes (Feature 1)
+		case method == "GET" && path == "/payments":
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.listPayments(actx, req)
+			}
+		case method == "POST" && path == "/payments":
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.createPayment(actx, req)
+			}
+		case method == "GET" && strings.HasSuffix(path, "/payments") && strings.HasPrefix(path, "/patients/"):
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/payments")
+				resp, err = r.listPatientPayments(actx, patientID)
+			}
+		// Budget routes (Feature 6)
+		case method == "GET" && strings.HasSuffix(path, "/budgets") && strings.HasPrefix(path, "/patients/"):
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/budgets")
+				resp, err = r.listPatientBudgets(actx, patientID)
+			}
+		case method == "POST" && strings.HasSuffix(path, "/budgets") && strings.HasPrefix(path, "/patients/"):
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/budgets")
+				resp, err = r.createBudget(actx, patientID, req)
+			}
+		case method == "GET" && strings.HasPrefix(path, "/budgets/"):
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/budgets/")
+				resp, err = r.getBudget(actx, id)
+			}
+		case method == "PUT" && strings.HasPrefix(path, "/budgets/"):
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/budgets/")
+				resp, err = r.updateBudget(actx, id, req)
+			}
+		case method == "DELETE" && strings.HasPrefix(path, "/budgets/"):
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				id := strings.TrimPrefix(path, "/budgets/")
+				resp, err = r.deleteBudget(actx, id)
 			}
 		default:
 			resp, err = response(404, map[string]string{"error": "endpoint_not_found", "message": "The requested endpoint was not found"})
@@ -1065,6 +1123,114 @@ func (r *Router) publicConfirmAppointment(ctx context.Context, token string) (ev
 		"appointmentId": appt.ID,
 		"startAt":       appt.StartAt,
 	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payment handlers (Feature 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (r *Router) listPayments(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	if r.payments == nil {
+		return response(503, map[string]string{"error": "payment service not available"})
+	}
+	payments, err := r.payments.ListPaymentsByOrg(ctx, 500)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{"items": payments, "total": len(payments)})
+}
+
+func (r *Router) createPayment(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	if r.payments == nil {
+		return response(503, map[string]string{"error": "payment service not available"})
+	}
+	var in service.CreatePaymentInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	p, err := r.payments.CreatePayment(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, p)
+}
+
+func (r *Router) listPatientPayments(ctx context.Context, patientID string) (events.APIGatewayV2HTTPResponse, error) {
+	if r.payments == nil {
+		return response(503, map[string]string{"error": "payment service not available"})
+	}
+	payments, err := r.payments.ListPaymentsByPatient(ctx, patientID)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{"items": payments, "total": len(payments)})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Budget handlers (Feature 6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (r *Router) listPatientBudgets(ctx context.Context, patientID string) (events.APIGatewayV2HTTPResponse, error) {
+	if r.budgets == nil {
+		return response(503, map[string]string{"error": "budget service not available"})
+	}
+	budgets, err := r.budgets.ListBudgetsByPatient(ctx, patientID)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{"items": budgets, "total": len(budgets)})
+}
+
+func (r *Router) createBudget(ctx context.Context, patientID string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	if r.budgets == nil {
+		return response(503, map[string]string{"error": "budget service not available"})
+	}
+	var in service.CreateBudgetInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	in.PatientID = patientID
+	b, err := r.budgets.CreateBudget(ctx, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(201, b)
+}
+
+func (r *Router) getBudget(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
+	if r.budgets == nil {
+		return response(503, map[string]string{"error": "budget service not available"})
+	}
+	b, err := r.budgets.GetBudget(ctx, id)
+	if err != nil {
+		return response(404, map[string]string{"error": err.Error()})
+	}
+	return response(200, b)
+}
+
+func (r *Router) updateBudget(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	if r.budgets == nil {
+		return response(503, map[string]string{"error": "budget service not available"})
+	}
+	var in service.UpdateBudgetInput
+	if err := json.Unmarshal([]byte(req.Body), &in); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	b, err := r.budgets.UpdateBudget(ctx, id, in)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, b)
+}
+
+func (r *Router) deleteBudget(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
+	if r.budgets == nil {
+		return response(503, map[string]string{"error": "budget service not available"})
+	}
+	if err := r.budgets.DeleteBudget(ctx, id); err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"status": "deleted"})
 }
 
 func response(code int, payload any) (events.APIGatewayV2HTTPResponse, error) {

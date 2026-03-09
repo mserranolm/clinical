@@ -254,7 +254,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
       {/* KPIs de pagos — admin de org */}
       {isOrgAdmin(user) && orgStats && (
         <div className="stats-grid">
-          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #10b981" }}>
+          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #10b981", cursor: "pointer" }} onClick={() => navigate("/dashboard/pagos")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <DollarSign size={16} strokeWidth={1.5} color="#065f46" />
@@ -264,9 +264,9 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <h3 style={{ color: "#10b981", fontSize: "1.6rem" }}>
               ${orgStats.totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span>Consultas finalizadas</span>
+            <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver pagos →</span>
           </article>
-          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #f59e0b" }}>
+          <article className="stat-card elite-card" style={{ borderLeft: "3px solid #f59e0b", cursor: "pointer" }} onClick={() => navigate("/dashboard/pagos")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <TrendingUp size={16} strokeWidth={1.5} color="#92400e" />
@@ -276,7 +276,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <h3 style={{ color: "#f59e0b", fontSize: "1.6rem" }}>
               ${orgStats.pendingRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span>Citas no finalizadas</span>
+            <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver pagos →</span>
           </article>
           <article className="stat-card elite-card">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>

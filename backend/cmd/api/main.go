@@ -29,6 +29,8 @@ func main() {
 		Users            store.AuthRepository
 		Odontograms      store.OdontogramRepository
 		TreatmentPlans   store.TreatmentPlanRepository
+		Payments         store.PaymentRepository
+		Budgets          store.BudgetRepository
 	}
 
 	if cfg.ShouldUseDynamoDB() {
@@ -42,6 +44,8 @@ func main() {
 			UserTableName:            cfg.UserTable,
 			OdontogramTableName:      cfg.OdontogramTable,
 			TreatmentPlanTableName:   cfg.TreatmentPlanTable,
+			PaymentTableName:         cfg.PaymentTable,
+			BudgetTableName:          cfg.BudgetTable,
 			UseLocalProfile:          cfg.IsLocal(),
 			ProfileName:              cfg.AWSProfile,
 		}
@@ -58,6 +62,8 @@ func main() {
 			repos.Users = memRepos.Users
 			repos.Odontograms = memRepos.Odontograms
 			repos.TreatmentPlans = memRepos.TreatmentPlans
+			repos.Payments = memRepos.Payments
+			repos.Budgets = memRepos.Budgets
 		} else {
 			repos.Patients = dynamoRepos.Patients
 			repos.Appointments = dynamoRepos.Appointments
@@ -66,6 +72,8 @@ func main() {
 			repos.Users = dynamoRepos.Users
 			repos.Odontograms = dynamoRepos.Odontograms
 			repos.TreatmentPlans = dynamoRepos.TreatmentPlans
+			repos.Payments = dynamoRepos.Payments
+			repos.Budgets = dynamoRepos.Budgets
 		}
 	} else {
 		log.Printf("Using in-memory repositories (local development)")
@@ -77,6 +85,8 @@ func main() {
 		repos.Users = memRepos.Users
 		repos.Odontograms = memRepos.Odontograms
 		repos.TreatmentPlans = memRepos.TreatmentPlans
+		repos.Payments = memRepos.Payments
+		repos.Budgets = memRepos.Budgets
 	}
 
 	consents := service.NewConsentService(repos.Consents, repos.ConsentTemplates, notifier)
@@ -100,7 +110,11 @@ func main() {
 	// Create odontogram handler
 	odontogramHandler := api.NewOdontogramHandler(odontogramService, treatmentPlanService)
 
-	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler)
+	// Create payment and budget services
+	paymentService := service.NewPaymentService(repos.Payments)
+	budgetService := service.NewBudgetService(repos.Budgets)
+
+	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService)
 
 	if os.Getenv("LOCAL_HTTP") == "true" {
 		if err := runLocalHTTP(router); err != nil {

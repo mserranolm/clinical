@@ -11,6 +11,8 @@ type Config struct {
 	UserTable            string
 	OdontogramTable      string
 	TreatmentPlanTable   string
+	PaymentTable         string
+	BudgetTable          string
 	PlatformAdminEmail   string
 	BootstrapSecret      string
 	FrontendBaseURL      string
@@ -44,6 +46,8 @@ func Load() Config {
 		UserTable:            getEnv("USER_TABLE", "clinical-users"),
 		OdontogramTable:      getEnv("ODONTOGRAM_TABLE", "clinical-odontograms"),
 		TreatmentPlanTable:   getEnv("TREATMENT_PLAN_TABLE", "clinical-treatment-plans"),
+		PaymentTable:         getEnv("PAYMENT_TABLE", "clinical-payments"),
+		BudgetTable:          getEnv("BUDGET_TABLE", "clinical-budgets"),
 		PlatformAdminEmail:   getEnv("PLATFORM_ADMIN_EMAIL", ""),
 		BootstrapSecret:      getEnv("BOOTSTRAP_SECRET", ""),
 		FrontendBaseURL:      getEnv("FRONTEND_BASE_URL", "https://localhost:5173"),

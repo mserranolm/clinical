@@ -1,6 +1,8 @@
 import { endpointCatalog } from "../lib/config";
 import { request } from "../lib/http";
 import {
+    type Budget,
+    type BudgetItem,
     type CreateAppointmentInput,
     type CreateConsentInput,
     type CreateOdontogramInput,
@@ -8,6 +10,7 @@ import {
     type CreateTreatmentPlanInput,
     type ForgotPasswordInput,
     type LoginInput,
+    type PaymentRecord,
     type RegisterInput,
     type ResetPasswordInput
 } from "../types";
@@ -28,6 +31,8 @@ export type AppointmentDTO = {
   paymentAmount?: number;
   paymentMethod?: string;
   paymentPaid?: boolean;
+  paymentType?: string;
+  reason?: string;
   consentSummary?: ConsentSummary;
 };
 
@@ -337,4 +342,30 @@ export const clinicalApi = {
 
   deleteOrg: (orgId: string, token: string) =>
     request<{ status: string }>(`/platform/orgs/${orgId}`, { method: "DELETE", token }),
+
+  // Payment APIs (Feature 1)
+  listPayments: (token: string) =>
+    request<{ items: PaymentRecord[]; total: number }>("/payments", { token }),
+
+  createPaymentRecord: (data: { appointmentId?: string; patientId: string; doctorId?: string; amount: number; paymentType: string; paymentMethod: string; currency: string; notes?: string }, token: string) =>
+    request<PaymentRecord>("/payments", { method: "POST", body: data, token }),
+
+  listPatientPayments: (patientId: string, token: string) =>
+    request<{ items: PaymentRecord[]; total: number }>(`/patients/${encodeURIComponent(patientId)}/payments`, { token }),
+
+  // Budget APIs (Feature 6)
+  listPatientBudgets: (patientId: string, token: string) =>
+    request<{ items: Budget[]; total: number }>(`/patients/${encodeURIComponent(patientId)}/budgets`, { token }),
+
+  createBudget: (patientId: string, data: { title: string; items: BudgetItem[]; currency: string; status?: string; notes?: string; doctorId?: string; validUntil?: string }, token: string) =>
+    request<Budget>(`/patients/${encodeURIComponent(patientId)}/budgets`, { method: "POST", body: data, token }),
+
+  getBudget: (budgetId: string, token: string) =>
+    request<Budget>(`/budgets/${encodeURIComponent(budgetId)}`, { token }),
+
+  updateBudget: (budgetId: string, data: Partial<{ title: string; items: BudgetItem[]; currency: string; status: string; notes: string; validUntil: string }>, token: string) =>
+    request<Budget>(`/budgets/${encodeURIComponent(budgetId)}`, { method: "PUT", body: data, token }),
+
+  deleteBudget: (budgetId: string, token: string) =>
+    request<{ status: string }>(`/budgets/${encodeURIComponent(budgetId)}`, { method: "DELETE", token }),
 };

@@ -21,6 +21,8 @@ Globals:
         ODONTOGRAM_TABLE: !Ref OdontogramsTable
         TREATMENT_PLAN_TABLE: !Ref TreatmentPlansTable
         USER_TABLE: !Ref UsersTable
+        PAYMENT_TABLE: !Ref PaymentsTable
+        BUDGET_TABLE: !Ref BudgetsTable
         PLATFORM_ADMIN_EMAIL: mserranolm@gmail.com
         BOOTSTRAP_SECRET: ""
         SEND_SMS: "true"
@@ -159,6 +161,10 @@ Resources:
             TableName: !Ref TreatmentPlansTable
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PaymentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BudgetsTable
         - Statement:
           - Effect: Allow
             Action:
@@ -372,6 +378,44 @@ Resources:
     Properties:
       BillingMode: PAY_PER_REQUEST
       TableName: clinical-users
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
+
+  PaymentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: clinical-payments
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
+
+  BudgetsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: clinical-budgets
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S

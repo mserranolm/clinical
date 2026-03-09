@@ -3,12 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { Plus, CalendarDays } from "lucide-react";
 import type { AuthSession } from "../../types";
 import { canCreateAppointments } from "../../lib/rbac";
+import { ThemeToggle } from "../ui/ThemeToggle";
+import { useTheme } from "../../App";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": { title: "Panel Principal", subtitle: "Resumen de actividad clínica del día" },
   "/dashboard/nuevo-tratamiento": { title: "Nuevo Tratamiento", subtitle: "Asistente de evaluación clínica" },
   "/dashboard/pacientes": { title: "Pacientes", subtitle: "Gestión de expedientes" },
   "/dashboard/citas": { title: "Agenda Médica", subtitle: "Programación de consultas" },
+  "/dashboard/calendario": { title: "Calendario", subtitle: "Vista de calendario de citas" },
+  "/dashboard/documentos": { title: "Documentos", subtitle: "Consentimientos y documentos clínicos" },
+  "/dashboard/pagos": { title: "Pagos", subtitle: "Historial de cobros" },
+  "/dashboard/presupuestos": { title: "Presupuestos", subtitle: "Presupuestos por paciente" },
   "/dashboard/odontograma": { title: "Odontograma", subtitle: "Registro dental interactivo" },
   "/dashboard/planes": { title: "Tratamientos", subtitle: "Planes y seguimiento clínico" },
   "/dashboard/usuarios": { title: "Usuarios", subtitle: "Gestión de equipo y roles" },
@@ -17,6 +23,8 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 
 export function Topbar({ session, title, hamburger }: { session: AuthSession; onLogout: () => void; title: string; hamburger?: React.ReactNode }) {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+
   const now = useMemo(() => {
     return new Date().toLocaleDateString("es-ES", {
       weekday: "long",
@@ -62,6 +70,8 @@ export function Topbar({ session, title, hamburger }: { session: AuthSession; on
             Crear cita
           </button>
         )}
+
+        <ThemeToggle current={theme} onChange={setTheme} />
 
         <div className="topbar-date">
           <span className="live-dot" />

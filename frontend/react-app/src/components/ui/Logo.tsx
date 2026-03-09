@@ -1,63 +1,79 @@
 interface LogoProps {
   className?: string;
   variant?: "dark" | "light" | "color";
+  isoOnly?: boolean;
 }
 
-export function Logo({ className = "h-10 w-auto", variant = "color" }: LogoProps) {
-  const textColor   = variant === "light" ? "#ffffff" : "#0f172a";
-  const accentColor = variant === "light" ? "#5eead4" : "#0d9488";
-  const pulseColor  = variant === "light" ? "#ffffff" : "#0d9488";
+export function Logo({ className = "h-10 w-auto", variant = "color", isoOnly = false }: LogoProps) {
+  // Color palette per variant
+  const strokeColor  = variant === "light" ? "#FFFFFF" : "#0F172A";
+  const textColor    = variant === "light" ? "#FFFFFF" : "#0F172A";
+  const tealColor    = variant === "light" ? "#22C9A6" : "#0D9488";
+
+  if (isoOnly) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 56 56"
+        fill="none"
+        className={className}
+        aria-label="DOCCO"
+        role="img"
+      >
+        {/* Teal arc behind the cross */}
+        <path
+          d="M 44.2,45.8 A 20.2,20.2 0 1,1 50.8,33"
+          stroke={tealColor}
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        {/* Medical cross + caduceus */}
+        <g stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="8"  y="21" width="40" height="14" rx="4" ry="4" fill="none" />
+          <rect x="21" y="8"  width="14" height="40" rx="4" ry="4" fill="none" />
+          <path d="M 28,15 v 26 M 22,22 q 2,-1 3,-3 1,2 3,3 2,-1 3,-3 1,2 3,3 M 28,24 a 4,4 0 0,0 -4,4 c 0,4 8,4 8,8 a 4,4 0 0,1 -4,4" />
+        </g>
+      </svg>
+    );
+  }
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 280 56"
+      viewBox="0 0 220 56"
       fill="none"
       className={className}
-      aria-label="CliniSense"
+      aria-label="DOCCO"
       role="img"
     >
-      {/* ── Isotipo: escudo médico ──────────────────────────── */}
+      {/* ── Isotipo ──────────────────────────── */}
       <g>
-        {/* Escudo base */}
+        {/* Teal arc */}
         <path
-          d="M28 4 L48 12 L48 30 C48 41 38 50 28 52 C18 50 8 41 8 30 L8 12 Z"
-          fill={accentColor}
-          opacity="0.15"
-        />
-        {/* Escudo borde */}
-        <path
-          d="M28 4 L48 12 L48 30 C48 41 38 50 28 52 C18 50 8 41 8 30 L8 12 Z"
-          stroke={accentColor}
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        {/* Cruz médica */}
-        <rect x="24" y="18" width="8" height="20" rx="2" fill={accentColor} />
-        <rect x="18" y="24" width="20" height="8" rx="2" fill={accentColor} />
-        {/* Pulso ECG sobre la cruz */}
-        <path
-          d="M14 28 L19 28 L21 22 L24 34 L27 24 L29 32 L31 28 L42 28"
-          stroke={pulseColor}
-          strokeWidth="1.8"
+          d="M 44.2,45.8 A 20.2,20.2 0 1,1 50.8,33"
+          stroke={tealColor}
+          strokeWidth="3"
           strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-          opacity={variant === "light" ? "0.9" : "0.7"}
         />
+        {/* Medical cross + caduceus */}
+        <g stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="8"  y="21" width="40" height="14" rx="4" ry="4" fill="none" />
+          <rect x="21" y="8"  width="14" height="40" rx="4" ry="4" fill="none" />
+          <path d="M 28,15 v 26 M 22,22 q 2,-1 3,-3 1,2 3,3 2,-1 3,-3 1,2 3,3 M 28,24 a 4,4 0 0,0 -4,4 c 0,4 8,4 8,8 a 4,4 0 0,1 -4,4" />
+        </g>
       </g>
 
-      {/* ── Logotipo: texto ─────────────────────────────────── */}
+      {/* ── Logotipo: DOCCO ─────────────────── */}
       <text
-        x="60"
+        x="68"
         y="38"
-        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
-        fontWeight="800"
-        fontSize="30"
-        letterSpacing="-0.03em"
+        fill={textColor}
+        fontFamily="Montserrat, system-ui, -apple-system, sans-serif"
+        fontWeight="900"
+        fontSize="28"
+        letterSpacing="-0.02em"
       >
-        <tspan fill={textColor}>Clini</tspan>
-        <tspan fill={accentColor}>Sense</tspan>
+        DOCCO
       </text>
     </svg>
   );

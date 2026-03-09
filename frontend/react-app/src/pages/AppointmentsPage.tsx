@@ -23,6 +23,7 @@ type AppointmentRow = {
   paymentAmount?: number;
   paymentPaid?: boolean;
   paymentMethod?: string;
+  reason?: string;
   consentSummary?: { total: number; accepted: number };
 };
 
@@ -116,6 +117,9 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
   const [payPaid, setPayPaid] = useState(true);
   const [payMethod, setPayMethod] = useState("efectivo");
   const [payAmount, setPayAmount] = useState(0);
+  const [payType, setPayType] = useState("pago_completo");
+  const [payCurrency, setPayCurrency] = useState("USD");
+  const [payNotes, setPayNotes] = useState("");
   const [payingSaving, setPayingSaving] = useState(false);
   const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -245,7 +249,8 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         durationMinutes: duration,
         treatmentPlan: String(fd.get("treatmentPlan") || ""),
         paymentAmount: Number(fd.get("paymentAmount") || 0),
-        paymentMethod: String(fd.get("paymentMethod") || "")
+        paymentMethod: String(fd.get("paymentMethod") || ""),
+        reason: String(fd.get("reason") || ""),
       },
       token
     );
@@ -391,6 +396,7 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
         paymentAmount: item.paymentAmount,
         paymentPaid: item.paymentPaid,
         paymentMethod: item.paymentMethod,
+        reason: item.reason,
         consentSummary: item.consentSummary,
       })));
       return { total: allAppointments.length };
@@ -441,6 +447,9 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
     setPayPaid(row.paymentPaid ?? false);
     setPayMethod(row.paymentMethod || "efectivo");
     setPayAmount(row.paymentAmount ?? 0);
+    setPayType("pago_completo");
+    setPayCurrency("USD");
+    setPayNotes("");
   }
 
   async function savePayment() {
@@ -502,6 +511,13 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                 />
               </div>
               <div className="input-group">
+                <label>Tipo de pago</label>
+                <select className="elite-input" value={payType} onChange={e => setPayType(e.target.value)}>
+                  <option value="pago_completo">Pago completo</option>
+                  <option value="abono">Abono</option>
+                </select>
+              </div>
+              <div className="input-group">
                 <label>Método de pago</label>
                 <select className="elite-input" value={payMethod} onChange={e => setPayMethod(e.target.value)}>
                   <option value="efectivo">Efectivo</option>
@@ -510,6 +526,17 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   <option value="zelle">Zelle</option>
                   <option value="otro">Otro</option>
                 </select>
+              </div>
+              <div className="input-group">
+                <label>Moneda</label>
+                <select className="elite-input" value={payCurrency} onChange={e => setPayCurrency(e.target.value)}>
+                  <option value="USD">USD (Dólares)</option>
+                  <option value="VES">VES (Bolívares)</option>
+                </select>
+              </div>
+              <div className="input-group">
+                <label>Notas</label>
+                <input type="text" className="elite-input" value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="Notas adicionales..." />
               </div>
             </>
           )}
@@ -600,6 +627,10 @@ export function AppointmentsPage({ token, doctorId, session }: { token: string; 
                   </small>
                 )}
               </div>
+            </div>
+            <div className="input-group">
+              <label>Motivo de la cita</label>
+              <textarea name="reason" rows={2} placeholder="Ej: Limpieza dental, revisión de ortodoncia..." style={{ width: "100%", resize: "vertical", padding: "8px", borderRadius: 6, border: "1px solid #e2e8f0", fontFamily: "inherit", fontSize: "0.875rem" }} />
             </div>
             <div className="input-group">
               <label>Bloque de tiempo</label>
