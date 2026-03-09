@@ -62,17 +62,17 @@ export function PaymentsPage({ token, session: _session }: { token: string; sess
   const totalVES = useMemo(() => filtered.filter(p => p.currency === "VES").reduce((s, p) => s + p.amount, 0), [filtered]);
 
   function exportCSV() {
-    const header = ["Fecha", "Monto", "Moneda", "Tipo", "Método", "Notas", "Paciente ID", "Doctor ID", "Cita ID"];
+    const header = ["Fecha", "Paciente", "Doctor", "Monto", "Moneda", "Tipo", "Método", "Notas", "Cita ID"];
     const escape = (v: string | number | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = filtered.map((p) => [
       escape(fmtDate(p.createdAt)),
+      escape(p.patientName || p.patientId),
+      escape(p.doctorName || p.doctorId),
       escape(p.amount.toFixed(2)),
       escape(p.currency),
       escape(TYPE_LABELS[p.paymentType] ?? p.paymentType),
       escape(METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod),
       escape(p.notes),
-      escape(p.patientId),
-      escape(p.doctorId),
       escape(p.appointmentId),
     ].join(","));
     const csv = [header.map(h => `"${h}"`).join(","), ...rows].join("\n");
@@ -193,7 +193,7 @@ export function PaymentsPage({ token, session: _session }: { token: string; sess
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${t.border}`, background: t.surface2 }}>
-                  {["Fecha","Monto","Tipo","Método","Moneda","Notas"].map(h => (
+                  {["Fecha","Paciente","Doctor","Monto","Tipo","Método","Moneda","Notas"].map(h => (
                     <th key={h} style={{ padding: "10px 12px", textAlign: h === "Monto" ? "right" : "left", fontWeight: 600, color: t.textSub, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                   ))}
                 </tr>
@@ -204,6 +204,8 @@ export function PaymentsPage({ token, session: _session }: { token: string; sess
                     onMouseEnter={e => (e.currentTarget.style.background = t.surfaceHover)}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                     <td style={{ padding: "10px 12px", color: t.textSub }}>{fmtDate(p.createdAt)}</td>
+                    <td style={{ padding: "10px 12px", fontWeight: 500 }}>{p.patientName || p.patientId}</td>
+                    <td style={{ padding: "10px 12px", color: t.textSub }}>{p.doctorName || p.doctorId || "—"}</td>
                     <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: "#10b981" }}>{fmtCurrency(p.amount, p.currency)}</td>
                     <td style={{ padding: "10px 12px" }}>
                       <span style={{

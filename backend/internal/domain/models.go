@@ -332,7 +332,9 @@ type PaymentRecord struct {
 	OrgID         string    `json:"orgId"`
 	AppointmentID string    `json:"appointmentId"`
 	PatientID     string    `json:"patientId"`
+	PatientName   string    `json:"patientName,omitempty"`
 	DoctorID      string    `json:"doctorId"`
+	DoctorName    string    `json:"doctorName,omitempty"`
 	Amount        float64   `json:"amount"`
 	PaymentType   string    `json:"paymentType"`   // "pago_completo", "abono"
 	PaymentMethod string    `json:"paymentMethod"` // efectivo, transferencia, etc.

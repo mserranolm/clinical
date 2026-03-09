@@ -111,7 +111,10 @@ func main() {
 	odontogramHandler := api.NewOdontogramHandler(odontogramService, treatmentPlanService)
 
 	// Create payment and budget services
-	paymentService := service.NewPaymentService(repos.Payments)
+	paymentService := service.NewPaymentService(repos.Payments,
+		service.WithPaymentPatientRepo(repos.Patients),
+		service.WithPaymentUserRepo(repos.Users),
+	)
 	budgetService := service.NewBudgetService(repos.Budgets)
 
 	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService)

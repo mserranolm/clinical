@@ -111,7 +111,9 @@ export type PaymentRecord = {
   orgId: string;
   appointmentId: string;
   patientId: string;
+  patientName?: string;
   doctorId: string;
+  doctorName?: string;
   amount: number;
   paymentType: string;
   paymentMethod: string;
