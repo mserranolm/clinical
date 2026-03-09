@@ -4,6 +4,9 @@ import {
   FileText, BarChart3, Bell, Shield, Zap, Users,
 } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { useTheme } from "../App";
+import { useIsDark } from "../lib/use-is-dark";
 
 const quickStats = [
   { label: "Citas / mes", value: "2.4K+" },
@@ -29,6 +32,8 @@ const barDays  = ["L","M","X","J","V","S","D"];
 
 export function Landing(_props?: { resolvedTheme?: "light" | "dark" }) {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+  const isDark = useIsDark();
 
   return (
     <main className="lp-root">
@@ -39,9 +44,10 @@ export function Landing(_props?: { resolvedTheme?: "light" | "dark" }) {
       <header className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
-            <Logo variant="dark" className="lp-nav-logo-svg" />
+            <Logo variant={isDark ? "light" : "dark"} className="lp-nav-logo-svg" />
           </div>
           <div className="lp-nav-actions">
+            <ThemeToggle current={theme} onChange={setTheme} />
             <button className="lp-btn-ghost" onClick={() => navigate("/login")}>
               Acceso Médicos
             </button>
