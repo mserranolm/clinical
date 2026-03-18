@@ -341,6 +341,27 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.searchPatients(actx, req)
 			}
+		case method == "GET" && strings.HasSuffix(path, "/payments") && strings.HasPrefix(path, "/patients/"):
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/payments")
+				resp, err = r.listPatientPayments(actx, patientID)
+			}
+		case method == "GET" && strings.HasSuffix(path, "/budgets") && strings.HasPrefix(path, "/patients/"):
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/budgets")
+				resp, err = r.listPatientBudgets(actx, patientID)
+			}
+		case method == "POST" && strings.HasSuffix(path, "/budgets") && strings.HasPrefix(path, "/patients/"):
+			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
+				resp, err = deny, nil
+			} else {
+				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/budgets")
+				resp, err = r.createBudget(actx, patientID, req)
+			}
 		case method == "GET" && strings.HasPrefix(path, "/patients/"):
 			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
 				resp, err = deny, nil
@@ -536,28 +557,6 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = deny, nil
 			} else {
 				resp, err = r.createPayment(actx, req)
-			}
-		case method == "GET" && strings.HasSuffix(path, "/payments") && strings.HasPrefix(path, "/patients/"):
-			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
-				resp, err = deny, nil
-			} else {
-				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/payments")
-				resp, err = r.listPatientPayments(actx, patientID)
-			}
-		// Budget routes (Feature 6)
-		case method == "GET" && strings.HasSuffix(path, "/budgets") && strings.HasPrefix(path, "/patients/"):
-			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
-				resp, err = deny, nil
-			} else {
-				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/budgets")
-				resp, err = r.listPatientBudgets(actx, patientID)
-			}
-		case method == "POST" && strings.HasSuffix(path, "/budgets") && strings.HasPrefix(path, "/patients/"):
-			if actx, deny, ok := r.require(ctx, req, permTreatmentsManage); !ok {
-				resp, err = deny, nil
-			} else {
-				patientID := strings.TrimSuffix(strings.TrimPrefix(path, "/patients/"), "/budgets")
-				resp, err = r.createBudget(actx, patientID, req)
 			}
 		case method == "GET" && strings.HasPrefix(path, "/budgets/"):
 			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
