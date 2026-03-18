@@ -5113,6 +5113,35 @@ td { border-bottom: 1px solid #f8fafc !important; }
   }
 }
 
+/* ── Budget item inputs ─────────────────────────────────── */
+.budget-item-input {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  outline: none;
+  background: #f8fafc;
+  transition: border-color 0.15s, background 0.15s;
+}
+.budget-item-input:focus {
+  border-color: var(--accent);
+  background: white;
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+.budget-item-input::placeholder {
+  color: #94a3b8;
+}
+/* Hide number input spinners for cleaner look */
+.budget-item-input[type="number"]::-webkit-inner-spin-button,
+.budget-item-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.budget-item-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* ── DatePicker responsive ───────────────────────────────── */
 @media (max-width: 639px) {
   .datepicker-popover {

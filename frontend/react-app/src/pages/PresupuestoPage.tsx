@@ -332,6 +332,8 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
       {/* Create/Edit Modal */}
       {showModal && (
         <Modal onClose={() => setShowModal(false)}>
+          {/* Widen modal for budget form */}
+          <style>{`.modal-card { max-width: 640px !important; }`}</style>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <h3 style={{ margin: 0 }}>{editBudget ? "Editar Presupuesto" : "Nuevo Presupuesto"}</h3>
             <button type="button" onClick={() => setShowModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
@@ -385,16 +387,16 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
                   {items.map((item, i) => (
                     <tr key={i} style={{ borderTop: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "6px 8px" }}>
-                        <input type="text" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder="Descripción..." style={{ width: "100%", border: "none", outline: "none", fontSize: "0.8rem", background: "transparent" }} />
+                        <input type="text" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder="Descripción..." className="budget-item-input" />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="text" value={item.tooth || ""} onChange={e => updateItem(i, "tooth", e.target.value)} placeholder="—" style={{ width: "100%", border: "none", outline: "none", fontSize: "0.8rem", textAlign: "center", background: "transparent" }} />
+                        <input type="text" value={item.tooth || ""} onChange={e => updateItem(i, "tooth", e.target.value)} placeholder="—" className="budget-item-input" style={{ textAlign: "center" }} />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, "quantity", Number(e.target.value))} style={{ width: "100%", border: "none", outline: "none", fontSize: "0.8rem", textAlign: "center", background: "transparent" }} />
+                        <input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, "quantity", Number(e.target.value))} className="budget-item-input" style={{ textAlign: "center" }} />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="number" min={0} step={0.01} value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", Number(e.target.value))} style={{ width: "100%", border: "none", outline: "none", fontSize: "0.8rem", textAlign: "right", background: "transparent" }} />
+                        <input type="number" min={0} step={0.01} value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", Number(e.target.value))} placeholder="0.00" className="budget-item-input" style={{ textAlign: "right" }} />
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600, color: "#10b981" }}>
                         {fmtMoney(Number(item.quantity) * Number(item.unitPrice), currency)}
