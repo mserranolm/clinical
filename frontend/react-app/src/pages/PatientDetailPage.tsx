@@ -191,6 +191,7 @@ export function PatientDetailPage({ token }: { token: string }) {
           <button type="button" className={`patient-detail-tab-btn ${activeTab === "historial" ? "active" : ""}`} onClick={() => setActiveTab("historial")}>Historia médica</button>
           <button type="button" className={`patient-detail-tab-btn ${activeTab === "odontograma" ? "active" : ""}`} onClick={() => setActiveTab("odontograma")}>Odontograma</button>
           <button type="button" className={`patient-detail-tab-btn ${activeTab === "citas" ? "active" : ""}`} onClick={() => setActiveTab("citas")}>Citas</button>
+          <button type="button" className="patient-detail-tab-btn" onClick={() => navigate(`/dashboard/pacientes/${patientId}/presupuesto`)}>Presupuestos</button>
         </div>
 
         {activeTab === "general" && (

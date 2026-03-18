@@ -435,6 +435,14 @@ export function PatientsPage({ token, doctorId, session }: { token: string; doct
                           <span className="icon">👁️</span>
                           <span>Consultar</span>
                         </button>
+                        <button
+                          type="button"
+                          className="action-btn"
+                          onClick={() => navigate(`/dashboard/pacientes/${row.id}/presupuesto`)}
+                        >
+                          <span className="icon">💰</span>
+                          <span>Presupuesto</span>
+                        </button>
                         {canWritePatients(session) && (
                           <button type="button" className="action-btn" onClick={() => handleEdit(row)}>
                             <span className="icon">✏️</span>
