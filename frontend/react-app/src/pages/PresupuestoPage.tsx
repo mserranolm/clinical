@@ -148,7 +148,7 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
       const data = {
         title, currency, status, notes,
         doctorId: session.userId,
-        validUntil: validUntil || undefined,
+        validUntil: validUntil ? `${validUntil}T00:00:00Z` : undefined,
         items: items.map(it => ({ ...it, quantity: Number(it.quantity), unitPrice: Number(it.unitPrice), total: Number(it.quantity) * Number(it.unitPrice) })),
       };
       if (editBudget) {
