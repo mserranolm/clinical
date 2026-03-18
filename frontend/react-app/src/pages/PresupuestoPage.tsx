@@ -324,13 +324,13 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button type="button" onClick={() => handleDownloadPdf(b)} title="Descargar PDF" disabled={pdfLoading === b.id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", opacity: pdfLoading === b.id ? 0.5 : 1 }}>
+                    <button type="button" onClick={() => handleDownloadPdf(b)} title="Descargar PDF" disabled={pdfLoading === b.id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#475569", opacity: pdfLoading === b.id ? 0.5 : 1 }}>
                       <Download size={14} />
                     </button>
-                    <button type="button" onClick={() => printBudget(b)} title="Imprimir" style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
+                    <button type="button" onClick={() => printBudget(b)} title="Imprimir" style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#475569" }}>
                       <Printer size={14} />
                     </button>
-                    <button type="button" onClick={() => openEdit(b)} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600 }}>Editar</button>
+                    <button type="button" onClick={() => openEdit(b)} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: "#475569" }}>Editar</button>
                     <button type="button" onClick={() => deleteBudget(b.id)} style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#991b1b" }}>
                       <Trash2 size={14} />
                     </button>
