@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import 'react-day-picker/src/style.css';
 
+/* Sileo toasts must appear above modals (z-index:1000) */
+[data-sileo-viewport] { z-index: 10000 !important; }
+
 :root {
   /* ── Paleta Air: Sky/Slate ──────────────────────────────── */
   --accent:           #0ea5e9;   /* sky-500  — acento principal */
