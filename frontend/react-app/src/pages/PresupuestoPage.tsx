@@ -35,6 +35,28 @@ function newItem(): BudgetItem {
   return { id: "", description: "", tooth: "", quantity: 1, unitPrice: 0, total: 0, status: "pending" };
 }
 
+function PriceInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [raw, setRaw] = useState(value ? String(value) : "");
+  useEffect(() => { setRaw(value ? String(value) : ""); }, [value]);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      onChange={e => {
+        const v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
+        setRaw(v);
+        const n = parseFloat(v);
+        onChange(isNaN(n) ? 0 : n);
+      }}
+      onBlur={() => { setRaw(value ? String(value) : ""); }}
+      placeholder="0.00"
+      className="budget-item-input"
+      style={{ textAlign: "right" }}
+    />
+  );
+}
+
 export function PresupuestoPage({ token, session }: { token: string; session: AuthSession }) {
   const { patientId } = useParams<{ patientId: string }>();
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -393,10 +415,10 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
                         <input type="text" value={item.tooth || ""} onChange={e => updateItem(i, "tooth", e.target.value)} placeholder="—" className="budget-item-input" style={{ textAlign: "center" }} />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, "quantity", Number(e.target.value))} className="budget-item-input" style={{ textAlign: "center" }} />
+                        <input type="text" inputMode="numeric" value={item.quantity || ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); updateItem(i, "quantity", v === "" ? 0 : parseInt(v, 10)); }} placeholder="1" className="budget-item-input" style={{ textAlign: "center" }} />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="number" min={0} step={0.01} value={item.unitPrice} onChange={e => updateItem(i, "unitPrice", Number(e.target.value))} placeholder="0.00" className="budget-item-input" style={{ textAlign: "right" }} />
+                        <PriceInput value={item.unitPrice} onChange={v => updateItem(i, "unitPrice", v)} />
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600, color: "#10b981" }}>
                         {fmtMoney(Number(item.quantity) * Number(item.unitPrice), currency)}
