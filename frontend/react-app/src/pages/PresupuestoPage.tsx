@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import type { AuthSession, Budget, BudgetItem } from "../types";
-import { FileSpreadsheet, Plus, Printer, Trash2, X } from "lucide-react";
+import { Download, FileSpreadsheet, Plus, Printer, Trash2, X } from "lucide-react";
+import { generateBudgetPdf } from "../lib/generateBudgetPdf";
 import { Modal } from "../components/Modal";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -47,12 +48,17 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
   const [validUntil, setValidUntil] = useState("");
   const [items, setItems] = useState<BudgetItem[]>([newItem()]);
   const [saving, setSaving] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("");
+  const [patientDocId, setPatientDocId] = useState("");
 
   useEffect(() => {
     if (!patientId) return;
     clinicalApi.getPatient(patientId, token)
-      .then(p => setPatientName(`${(p as any).firstName} ${(p as any).lastName}`))
+      .then(p => {
+        setPatientName(`${(p as any).firstName} ${(p as any).lastName}`);
+        setPatientDocId((p as any).documentId || "");
+      })
       .catch(() => {});
     loadBudgets();
   }, [patientId, token]);
@@ -144,6 +150,25 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
     clinicalApi.deleteBudget(id, token)
       .then(() => { notify.success("Eliminado"); loadBudgets(); })
       .catch(() => notify.error("Error al eliminar"));
+  }
+
+  async function handleDownloadPdf(b: Budget) {
+    setPdfLoading(b.id);
+    try {
+      const profile = await clinicalApi.getUserProfile(token);
+      generateBudgetPdf({
+        budget: b,
+        patientName,
+        patientDocumentId: patientDocId,
+        doctorName: session.name || "",
+        doctorPhone: (profile as any).phone || "",
+        doctorEmail: profile.email || "",
+      });
+    } catch (err) {
+      notify.error("Error al generar PDF", err instanceof Error ? err.message : String(err));
+    } finally {
+      setPdfLoading(null);
+    }
   }
 
   function printBudget(b: Budget) {
@@ -277,6 +302,9 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={() => handleDownloadPdf(b)} title="Descargar PDF" disabled={pdfLoading === b.id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", opacity: pdfLoading === b.id ? 0.5 : 1 }}>
+                      <Download size={14} />
+                    </button>
                     <button type="button" onClick={() => printBudget(b)} title="Imprimir" style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
                       <Printer size={14} />
                     </button>
