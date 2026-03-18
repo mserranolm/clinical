@@ -147,3 +147,7 @@ export type Budget = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+export type ChatRequest = { message: string; conversationHistory?: ChatMessage[] };
+export type ChatResponse = { reply: string; timestamp: string };

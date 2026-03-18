@@ -34,7 +34,8 @@ export const endpointCatalog = {
   createTreatmentPlan: "/treatment-plans",
   getTreatmentPlan: (planId: string) => `/treatment-plans/${planId}`,
   getTreatmentPlansByPatient: (patientId: string) => `/treatment-plans/patient/${patientId}`,
-  updateTreatmentPlan: "/treatment-plans"
+  updateTreatmentPlan: "/treatment-plans",
+  chat: "/chat"
 };
 
 function normalizeUrl(url: string): string {

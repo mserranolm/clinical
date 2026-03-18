@@ -2,6 +2,7 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { clinicalApi } from "../../api/clinical";
+import { DoccoChat } from "../../modules/docco/DoccoChat";
 import { AuthSession } from "../../types";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -164,6 +165,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             </Routes>
           </div>
         </section>
+        <DoccoChat session={session} />
       </main>
     );
   }
@@ -195,6 +197,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
           </Routes>
         </div>
       </section>
+      <DoccoChat session={session} />
     </main>
   );
 }

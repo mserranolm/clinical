@@ -22,6 +22,9 @@ type Config struct {
 	UseInMemory          bool
 	AWSProfile           string
 	IsLambda             bool
+	BedrockModelID       string
+	DoccoEnabled         bool
+	ClinicTZ             string
 }
 
 func Load() Config {
@@ -57,6 +60,9 @@ func Load() Config {
 		UseInMemory:          useInMemory,
 		AWSProfile:           awsProfile,
 		IsLambda:             isLambda,
+		BedrockModelID:       getEnv("BEDROCK_MODEL_ID", "us.anthropic.claude-3-5-haiku-20241022-v1:0"),
+		DoccoEnabled:         getEnv("DOCCO_ENABLED", "true") == "true",
+		ClinicTZ:             getEnv("CLINIC_TZ", "America/Caracas"),
 	}
 }
 

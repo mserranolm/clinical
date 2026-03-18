@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"time"
 
 	"clinical-backend/internal/api"
+	"clinical-backend/internal/bedrock"
 	"clinical-backend/internal/config"
 	"clinical-backend/internal/notifications"
 	"clinical-backend/internal/service"
 	"clinical-backend/internal/store"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -117,7 +120,26 @@ func main() {
 	)
 	budgetService := service.NewBudgetService(repos.Budgets)
 
-	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService)
+	// Initialize Bedrock client and chat service
+	clinicTZ, err := time.LoadLocation(cfg.ClinicTZ)
+	if err != nil {
+		log.Printf("Warning: could not load timezone %q, using UTC: %v", cfg.ClinicTZ, err)
+		clinicTZ = time.UTC
+	}
+
+	var chatService *service.ChatService
+	if cfg.DoccoEnabled {
+		awsCfg, bedrockErr := awsconfig.LoadDefaultConfig(context.Background())
+		if bedrockErr != nil {
+			log.Printf("Warning: could not load AWS config for Bedrock: %v — Docco disabled", bedrockErr)
+		} else {
+			bedrockClient := bedrock.NewClient(awsCfg, cfg.BedrockModelID)
+			chatService = service.NewChatService(repos.Appointments, repos.Patients, repos.Payments, bedrockClient, clinicTZ)
+			log.Printf("Docco chat service initialized (model: %s)", cfg.BedrockModelID)
+		}
+	}
+
+	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService, chatService)
 
 	if os.Getenv("LOCAL_HTTP") == "true" {
 		if err := runLocalHTTP(router); err != nil {

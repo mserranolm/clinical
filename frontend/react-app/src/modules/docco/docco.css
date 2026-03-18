@@ -1,0 +1,219 @@
+/* ============================================================
+   Docco Chatbot — estilos y animaciones
+   ============================================================ */
+
+/* Contenedor flotante raíz */
+.docco-root {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* ----- Bubble ----- */
+.docco-bubble {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary, #0ea5e9);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: docco-breathe 3s ease-in-out infinite;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.docco-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+  animation: none;
+}
+
+.docco-bubble--open {
+  animation: none;
+  background: var(--surface-3, #64748b);
+}
+
+@keyframes docco-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* ----- Panel ----- */
+.docco-panel {
+  width: 370px;
+  height: 520px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: docco-slide-up 0.25s ease-out;
+}
+
+@keyframes docco-slide-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.docco-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--primary, #0ea5e9);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.docco-panel__btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-size: 14px;
+  opacity: 0.85;
+  padding: 4px;
+  border-radius: 6px;
+  transition: opacity 0.15s, background 0.15s;
+  line-height: 1;
+}
+.docco-panel__btn-icon:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.15);
+}
+
+.docco-panel__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  scroll-behavior: smooth;
+}
+
+.docco-panel__footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  flex-shrink: 0;
+}
+
+.docco-panel__input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 20px;
+  font-size: 14px;
+  background: var(--surface-2, #f8fafc);
+  color: var(--text, #0f172a);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.docco-panel__input:focus {
+  border-color: var(--primary, #0ea5e9);
+}
+.docco-panel__input:disabled {
+  opacity: 0.6;
+}
+
+.docco-panel__send {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary, #0ea5e9);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+.docco-panel__send:hover:not(:disabled) {
+  background: #0284c7;
+  transform: scale(1.05);
+}
+.docco-panel__send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ----- Typing indicator ----- */
+.docco-typing {
+  display: flex;
+  gap: 5px;
+  padding: 10px 14px;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 16px 16px 16px 4px;
+  width: fit-content;
+}
+
+.docco-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted, #94a3b8);
+  animation: docco-bounce 1.2s ease-in-out infinite;
+}
+.docco-dot:nth-child(2) { animation-delay: 0.2s; }
+.docco-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes docco-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.6; }
+  40% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ----- Suggestion chips ----- */
+.docco-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.docco-chip {
+  padding: 6px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--primary, #0ea5e9);
+  background: transparent;
+  color: var(--primary, #0ea5e9);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.docco-chip:hover {
+  background: var(--primary, #0ea5e9);
+  color: #fff;
+}
+
+/* ----- Mobile: full screen ----- */
+@media (max-width: 480px) {
+  .docco-root {
+    bottom: 16px;
+    right: 16px;
+  }
+
+  .docco-panel {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+  }
+}

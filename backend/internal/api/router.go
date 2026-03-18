@@ -122,6 +122,7 @@ type Router struct {
 	odontogram   *OdontogramHandler
 	payments     *service.PaymentService
 	budgets      *service.BudgetService
+	chat         *service.ChatService
 }
 
 func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -154,8 +155,8 @@ func (r *Router) registerPayment(ctx context.Context, id string, req events.APIG
 	return response(200, appt)
 }
 
-func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService) *Router {
-	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram, payments: payments, budgets: budgets}
+func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService, chat *service.ChatService) *Router {
+	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram, payments: payments, budgets: budgets, chat: chat}
 }
 
 func (r *Router) isPublicConsentAccept(method, path string) bool {
@@ -578,6 +579,12 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				id := strings.TrimPrefix(path, "/budgets/")
 				resp, err = r.deleteBudget(actx, id)
+			}
+		case method == "POST" && path == "/chat":
+			if actx, deny, ok := r.require(ctx, req, permPatientsView); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleChat(actx, req)
 			}
 		default:
 			resp, err = response(404, map[string]string{"error": "endpoint_not_found", "message": "The requested endpoint was not found"})
@@ -1248,4 +1255,24 @@ func response(code int, payload any) (events.APIGatewayV2HTTPResponse, error) {
 			"Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		},
 	}, nil
+}
+
+func (r *Router) handleChat(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
+
+	var chatReq service.ChatRequest
+	if req.Body != "" {
+		if err := json.Unmarshal([]byte(req.Body), &chatReq); err != nil {
+			return response(400, map[string]string{"error": "invalid_json"})
+		}
+	}
+	if chatReq.Message == "" {
+		return response(400, map[string]string{"error": "message_required"})
+	}
+
+	resp, err := r.chat.ProcessMessage(ctx, auth.User.OrgID, auth.User.ID, auth.User.Role, auth.User.Name, chatReq)
+	if err != nil {
+		return response(500, map[string]string{"error": "internal_error"})
+	}
+	return response(200, resp)
 }

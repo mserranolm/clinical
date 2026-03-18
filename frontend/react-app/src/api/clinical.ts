@@ -3,6 +3,8 @@ import { request } from "../lib/http";
 import {
     type Budget,
     type BudgetItem,
+    type ChatMessage,
+    type ChatResponse,
     type CreateAppointmentInput,
     type CreateConsentInput,
     type CreateOdontogramInput,
@@ -368,4 +370,11 @@ export const clinicalApi = {
 
   deleteBudget: (budgetId: string, token: string) =>
     request<{ status: string }>(`/budgets/${encodeURIComponent(budgetId)}`, { method: "DELETE", token }),
+
+  chat: (message: string, history: ChatMessage[], token: string) =>
+    request<ChatResponse>(endpointCatalog.chat, {
+      method: "POST",
+      body: { message, conversationHistory: history.slice(-10) },
+      token,
+    }),
 };

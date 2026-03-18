@@ -32,6 +32,8 @@ Globals:
         SES_SENDER_EMAIL: no-reply@clinisense.aski-tech.net
         FRONTEND_BASE_URL: https://clinisense.aski-tech.net
         IMAGES_BUCKET: clinical-appointment-images-975738006503
+        BEDROCK_MODEL_ID: "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+        DOCCO_ENABLED: "true"
 
 Resources:
 
@@ -191,6 +193,14 @@ Resources:
               - dynamodb:ListTables
               - dynamodb:TagResource
             Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
+        - Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource:
+              - "arn:aws:bedrock:*::foundation-model/*"
+              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+              - !Sub "arn:aws:bedrock:us:${AWS::AccountId}:inference-profile/*"
       Events:
         Api:
           Type: Api
