@@ -281,80 +281,18 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	dateStr := appt.StartAt.Format("02/01/2006")
 	timeStr := appt.StartAt.Format("15:04")
 
-	var body string
-	var htmlBody string
-
-	if len(consentLinks) > 0 {
-		var consentBlocks string
-		var htmlSteps string
-		for i, link := range consentLinks {
-			if link.Token == "" {
-				continue
-			}
-			consentURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, link.Token)
-			stepNum := i + 1
-			title := link.Title
-			if title == "" {
-				title = "Consentimiento informado"
-			}
-			consentBlocks += fmt.Sprintf(
-				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
-					"PASO %d — %s:\n\n"+
-					"   %s\n\n",
-				stepNum, title, consentURL,
-			)
-			htmlSteps += fmt.Sprintf(`
-<div style="margin-bottom:12px;">
-  <div style="font-size:12px;font-weight:700;color:#0ea5e9;text-transform:uppercase;margin-bottom:4px;">
-    Paso %d
-  </div>
-  <div style="font-size:14px;color:#1e293b;font-weight:600;margin-bottom:8px;">%s</div>
-  %s
-</div>`, stepNum, html.EscapeString(title), htmlCTAButton(title, consentURL))
-		}
-		body = fmt.Sprintf(
-			"Hola %s,\n\n"+
-				"Tu cita ha sido agendada para el %s a las %s.\n\n"+
-				"Por favor acepta los siguientes consentimientos (el primero confirma tu asistencia):\n\n"+
-				"%s"+
-				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
-				"Si no puedes hacer clic en los enlaces, cópialos y pégalos en tu navegador.\n\n"+
-				"CliniSense",
-			patientName, dateStr, timeStr, consentBlocks,
-		)
-		htmlBody = fmt.Sprintf(`
-<p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#1e293b;">
-  Hola %s,
-</p>
-%s
-%s
-<p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1e293b;">
-  Para completar tu registro, acepta los siguientes pasos:
-</p>
-%s
-%s
-<p style="margin:16px 0 0;font-size:13px;color:#94a3b8;">
-  Si no puedes hacer clic en los botones, copia y pega los enlaces en tu navegador.
-</p>`,
-			html.EscapeString(patientName),
-			htmlParagraph(fmt.Sprintf("Tu cita ha sido agendada para el <strong>%s</strong> a las <strong>%s</strong>.", dateStr, timeStr)),
-			htmlDivider(),
-			htmlSteps,
-			htmlDivider(),
-		)
-	} else {
-		body = fmt.Sprintf(
-			"Hola %s,\n\n"+
-				"Tu cita ha sido agendada para el %s a las %s.\n\n"+
-				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
-				"Para CONFIRMAR tu cita haz clic aquí:\n\n"+
-				"   %s\n\n"+
-				"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
-				"Si no puedes hacer clic, copia y pega el enlace en tu navegador.\n\n"+
-				"CliniSense",
-			patientName, dateStr, timeStr, confirmURL,
-		)
-		htmlBody = fmt.Sprintf(`
+	body := fmt.Sprintf(
+		"Hola %s,\n\n"+
+			"Tu cita ha sido agendada para el %s a las %s.\n\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
+			"Para CONFIRMAR tu cita haz clic aquí:\n\n"+
+			"   %s\n\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
+			"Si no puedes hacer clic, copia y pega el enlace en tu navegador.\n\n"+
+			"CliniSense",
+		patientName, dateStr, timeStr, confirmURL,
+	)
+	htmlBody := fmt.Sprintf(`
 <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#1e293b;">
   Hola %s,
 </p>
@@ -365,13 +303,12 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
   Si no puedes hacer clic en el botón, copia y pega este enlace:<br>
   <a href="%s" style="color:#0ea5e9;word-break:break-all;font-size:12px;">%s</a>
 </p>`,
-			html.EscapeString(patientName),
-			htmlParagraph(fmt.Sprintf("Tu cita ha sido agendada para el <strong>%s</strong> a las <strong>%s</strong>.", dateStr, timeStr)),
-			htmlDivider(),
-			htmlCTAButton("Confirmar mi cita", confirmURL),
-			html.EscapeString(confirmURL), html.EscapeString(confirmURL),
-		)
-	}
+		html.EscapeString(patientName),
+		htmlParagraph(fmt.Sprintf("Tu cita ha sido agendada para el <strong>%s</strong> a las <strong>%s</strong>.", dateStr, timeStr)),
+		htmlDivider(),
+		htmlCTAButton("Confirmar mi cita", confirmURL),
+		html.EscapeString(confirmURL), html.EscapeString(confirmURL),
+	)
 
 	log.Printf("[notify:appointment-created] to=%s appointmentId=%s confirmToken=%s consentLinks=%d", toEmail, appt.ID, appt.ConfirmToken, len(consentLinks))
 	if !r.sendEmail || r.ses == nil {
