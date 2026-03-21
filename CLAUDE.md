@@ -6,6 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Serverless clinical management system (odontology-focused, multi-tenant) with a Go Lambda backend and React/TypeScript frontend deployed on AWS.
 
+## Agents & Skills
+
+### Agents (`.claude/agents/`)
+
+Invoke with `@agent-name` to get specialized context for a task:
+
+| Agent | Cuándo usarlo |
+|---|---|
+| `@backend-engineer` | Endpoints Go, modelos, DynamoDB, RBAC, tests, Lambda |
+| `@frontend-engineer` | Páginas React, componentes, API client, TypeScript, rutas |
+| `@qa-engineer` | Tests Go, cobertura, edge cases clínicos, multi-tenant isolation |
+| `@devops` | SAM deploy, CloudFormation, Lambda, CORS, CloudWatch, CodePipeline |
+
+### Skills (slash commands)
+
+| Comando | Descripción |
+|---|---|
+| `/scaffold-module <nombre>` | Genera módulo completo (backend Go + frontend React) siguiendo patrones del proyecto |
+| `/deploy-backend` | Flujo completo de deploy (tests → build → sam deploy → fix CORS) |
+| `/build-test [backend\|frontend]` | Compila y ejecuta tests; detecta errores antes de deploy |
+| `/db-pattern <entidad>` | Diseña patrón DynamoDB (struct + interfaz repo + implementación) |
+| `/triage-bug <descripción>` | Triagea un bug: causa raíz + plan de fix + test de regresión |
+
 ## Commands
 
 ### Backend (`backend/`)
@@ -102,3 +125,10 @@ React 18 SPA with React Router v6. Feature-organized under `src/modules/` (appoi
 - Lambda runtime: `provided.al2023`, architecture: `arm64` — binary must be named `bootstrap`
 - Public endpoints (no auth): `GET /health`, `POST /auth/*`, `POST /platform/bootstrap`, `POST /public/consents/:id/accept`, `POST /public/appointments/:id/confirm`
 - `OrgID` is derived from the JWT token, not the request body, to prevent cross-tenant data access
+
+## AWS Credentials
+
+- **Cuenta:** 975738006503
+- **Profile:** `aski` (puede estar comentado en `~/.aws/config`)
+- **Para deployar:** descomentar profile aski + `aws sso login --profile aski`
+- **SAM:** usar `sam deploy --profile aski` explícito (samconfig.toml no especifica profile)
