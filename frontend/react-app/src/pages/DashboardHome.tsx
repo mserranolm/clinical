@@ -197,7 +197,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <small style={{ margin: 0 }}>Confirmados</small>
           </div>
           <h3>{kpis[1].value}</h3>
-          <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
+          <span style={{ color: "#0D9488", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
         </article>
 
         <article className="stat-card elite-card" style={{ cursor: "pointer" }} onClick={() => setShowPatientsBreakdown(p => !p)}>
@@ -208,7 +208,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <small style={{ margin: 0 }}>No confirmados</small>
           </div>
           <h3>{kpis[2].value}</h3>
-          <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
+          <span style={{ color: "#0D9488", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
         </article>
 
         <article className="stat-card elite-card" style={{ cursor: "pointer" }} onClick={() => setShowPatientsBreakdown(p => !p)}>
@@ -219,7 +219,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <small style={{ margin: 0 }}>Finalizados</small>
           </div>
           <h3>{kpis[3].value}</h3>
-          <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
+          <span style={{ color: "#0D9488", fontWeight: 600, fontSize: "0.75rem" }}>Ver listado →</span>
         </article>
       </div>
 
@@ -264,7 +264,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <h3 style={{ color: "#10b981", fontSize: "1.6rem" }}>
               ${orgStats.totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver pagos →</span>
+            <span style={{ color: "#0D9488", fontWeight: 600, fontSize: "0.75rem" }}>Ver pagos →</span>
           </article>
           <article className="stat-card elite-card" style={{ borderLeft: "3px solid #f59e0b", cursor: "pointer" }} onClick={() => navigate("/dashboard/pagos")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -276,7 +276,7 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
             <h3 style={{ color: "#f59e0b", fontSize: "1.6rem" }}>
               ${orgStats.pendingRevenue.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span style={{ color: "#0ea5e9", fontWeight: 600, fontSize: "0.75rem" }}>Ver pagos →</span>
+            <span style={{ color: "#0D9488", fontWeight: 600, fontSize: "0.75rem" }}>Ver pagos →</span>
           </article>
           <article className="stat-card elite-card">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -402,8 +402,8 @@ export function DashboardHome({ user, rows, loading, error, date, onDateChange, 
                   <tr key={row.id} className="agenda-row">
                     <td>
                       <div className="agenda-patient">
-                        <div className="agenda-patient-avatar">
-                          {(patientLabel(row)[0] || "?").toUpperCase()}
+                        <div className="agenda-patient-avatar" style={{ background: "linear-gradient(135deg,#CCFBF1,#99F6E4)", color: "#0D9488" }}>
+                          {patientLabel(row).split(" ").slice(0,2).map(n => n[0]).join("").toUpperCase() || "?"}
                         </div>
                         <div>
                           <strong className="agenda-patient-name">{patientLabel(row)}</strong>

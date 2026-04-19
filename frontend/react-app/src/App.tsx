@@ -8,7 +8,6 @@ import {
   applyTheme,
   getStoredTheme,
   setStoredTheme,
-  resolveTheme,
 } from "./lib/theme";
 
 // Layout components
@@ -60,9 +59,6 @@ export function App() {
     setStoredTheme(m);
   }
 
-  // Expose resolved theme so components can check dark/light
-  const resolvedTheme = resolveTheme(theme);
-
   function handleAuthSuccess(nextSession: AuthSession) {
     saveSession(nextSession);
     setSession(nextSession);
@@ -81,7 +77,7 @@ export function App() {
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
       <Routes>
-        <Route path="/" element={<Landing resolvedTheme={resolvedTheme} />} />
+        <Route path="/" element={<Landing />} />
         <Route
           path="/login"
           element={session ? <Navigate to="/dashboard" replace /> : <LoginView onSuccess={handleAuthSuccess} />}

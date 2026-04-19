@@ -1,262 +1,244 @@
 import { useNavigate } from "react-router-dom";
-import {
-  Check, ArrowRight, Calendar,
-  FileText, BarChart3, Bell, Shield, Zap, Users,
-} from "lucide-react";
+import { Calendar, FileText, BarChart3, Bell, Brain, Stethoscope, Check, ArrowRight } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { useTheme } from "../App";
 import { useIsDark } from "../lib/use-is-dark";
 
-const quickStats = [
-  { label: "Citas / mes", value: "2.4K+" },
-  { label: "Pacientes activos", value: "1.1K+" },
-  { label: "Satisfacción médica", value: "99.2%" },
+const stats = [
+  { value: "500+", label: "Clínicas activas" },
+  { value: "50K", label: "Citas / mes" },
+  { value: "99.9%", label: "Uptime garantizado" },
 ];
 
-const highlights = [
+const features = [
+  { icon: <Calendar size={22} />, title: "Agenda inteligente", desc: "Calendario sincronizado con recordatorios automáticos vía WhatsApp y SMS." },
+  { icon: <Stethoscope size={22} />, title: "Odontograma 3D", desc: "Registro clínico visual de alta precisión sobre modelo dental interactivo." },
+  { icon: <FileText size={22} />, title: "Consentimientos digitales", desc: "Generación y firma electrónica de consentimientos informados conformes a la ley." },
+  { icon: <BarChart3 size={22} />, title: "Facturación y pagos", desc: "Control de ingresos, presupuestos y cobros integrados en un solo panel." },
+  { icon: <Bell size={22} />, title: "Recordatorios automáticos", desc: "Notificaciones por WhatsApp y SMS que reducen el ausentismo un 40%." },
+  { icon: <Brain size={22} />, title: "IA clínica — Docco", desc: "Asistente de inteligencia artificial que apoya el diagnóstico y la documentación." },
+];
+
+const checks = [
   "Agenda inteligente sincronizada",
   "Consentimientos legales digitales",
   "Odontograma clínico de alta precisión",
-  "Analytics y KPIs en tiempo real",
+  "Facturación integrada y reportes",
 ];
 
-const mockAppointments = [
-  { name: "María González", time: "09:00", status: "confirmed", color: "#dcfce7", text: "#166534" },
-  { name: "Carlos Ruiz",    time: "10:30", status: "pending",   color: "#fef3c7", text: "#92400e" },
-  { name: "Ana Martínez",  time: "11:00", status: "confirmed", color: "#dcfce7", text: "#166534" },
-];
-
-const mockBars = [65, 80, 55, 90, 72, 88, 76];
-const barDays  = ["L","M","X","J","V","S","D"];
-
-export function Landing(_props?: { resolvedTheme?: "light" | "dark" }) {
+export function Landing() {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const isDark = useIsDark();
+  const { theme, setTheme } = useTheme();
 
   return (
-    <main className="lp-root">
-      <div className="lp-bg-radial" />
-      <div className="lp-bg-grid" />
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
 
-      {/* ── Navbar ─────────────────────────────────────────── */}
-      <header className="lp-nav">
-        <div className="lp-nav-inner">
-          <div className="lp-nav-brand">
-            <Logo variant={isDark ? "light" : "dark"} className="lp-nav-logo-svg" />
-          </div>
-          <div className="lp-nav-actions">
-            <ThemeToggle current={theme} onChange={setTheme} />
-            <button className="lp-btn-ghost" onClick={() => navigate("/login")}>
-              Acceso Médicos
+      {/* ── Navbar ── */}
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 100,
+        background: isDark ? "rgba(15,23,42,0.92)" : "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(12px)",
+        borderBottom: "1px solid var(--border)",
+      }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", gap: 32 }}>
+          <Logo className="h-7 w-auto" />
+          <div style={{ flex: 1 }} />
+          <ThemeToggle current={theme} onChange={setTheme} />
+          <button
+            onClick={() => navigate("/login")}
+            style={{ padding: "9px 20px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-primary)", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            onClick={() => navigate("/login")}
+            style={{ padding: "9px 20px", borderRadius: 10, border: "none", background: "#0D9488", color: "white", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer" }}
+          >
+            Solicitar demo
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Hero ── */}
+      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "80px 24px 64px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }}>
+        {/* Left */}
+        <div>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(13,148,136,0.10)", color: "#0D9488", fontSize: "0.78rem", fontWeight: 700, padding: "5px 12px", borderRadius: 100, marginBottom: 24, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Plataforma clínica
+          </span>
+          <h1 style={{ fontSize: "3.2rem", fontWeight: 800, lineHeight: 1.1, letterSpacing: "-1.5px", color: "var(--text-primary)", marginBottom: 20 }}>
+            La clínica moderna<br />
+            <span style={{ color: "#0D9488" }}>empieza aquí</span>
+          </h1>
+          <p style={{ fontSize: "1.1rem", color: "var(--text-secondary)", lineHeight: 1.65, marginBottom: 32, maxWidth: 460 }}>
+            DOCCO centraliza agenda, expedientes clínicos, consentimientos y facturación en una sola plataforma diseñada para odontólogos y clínicas de LATAM.
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 36px", display: "flex", flexDirection: "column", gap: 12 }}>
+            {checks.map(c => (
+              <li key={c} style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-secondary)", fontSize: "0.95rem" }}>
+                <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(13,148,136,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Check size={12} color="#0D9488" strokeWidth={3} />
+                </span>
+                {c}
+              </li>
+            ))}
+          </ul>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={() => navigate("/login")}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 24px", borderRadius: 12, border: "none", background: "#0D9488", color: "white", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer" }}
+            >
+              Comenzar gratis <ArrowRight size={16} />
             </button>
-            <button className="lp-btn-primary" onClick={() => navigate("/login")}>
-              Comenzar ahora
-              <ArrowRight size={14} strokeWidth={2} />
+            <button
+              onClick={() => navigate("/login")}
+              style={{ padding: "13px 24px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}
+            >
+              Ver demo
             </button>
           </div>
         </div>
-      </header>
 
-      {/* ── Hero ───────────────────────────────────────────── */}
-      <section className="lp-hero">
-        <div className="lp-hero-inner">
-
-          {/* ── Columna izquierda ─────────────────────────── */}
-          <div className="lp-hero-copy">
-
-            <div className="lp-badge lp-anim lp-anim-1">
-              <span>✨</span>
-              <span>Elite Medical Management Suite</span>
-            </div>
-
-            <h1 className="lp-h1 lp-anim lp-anim-2">
-              La nueva era de la{" "}
-              <span className="lp-h1-gradient">gestión clínica digital</span>
-            </h1>
-
-            <p className="lp-subtitle lp-anim lp-anim-3">
-              DOCCO redefine la eficiencia administrativa para consultorios.
-              Una plataforma diseñada para médicos que exigen precisión,
-              trazabilidad y una experiencia de usuario excepcional.
-            </p>
-
-            <ul className="lp-checklist lp-anim lp-anim-4">
-              {highlights.map((item) => (
-                <li key={item} className="lp-check-item">
-                  <span className="lp-check-icon">
-                    <Check size={11} strokeWidth={2.5} />
-                  </span>
-                  {item}
-                </li>
+        {/* Right — Bento mockup */}
+        <div style={{ position: "relative" }}>
+          <div style={{
+            background: "var(--surface)", borderRadius: 24, border: "1px solid var(--border)",
+            boxShadow: "0 24px 64px rgba(0,0,0,0.08)", overflow: "hidden",
+          }}>
+            {/* KPI strip */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", borderBottom: "1px solid var(--border)" }}>
+              {[
+                { label: "Citas hoy", val: "8", color: "#DBEAFE", tc: "#1D4ED8" },
+                { label: "Confirmados", val: "6", color: "#DCFCE7", tc: "#15803D" },
+                { label: "Cobrado", val: "$1.2K", color: "#F0FDFA", tc: "#0D9488" },
+              ].map((k, i) => (
+                <div key={i} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: k.tc, lineHeight: 1 }}>{k.val}</div>
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 4, fontWeight: 500 }}>{k.label}</div>
+                </div>
               ))}
-            </ul>
-
-            <div className="lp-ctas lp-anim lp-anim-5">
-              <button className="lp-btn-cta-primary" onClick={() => navigate("/login")}>
-                Iniciar sesión
-                <ArrowRight size={15} strokeWidth={2} />
-              </button>
-              <button className="lp-btn-cta-secondary" onClick={() => navigate("/login")}>
-                Solicitar demo
-              </button>
             </div>
-
-            <div className="lp-metrics lp-anim lp-anim-6">
-              {quickStats.map((s, i) => (
-                <div key={s.label} className="lp-metric-item">
-                  {i > 0 && <div className="lp-metric-sep" />}
-                  <strong className="lp-metric-value">{s.value}</strong>
-                  <span className="lp-metric-label">{s.label}</span>
+            {/* Mini agenda */}
+            <div style={{ padding: "16px 20px" }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Agenda del día</div>
+              {[
+                { time: "09:00", name: "Ana García", type: "Limpieza", status: "Confirmado", sc: "#DCFCE7", tc: "#15803D" },
+                { time: "10:30", name: "Carlos Ruiz", type: "Extracción", status: "Pendiente", sc: "#DBEAFE", tc: "#1D4ED8" },
+                { time: "12:00", name: "María López", type: "Ortodoncia", status: "Confirmado", sc: "#DCFCE7", tc: "#15803D" },
+              ].map((row, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? "1px solid var(--border)" : "none" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", width: 36, flexShrink: 0 }}>{row.time}</span>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#CCFBF1,#99F6E4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, color: "#0D9488", flexShrink: 0 }}>
+                    {row.name.split(" ").map(n => n[0]).join("")}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-primary)" }}>{row.name}</div>
+                    <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>{row.type}</div>
+                  </div>
+                  <span style={{ padding: "3px 8px", borderRadius: 100, background: row.sc, color: row.tc, fontSize: "0.65rem", fontWeight: 700 }}>{row.status}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* ── Columna derecha — Bento Box ───────────────── */}
-          <div className="lp-bento-wrap lp-anim lp-anim-3">
-            <div className="lp-bento">
-
-              {/* Header */}
-              <div className="lp-bento-header">
-                <div className="lp-bento-dots">
-                  <span className="lp-dot lp-dot-red" />
-                  <span className="lp-dot lp-dot-yellow" />
-                  <span className="lp-dot lp-dot-green" />
-                </div>
-                <span className="lp-bento-title">Panel Principal · Hoy</span>
-                <div className="lp-bento-live">
-                  <span className="lp-live-dot" />
-                  <span>En vivo</span>
-                </div>
-              </div>
-
-              {/* KPI mini-cards */}
-              <div className="lp-bento-kpis">
-                <div className="lp-bento-kpi">
-                  <div className="lp-bento-kpi-icon" style={{ background: "#e0f2fe" }}>
-                    <Calendar size={13} strokeWidth={1.5} color="#0369a1" />
-                  </div>
-                  <div>
-                    <div className="lp-bento-kpi-val">8</div>
-                    <div className="lp-bento-kpi-lbl">Citas hoy</div>
-                  </div>
-                </div>
-                <div className="lp-bento-kpi">
-                  <div className="lp-bento-kpi-icon" style={{ background: "#dcfce7" }}>
-                    <Users size={13} strokeWidth={1.5} color="#166534" />
-                  </div>
-                  <div>
-                    <div className="lp-bento-kpi-val">6</div>
-                    <div className="lp-bento-kpi-lbl">Confirmados</div>
-                  </div>
-                </div>
-                <div className="lp-bento-kpi">
-                  <div className="lp-bento-kpi-icon" style={{ background: "#d1fae5" }}>
-                    <BarChart3 size={13} strokeWidth={1.5} color="#065f46" />
-                  </div>
-                  <div>
-                    <div className="lp-bento-kpi-val">$1.2K</div>
-                    <div className="lp-bento-kpi-lbl">Cobrado</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Gráfico de barras */}
-              <div className="lp-bento-chart-wrap">
-                <div className="lp-bento-chart-label">
-                  <BarChart3 size={11} strokeWidth={1.5} color="#0d9488" />
-                  <span>Citas esta semana</span>
-                </div>
-                <div className="lp-bento-bars">
-                  {mockBars.map((h, i) => (
-                    <div key={i} className="lp-bar-col">
-                      <div
-                        className="lp-bar"
-                        style={{
-                          height: `${h}%`,
-                          background: i === 3
-                            ? "linear-gradient(180deg,#0d9488,#10b981)"
-                            : "linear-gradient(180deg,#99f6e4,#ccfbf1)",
-                          animationDelay: `${0.6 + i * 0.07}s`,
-                        }}
-                      />
-                      <span className="lp-bar-day">{barDays[i]}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Lista de citas */}
-              <div className="lp-bento-appts">
-                <div className="lp-bento-section-label">
-                  <Calendar size={11} strokeWidth={1.5} color="#64748b" />
-                  <span>Próximas citas</span>
-                </div>
-                {mockAppointments.map((a) => (
-                  <div key={a.name} className="lp-appt-row">
-                    <div className="lp-appt-avatar">
-                      {a.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                    </div>
-                    <div className="lp-appt-info">
-                      <span className="lp-appt-name">{a.name}</span>
-                      <span className="lp-appt-time">{a.time}</span>
-                    </div>
-                    <span className="lp-appt-badge" style={{ background: a.color, color: a.text }}>
-                      {a.status === "confirmed" ? "Confirmada" : "Pendiente"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Notificación */}
-              <div className="lp-bento-notif">
-                <div className="lp-notif-icon">
-                  <Bell size={12} strokeWidth={1.5} color="#0d9488" />
-                </div>
-                <div className="lp-notif-text">
-                  <strong>Recordatorio enviado</strong>
-                  <span>SMS a 3 pacientes · hace 2 min</span>
-                </div>
-                <div className="lp-notif-dot" />
-              </div>
-            </div>
-
-            {/* Tarjetas flotantes */}
-            <div className="lp-float-card lp-float-card-1">
-              <div className="lp-float-icon">
-                <Zap size={14} strokeWidth={1.5} color="#0d9488" />
-              </div>
-              <div>
-                <div className="lp-float-val">99.9%</div>
-                <div className="lp-float-lbl">Uptime</div>
-              </div>
-            </div>
-
-            <div className="lp-float-card lp-float-card-2">
-              <div className="lp-float-icon" style={{ background: "#ede9fe" }}>
-                <Shield size={14} strokeWidth={1.5} color="#7c3aed" />
-              </div>
-              <div>
-                <div className="lp-float-val">HIPAA</div>
-                <div className="lp-float-lbl">Compliant</div>
-              </div>
-            </div>
-
-            <div className="lp-float-card lp-float-card-3">
-              <div className="lp-float-icon" style={{ background: "#fef3c7" }}>
-                <FileText size={14} strokeWidth={1.5} color="#92400e" />
-              </div>
-              <div>
-                <div className="lp-float-val">Digital</div>
-                <div className="lp-float-lbl">Consentimientos</div>
-              </div>
-            </div>
+          {/* Floating badge */}
+          <div style={{
+            position: "absolute", top: -16, right: -16,
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 14, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} />
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary)" }}>99.9% uptime</span>
           </div>
-
         </div>
       </section>
-    </main>
+
+      {/* ── Stats row ── */}
+      <section style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center", gap: 0 }}>
+          {stats.map((s, i) => (
+            <div key={i} style={{ flex: 1, maxWidth: 260, textAlign: "center", padding: "0 32px", borderRight: i < stats.length - 1 ? "1px solid var(--border)" : "none" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 800, color: "#0D9488", letterSpacing: "-1px" }}>{s.value}</div>
+              <div style={{ fontSize: "0.875rem", color: "var(--text-muted)", fontWeight: 500, marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Features ── */}
+      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "80px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <h2 style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.8px", color: "var(--text-primary)", marginBottom: 12 }}>
+            Todo lo que tu clínica necesita
+          </h2>
+          <p style={{ fontSize: "1rem", color: "var(--text-muted)", maxWidth: 480, margin: "0 auto" }}>
+            Una plataforma completa para gestionar pacientes, citas, clínica y finanzas.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+          {features.map((f, i) => (
+            <div key={i} style={{
+              background: "var(--surface)", border: "1px solid var(--border)",
+              borderRadius: 20, padding: "28px 24px",
+              transition: "box-shadow 0.2s",
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(13,148,136,0.10)", display: "flex", alignItems: "center", justifyContent: "center", color: "#0D9488", marginBottom: 16 }}>
+                {f.icon}
+              </div>
+              <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", lineHeight: 1.6 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── CTA dark ── */}
+      <section style={{ background: "#0F172A", padding: "80px 24px" }}>
+        <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
+          <h2 style={{ fontSize: "2.4rem", fontWeight: 800, color: "white", letterSpacing: "-1px", marginBottom: 16 }}>
+            ¿Listo para modernizar tu clínica?
+          </h2>
+          <p style={{ fontSize: "1.05rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.65, marginBottom: 36 }}>
+            Empieza hoy sin tarjeta de crédito. Configura tu clínica en menos de 10 minutos.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <button
+              onClick={() => navigate("/login")}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 28px", borderRadius: 12, border: "none", background: "#0D9488", color: "white", fontSize: "1rem", fontWeight: 700, cursor: "pointer" }}
+            >
+              Solicitar demo <ArrowRight size={16} />
+            </button>
+            <button
+              onClick={() => navigate("/login")}
+              style={{ padding: "14px 28px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: "1rem", fontWeight: 600, cursor: "pointer" }}
+            >
+              Iniciar sesión
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "#0F172A", padding: "24px" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Logo className="h-6 w-auto" variant="light" />
+          <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.3)" }}>© 2026 DOCCO. Todos los derechos reservados.</span>
+        </div>
+      </footer>
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .lp-hero-grid { grid-template-columns: 1fr !important; }
+          .lp-features-grid { grid-template-columns: repeat(2,1fr) !important; }
+        }
+        @media (max-width: 640px) {
+          .lp-features-grid { grid-template-columns: 1fr !important; }
+          .lp-stats-row { flex-direction: column !important; gap: 24px !important; }
+          .lp-cta-btns { flex-direction: column !important; }
+        }
+      `}</style>
+    </div>
   );
 }

@@ -77,20 +77,26 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
         <div className="login-panel-content">
           <button className="back-link-panel" onClick={() => navigate("/")}>← Inicio</button>
           <div className="login-brand">
-            <div className="login-brand-icon">🦷</div>
-            <h2>DOCCO</h2>
-            <small>Sistema Clínico Elite</small>
+            <h2>DOCCO<span style={{ color: "#0D9488" }}>.</span></h2>
+            <small>Plataforma clínica para LATAM</small>
           </div>
           <ul className="login-features">
-            <li><span className="feat-icon">🗓️</span><div><strong>Agenda Inteligente</strong><p>Gestión de citas en tiempo real</p></div></li>
-            <li><span className="feat-icon">🦷</span><div><strong>Odontograma Digital</strong><p>Registro interactivo por diente</p></div></li>
-            <li><span className="feat-icon">📋</span><div><strong>Historia Clínica</strong><p>Expedientes completos y seguros</p></div></li>
-            <li><span className="feat-icon">✅</span><div><strong>Consentimientos</strong><p>Firma digital integrada</p></div></li>
+            {[
+              { title: "Agenda Inteligente", desc: "Gestión de citas en tiempo real" },
+              { title: "Odontograma Digital", desc: "Registro interactivo por diente" },
+              { title: "Historia Clínica", desc: "Expedientes completos y seguros" },
+              { title: "Consentimientos", desc: "Firma digital integrada" },
+            ].map(f => (
+              <li key={f.title}>
+                <span className="feat-icon" style={{ background: "rgba(13,148,136,0.18)", color: "#0D9488", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 800, flexShrink: 0 }}>✓</span>
+                <div><strong>{f.title}</strong><p>{f.desc}</p></div>
+              </li>
+            ))}
           </ul>
           <div className="login-panel-stats">
-            <div className="pstat"><strong>2.4K+</strong><span>Citas/mes</span></div>
-            <div className="pstat"><strong>99.2%</strong><span>Satisfacción</span></div>
-            <div className="pstat"><strong>1.1K+</strong><span>Pacientes</span></div>
+            <div className="pstat"><strong>500+</strong><span>Clínicas</span></div>
+            <div className="pstat"><strong>99.9%</strong><span>Uptime</span></div>
+            <div className="pstat"><strong>50K+</strong><span>Citas/mes</span></div>
           </div>
         </div>
       </aside>
@@ -100,9 +106,6 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
         <article className="auth-card">
 
           <header className="auth-header">
-            <div className="auth-mode-badge">
-              {mode === "login" ? "🔐 Acceso Profesional" : "📝 Registro Médico"}
-            </div>
             <h1>{mode === "login" ? "Bienvenido de vuelta" : "Crea tu cuenta"}</h1>
             <p>{mode === "login" ? "Ingresa tus credenciales para acceder a tu panel clínico." : "Únete a DOCCO y digitaliza tu práctica médica."}</p>
           </header>
@@ -142,7 +145,7 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   tabIndex={-1}
                 >
-                  {showPassword ? "🙈" : "👁"}
+                  {showPassword ? "○" : "●"}
                 </button>
               </div>
             </div>
