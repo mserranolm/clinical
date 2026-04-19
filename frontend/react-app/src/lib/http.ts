@@ -13,7 +13,7 @@ type RequestConfig = {
  */
 export async function request<T>(path: string, config: RequestConfig = {}): Promise<T> {
   const method = config.method ?? "GET";
-  const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
+  const apiKey = (import.meta.env.VITE_API_KEY as string | undefined) ?? "XW4dlwowLE8aEkT2Ix5im5oXqjGZxFFJ3C3fr11C";
   const base = getApiBaseUrl();
   const res = await fetch(`${base}${path}`, {
     method,

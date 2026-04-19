@@ -1,5 +1,5 @@
 const DEFAULT_LOCAL = "http://localhost:3000";
-const DEFAULT_PROD = "https://egsnzyxipf.execute-api.us-east-1.amazonaws.com/prod";
+const DEFAULT_PROD = "https://ipv2henk5m.execute-api.us-east-1.amazonaws.com/prod";
 
 const STORAGE_KEY = "clinical_api_base_url";
 
