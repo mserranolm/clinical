@@ -53,7 +53,7 @@ function normalizeUrl(url: string): string {
 
 export function getApiBaseUrl(): string {
   const envValue = import.meta.env.VITE_API_BASE_URL;
-  if (envValue && typeof envValue === "string") {
+  if (envValue && typeof envValue === "string" && !DEPRECATED_API_IDS.some(id => envValue.includes(id))) {
     return normalizeUrl(envValue);
   }
 
@@ -84,6 +84,6 @@ export function getApiConfig() {
 
   return {
     baseUrl: getApiBaseUrl(),
-    source: envValue ? "env" : runtime ? "localStorage" : "default"
+    source: (envValue && !DEPRECATED_API_IDS.some(id => envValue.includes(id))) ? "env" : runtime ? "localStorage" : "default"
   };
 }
