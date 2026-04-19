@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(frontend/react-app/.env)",
+      "Edit(frontend/react-app/.env)",
+      "Read(frontend/react-app/.env.example)",
+      "Edit(frontend/react-app/.env.example)",
+      "Write(frontend/react-app/.env)",
+      "Write(frontend/react-app/.env.example)",
+      "Bash(echo * > frontend/react-app/.env)"
+    ]
+  }
+}
