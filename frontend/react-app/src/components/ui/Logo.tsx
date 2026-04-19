@@ -1,10 +1,11 @@
 interface LogoProps {
   className?: string;
+  style?: React.CSSProperties;
   variant?: "dark" | "light" | "color";
   isoOnly?: boolean;
 }
 
-export function Logo({ className = "h-10 w-auto", variant = "color", isoOnly = false }: LogoProps) {
+export function Logo({ className, style, variant = "color", isoOnly = false }: LogoProps) {
   // Color palette per variant
   const strokeColor  = variant === "light" ? "#FFFFFF" : "#0F172A";
   const textColor    = variant === "light" ? "#FFFFFF" : "#0F172A";
@@ -17,6 +18,7 @@ export function Logo({ className = "h-10 w-auto", variant = "color", isoOnly = f
         viewBox="0 0 56 56"
         fill="none"
         className={className}
+        style={style}
         aria-label="DOCCO"
         role="img"
       >
@@ -43,6 +45,7 @@ export function Logo({ className = "h-10 w-auto", variant = "color", isoOnly = f
       viewBox="0 0 220 56"
       fill="none"
       className={className}
+      style={style}
       aria-label="DOCCO"
       role="img"
     >

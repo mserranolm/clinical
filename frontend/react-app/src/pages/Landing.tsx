@@ -36,7 +36,7 @@ export function Landing() {
         borderBottom: "1px solid var(--border)",
       }}>
         <div className="lp-nav-inner">
-          <Logo className="h-7 w-auto" />
+          <Logo style={{ height: '28px', width: 'auto' }} />
           <div style={{ flex: 1 }} />
           <ThemeToggle current={theme} onChange={setTheme} />
           <button className="lp-btn-ghost" onClick={() => navigate("/login")}>Iniciar sesión</button>
@@ -173,7 +173,7 @@ export function Landing() {
       {/* ── Footer ── */}
       <footer style={{ background: "#0F172A", borderTop: "1px solid rgba(255,255,255,0.06)", padding: "20px 24px" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <Logo className="h-6 w-auto" variant="light" />
+          <Logo style={{ height: '24px', width: 'auto' }} variant="light" />
           <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.3)" }}>© 2026 DOCCO. Todos los derechos reservados.</span>
         </div>
       </footer>
