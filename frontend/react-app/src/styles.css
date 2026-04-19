@@ -1130,8 +1130,8 @@ p {
   overflow: hidden;
 }
 .password-input-wrap:focus-within {
-  border-color: var(--clinical-blue, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: #0D9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
 }
 .password-input-wrap input {
   flex: 1;
@@ -1159,8 +1159,8 @@ p {
   padding: 0;
 }
 .password-toggle:hover {
-  color: var(--clinical-blue, #2563eb);
-  background: rgba(37, 99, 235, 0.06);
+  color: #0D9488;
+  background: rgba(13, 148, 136, 0.08);
 }
 
 .auth-submit {
@@ -4267,28 +4267,28 @@ select:focus,
 textarea:focus {
   border-color: #5EEAD4 !important;
   background: white;
-  box-shadow: 0 0 0 3px #e0f2fe !important;
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.12) !important;
   outline: none;
 }
 input::placeholder { color: #cbd5e1; }
 
 /* ── Sidebar Air (override final) ───────────────────────── */
 .sidebar { background: #ffffff !important; }
-.nav-item.active { background: #f0f9ff !important; color: #0284c7 !important; }
-.nav-item.active .nav-item-icon { background: #e0f2fe !important; color: #0284c7 !important; box-shadow: none !important; }
-.nav-item.active::before { background: #0ea5e9 !important; box-shadow: none !important; }
+.nav-item.active { background: #F0FDFA !important; color: #0D9488 !important; }
+.nav-item.active .nav-item-icon { background: #CCFBF1 !important; color: #0D9488 !important; box-shadow: none !important; }
+.nav-item.active::before { background: #0D9488 !important; box-shadow: none !important; }
 
-/* ── Botones primarios Air ───────────────────────────────── */
+/* ── Botones primarios ───────────────────────────────────── */
 .auth-submit,
 .primary-btn {
-  background: #0ea5e9 !important;
+  background: #0D9488 !important;
   color: white !important;
-  box-shadow: 0 2px 8px rgba(14,165,233,0.22) !important;
+  box-shadow: 0 2px 8px rgba(13,148,136,0.22) !important;
 }
 .auth-submit:hover:not(:disabled),
 .primary-btn:hover {
-  background: #0284c7 !important;
-  box-shadow: 0 6px 18px rgba(14,165,233,0.30) !important;
+  background: #0F766E !important;
+  box-shadow: 0 6px 18px rgba(13,148,136,0.30) !important;
 }
 
 /* ── Topbar: icono de página sky ─────────────────────────── */

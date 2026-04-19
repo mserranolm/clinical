@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { clinicalApi } from "../api/clinical";
 import { AuthSession } from "../types";
 
@@ -145,7 +146,7 @@ export function LoginView({ onSuccess }: { onSuccess: (session: AuthSession) => 
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   tabIndex={-1}
                 >
-                  {showPassword ? "○" : "●"}
+                  {showPassword ? <EyeOff size={16} strokeWidth={2} /> : <Eye size={16} strokeWidth={2} />}
                 </button>
               </div>
             </div>
