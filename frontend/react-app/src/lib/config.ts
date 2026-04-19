@@ -3,6 +3,15 @@ const DEFAULT_PROD = "https://ipv2henk5m.execute-api.us-east-1.amazonaws.com/pro
 
 const STORAGE_KEY = "clinical_api_base_url";
 
+// Purge stale API URLs from deleted AWS accounts stored in localStorage
+const DEPRECATED_API_IDS = ["egsnzyxipf"];
+try {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored && DEPRECATED_API_IDS.some(id => stored.includes(id))) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+} catch { /* ignore in SSR/test environments */ }
+
 export const endpointCatalog = {
   health: "/health",
   register: "/auth/register",
