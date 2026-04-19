@@ -29,9 +29,9 @@ Globals:
         SEND_EMAIL: "true"
         USE_DYNAMODB: "true"
         CLINIC_TZ: America/Caracas
-        SES_SENDER_EMAIL: no-reply@clinisense.aski-tech.net
-        FRONTEND_BASE_URL: https://clinisense.aski-tech.net
-        IMAGES_BUCKET: clinical-appointment-images-975738006503
+        SES_SENDER_EMAIL: mserranolm@gmail.com
+        FRONTEND_BASE_URL: https://duh0brj74tv5r.cloudfront.net
+        IMAGES_BUCKET: clinical-appointment-images-952191196224
         BEDROCK_MODEL_ID: "amazon.nova-lite-v1:0"
         DOCCO_ENABLED: "true"
 
@@ -173,13 +173,13 @@ Resources:
               - s3:PutObject
               - s3:GetObject
               - s3:DeleteObject
-            Resource: "arn:aws:s3:::clinical-appointment-images-975738006503/*"
+            Resource: "arn:aws:s3:::clinical-appointment-images-952191196224/*"
         - Statement:
           - Effect: Allow
             Action:
               - ses:SendEmail
               - ses:SendRawEmail
-            Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
+            Resource: arn:aws:ses:us-east-1:952191196224:identity/mserranolm@gmail.com
         - Statement:
           - Effect: Allow
             Action:
@@ -228,7 +228,7 @@ Resources:
             Action:
               - ses:SendEmail
               - ses:SendRawEmail
-            Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
+            Resource: arn:aws:ses:us-east-1:952191196224:identity/mserranolm@gmail.com
         - Statement:
           - Effect: Allow
             Action:
@@ -258,7 +258,7 @@ Resources:
             Action:
               - ses:SendEmail
               - ses:SendRawEmail
-            Resource: arn:aws:ses:us-east-1:975738006503:identity/clinisense.aski-tech.net
+            Resource: arn:aws:ses:us-east-1:952191196224:identity/mserranolm@gmail.com
       Events:
         DailyClose:
           Type: Schedule

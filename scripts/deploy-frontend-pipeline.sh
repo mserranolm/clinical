@@ -40,7 +40,7 @@ echo "  • GitHub Repo: $GITHUB_REPO"
 echo ""
 STACK_NAME="clinical-frontend-pipeline"
 REGION="us-east-1"
-PROFILE="aski"
+PROFILE="aloai"
 
 echo -e "${YELLOW}📋 Pipeline Configuration:${NC}"
 echo "  • Stack Name: $STACK_NAME"
@@ -49,7 +49,7 @@ echo "  • GitHub Repo: $GITHUB_REPO"
 echo "  • Branch: main"
 echo "  • Region: $REGION"
 echo "  • AWS Profile: $PROFILE"
-echo "  • CodeConnections: arn:aws:codeconnections:us-east-1:975738006503:connection/02b6f662-39a5-410a-892b-c5cde98708fc"
+echo "  • CodeConnections: arn:aws:codeconnections:us-east-1:952191196224:connection/20a344cd-d905-45a4-878b-5055fed809a1"
 echo "  • Deployment: CloudFront + S3"
 echo "  • Triggers: Changes to frontend/ folder only"
 echo ""
@@ -78,8 +78,6 @@ aws cloudformation deploy \
         ProjectName=clinical-frontend \
         GitHubOwner=$GITHUB_OWNER \
         GitHubRepo=$GITHUB_REPO \
-        DomainName=clinisense.aski-tech.net \
-        CertificateArn=arn:aws:acm:us-east-1:975738006503:certificate/c6f19465-0bd5-486a-9e6a-9a53ee20a81e \
         BranchName=main \
     --no-fail-on-empty-changeset
 

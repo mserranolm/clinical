@@ -24,7 +24,7 @@ Parameters:
     
   CodeConnectionArn:
     Type: String
-    Default: "arn:aws:codeconnections:us-east-1:975738006503:connection/02b6f662-39a5-410a-892b-c5cde98708fc"
+    Default: "arn:aws:codeconnections:us-east-1:952191196224:connection/20a344cd-d905-45a4-878b-5055fed809a1"
     Description: AWS CodeConnections ARN for GitHub integration
     
   BranchName:
@@ -181,11 +181,11 @@ Resources:
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
           - Name: API_ID
-            Value: "egsnzyxipf"
+            Value: "ipv2henk5m"
           - Name: USAGE_PLAN_ID
-            Value: "8gsc3l"
+            Value: "0ak6v3"
           - Name: API_KEY_ID
-            Value: "pjdbiyrum2"
+            Value: "zn937hd17i"
       Source:
         Type: CODEPIPELINE
         BuildSpec: |

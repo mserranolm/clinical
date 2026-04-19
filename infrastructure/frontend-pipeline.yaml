@@ -18,9 +18,9 @@ Parameters:
     
   CodeConnectionArn:
     Type: String
-    Default: "arn:aws:codeconnections:us-east-1:975738006503:connection/02b6f662-39a5-410a-892b-c5cde98708fc"
+    Default: "arn:aws:codeconnections:us-east-1:952191196224:connection/20a344cd-d905-45a4-878b-5055fed809a1"
     Description: AWS CodeConnections ARN for GitHub integration
-    
+
   BranchName:
     Type: String
     Default: main
@@ -28,13 +28,16 @@ Parameters:
 
   DomainName:
     Type: String
-    Default: "clinisense.aski-tech.net"
-    Description: Custom domain name for CloudFront
+    Default: ""
+    Description: Custom domain name for CloudFront (leave empty to use CloudFront default domain)
 
   CertificateArn:
     Type: String
-    Default: "arn:aws:acm:us-east-1:975738006503:certificate/c6f19465-0bd5-486a-9e6a-9a53ee20a81e"
-    Description: ACM certificate ARN in us-east-1 for CloudFront custom domain
+    Default: ""
+    Description: ACM certificate ARN in us-east-1 for CloudFront custom domain (required if DomainName is set)
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, ""]]
 
 Resources:
   # S3 Bucket for Frontend Hosting
@@ -94,8 +97,7 @@ Resources:
         - Key: product
           Value: clinisense
       DistributionConfig:
-        Aliases:
-          - !Ref DomainName
+        Aliases: !If [HasCustomDomain, [!Ref DomainName], !Ref "AWS::NoValue"]
         Comment: !Sub "Clinical Frontend Distribution - ${ProjectName}"
         DefaultCacheBehavior:
           TargetOriginId: !Sub "${ProjectName}-S3-origin"
@@ -123,10 +125,12 @@ Resources:
               OriginAccessIdentity: ""
             OriginAccessControlId: !Ref FrontendOriginAccessControl
         PriceClass: PriceClass_100
-        ViewerCertificate:
-          AcmCertificateArn: !Ref CertificateArn
-          SslSupportMethod: sni-only
-          MinimumProtocolVersion: TLSv1.2_2021
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
 
   # S3 Bucket for Pipeline Artifacts
   FrontendArtifactStore:

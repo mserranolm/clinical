@@ -3,7 +3,7 @@
 # Después debes crear de nuevo el super usuario con POST /platform/bootstrap (ver abajo).
 set -e
 
-PROFILE="${AWS_PROFILE:-aski}"
+PROFILE="${AWS_PROFILE:-aloai}"
 REGION="${AWS_REGION:-us-east-1}"
 TABLES=(
   "clinical-users"

@@ -34,10 +34,9 @@ func Load() Config {
 	// Use in-memory storage for local development unless explicitly disabled
 	useInMemory := !isLambda && getEnv("USE_DYNAMODB", "false") != "true"
 
-	// AWS Profile for local development (SSO profile). Sandbox/cuenta aski: usar profile "aski".
 	awsProfile := getEnv("AWS_PROFILE", "")
 	if !isLambda && awsProfile == "" {
-		awsProfile = "aski"
+		awsProfile = "aloai"
 	}
 
 	return Config{
@@ -54,7 +53,7 @@ func Load() Config {
 		PlatformAdminEmail:   getEnv("PLATFORM_ADMIN_EMAIL", ""),
 		BootstrapSecret:      getEnv("BOOTSTRAP_SECRET", ""),
 		FrontendBaseURL:      getEnv("FRONTEND_BASE_URL", "https://localhost:5173"),
-		SESSenderEmail:       getEnv("SES_SENDER_EMAIL", "no-reply@vozlyai.aski-tech.net"),
+		SESSenderEmail:       getEnv("SES_SENDER_EMAIL", "mserranolm@gmail.com"),
 		SendSMS:              getEnv("SEND_SMS", "false") == "true",
 		SendEmail:            getEnv("SEND_EMAIL", "false") == "true",
 		UseInMemory:          useInMemory,

@@ -4,12 +4,12 @@
 
 set -e
 
-API_ID="egsnzyxipf"
+API_ID="ipv2henk5m"
 STAGE="prod"
-USAGE_PLAN_ID="8gsc3l"
-API_KEY_ID="pjdbiyrum2"
+USAGE_PLAN_ID="0ak6v3"
+API_KEY_ID="zn937hd17i"
 REGION="us-east-1"
-PROFILE="${AWS_PROFILE:-aski}"
+PROFILE="${AWS_PROFILE:-aloai}"
 
 echo "==> Restaurando GatewayResponses CORS..."
 for TYPE in DEFAULT_4XX DEFAULT_5XX INVALID_API_KEY ACCESS_DENIED UNAUTHORIZED; do
