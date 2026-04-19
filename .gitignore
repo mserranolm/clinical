@@ -21,6 +21,7 @@ backend/bootstrap
 dist/
 build/
 frontend/react-app/dist/
+*.tsbuildinfo
 
 # Test coverage
 coverage.out
