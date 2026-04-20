@@ -19,10 +19,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/sesv2"
-	sestypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
+	mail "github.com/wneessen/go-mail"
 )
 
 type Notifier interface {
@@ -50,7 +49,6 @@ type Router struct {
 	sendEmail bool
 	cfg       config.Config
 	ddb       *dynamodb.Client
-	ses       *sesv2.Client
 	sns       *sns.Client
 }
 
@@ -67,10 +65,34 @@ func NewRouter(cfg config.Config) *Router {
 	r := &Router{sendSMS: cfg.SendSMS, sendEmail: cfg.SendEmail, cfg: cfg}
 	if err == nil {
 		r.ddb = dynamodb.NewFromConfig(awsCfg)
-		r.ses = sesv2.NewFromConfig(awsCfg)
 		r.sns = sns.NewFromConfig(awsCfg)
 	}
 	return r
+}
+
+func (r *Router) sendMail(_ context.Context, from, to, subject, htmlBody, textBody string) error {
+	m := mail.NewMsg()
+	if err := m.From(from); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	if err := m.To(to); err != nil {
+		return fmt.Errorf("mail to: %w", err)
+	}
+	m.Subject(subject)
+	m.SetBodyString(mail.TypeTextHTML, htmlBody)
+	m.AddAlternativeString(mail.TypeTextPlain, textBody)
+
+	c, err := mail.NewClient(r.cfg.SMTPHost,
+		mail.WithPort(r.cfg.SMTPPort),
+		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(r.cfg.SMTPUser),
+		mail.WithPassword(r.cfg.SMTPPass),
+		mail.WithTLSPolicy(mail.TLSMandatory),
+	)
+	if err != nil {
+		return fmt.Errorf("mail client: %w", err)
+	}
+	return c.DialAndSend(m)
 }
 
 // ── HTML Email Helpers ────────────────────────────────────────────────────────
@@ -220,7 +242,7 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 	if !r.allowed(channel) {
 		return fmt.Errorf("channel %s disabled", channel)
 	}
-	if channel == "email" && r.sendEmail && r.ses != nil {
+	if channel == "email" && r.sendEmail {
 		to := patientID
 		if !strings.Contains(to, "@") && r.ddb != nil {
 			orgID := store.OrgIDFromContext(ctx)
@@ -244,21 +266,11 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 		}
 		sender := os.Getenv("SES_SENDER_EMAIL")
 		if sender == "" {
-			sender = "no-reply@clinisense.aski-tech.net"
+			sender = "no-reply@aloai.me"
 		}
 		subject := "Confirmación de cita"
 		htmlBody := htmlParagraph(html.EscapeString(message))
-		_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-			FromEmailAddress: aws.String(sender),
-			Destination:      &sestypes.Destination{ToAddresses: []string{to}},
-			Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-				Subject: &sestypes.Content{Data: aws.String(subject)},
-				Body: &sestypes.Body{
-					Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-					Text: &sestypes.Content{Data: aws.String(message)},
-				},
-			}},
-		})
+		err := r.sendMail(ctx, sender, to, subject, buildHTMLEmail(subject, htmlBody, ""), message)
 		if err != nil {
 			log.Printf("[notify:ses] send failed: %v", err)
 			return err
@@ -273,7 +285,7 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientName string, appt domain.Appointment, consentLinks []ConsentLink) error {
 	frontendBase := os.Getenv("FRONTEND_BASE_URL")
 	if frontendBase == "" {
-		frontendBase = "https://clinisense.aski-tech.net"
+		frontendBase = "https://docco.aloai.me"
 	}
 	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
 	subject := "CliniSense — Tu cita ha sido agendada"
@@ -311,29 +323,16 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	)
 
 	log.Printf("[notify:appointment-created] to=%s appointmentId=%s confirmToken=%s consentLinks=%d", toEmail, appt.ID, appt.ConfirmToken, len(consentLinks))
-	if !r.sendEmail || r.ses == nil {
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
-		log.Printf("[notify:appointment-created] ses send failed: %v", err)
+		log.Printf("[notify:appointment-created] smtp send failed: %v", err)
 	}
 	return err
 }
@@ -350,7 +349,7 @@ func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patient
 	}
 	frontendBase := os.Getenv("FRONTEND_BASE_URL")
 	if frontendBase == "" {
-		frontendBase = "https://clinisense.aski-tech.net"
+		frontendBase = "https://docco.aloai.me"
 	}
 	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
 	msg := fmt.Sprintf("CliniSense: Hola %s. Tu cita es el %s a las %s. Confirmar: %s",
@@ -527,33 +526,19 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	}
 
 	log.Printf("[notify:appointment] to=%s event=%s start=%s", toEmail, eventType, startAt)
-	if !r.sendEmail || r.ses == nil {
-		log.Printf("[notify:appointment] skip send: sendEmail=%v sesNil=%v", r.sendEmail, r.ses == nil)
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
-		log.Printf("[notify:appointment] ses send failed: %v", err)
+		log.Printf("[notify:appointment] smtp send failed: %v", err)
 		return err
 	}
-	log.Printf("[notify:appointment] ses sent to=%s event=%s", toEmail, eventType)
+	log.Printf("[notify:appointment] smtp sent to=%s event=%s", toEmail, eventType)
 	return nil
 }
 
@@ -585,29 +570,16 @@ func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientN
 		htmlDivider(),
 	)
 	log.Printf("[notify:treatment-plan] to=%s date=%s", toEmail, dateStr)
-	if !r.sendEmail || r.ses == nil {
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
-		log.Printf("[notify:treatment-plan] ses send failed: %v", err)
+		log.Printf("[notify:treatment-plan] smtp send failed: %v", err)
 	}
 	return err
 }
@@ -632,32 +604,19 @@ func (r *Router) SendOrgCreated(ctx context.Context, toEmail, orgName, adminName
 			html.EscapeString(orgName),
 		)),
 		htmlDivider(),
-		htmlCTAButton("Ir al panel de administración", "https://clinisense.aski-tech.net/login"),
+		htmlCTAButton("Ir al panel de administración", "https://docco.aloai.me/login"),
 	)
 	log.Printf("[notify:org-created] to=%s org=%s", toEmail, orgName)
-	if !r.sendEmail || r.ses == nil {
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, orgName))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, orgName), body)
 	if err != nil {
-		log.Printf("[notify:org-created] ses send failed: %v", err)
+		log.Printf("[notify:org-created] smtp send failed: %v", err)
 	}
 	return err
 }
@@ -709,29 +668,16 @@ func (r *Router) SendWelcome(ctx context.Context, toEmail, name, role, password,
 		htmlDivider(),
 	)
 	log.Printf("[notify:welcome] to=%s role=%s", toEmail, role)
-	if !r.sendEmail || r.ses == nil {
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
-		log.Printf("[notify:welcome] ses send failed: %v", err)
+		log.Printf("[notify:welcome] smtp send failed: %v", err)
 	}
 	return err
 }
@@ -783,29 +729,16 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
 		htmlDivider(),
 	)
 	log.Printf("[notify:invitation] to=%s role=%s url=%s", toEmail, role, inviteURL)
-	if !r.sendEmail || r.ses == nil {
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
-		log.Printf("[notify:invitation] ses send failed: %v", err)
+		log.Printf("[notify:invitation] smtp send failed: %v", err)
 	}
 	return err
 }
@@ -813,7 +746,7 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
 func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patientName string, consent domain.Consent, startAt time.Time) error {
 	frontendBase := os.Getenv("FRONTEND_BASE_URL")
 	if frontendBase == "" {
-		frontendBase = "https://clinisense.aski-tech.net"
+		frontendBase = "https://docco.aloai.me"
 	}
 	acceptURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, consent.AcceptToken)
 	subject := "CliniSense — Consentimiento informado y confirmación de cita"
@@ -859,29 +792,16 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 		html.EscapeString(acceptURL), html.EscapeString(acceptURL),
 	)
 	log.Printf("[notify:consent] to=%s appointmentId=%s token=%s", toEmail, consent.AppointmentID, consent.AcceptToken)
-	if !r.sendEmail || r.ses == nil {
+	if !r.sendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
 	if sender == "" {
-		sender = os.Getenv("SES_SENDER_EMAIL")
+		sender = "no-reply@aloai.me"
 	}
-	if sender == "" {
-		sender = "no-reply@clinisense.aski-tech.net"
-	}
-	_, err := r.ses.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sender),
-		Destination:      &sestypes.Destination{ToAddresses: []string{toEmail}},
-		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
-			Subject: &sestypes.Content{Data: aws.String(subject)},
-			Body: &sestypes.Body{
-				Html: &sestypes.Content{Data: aws.String(buildHTMLEmail(subject, htmlBody, ""))},
-				Text: &sestypes.Content{Data: aws.String(body)},
-			},
-		}},
-	})
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
-		log.Printf("[notify:consent] ses send failed: %v", err)
+		log.Printf("[notify:consent] smtp send failed: %v", err)
 	}
 	return err
 }

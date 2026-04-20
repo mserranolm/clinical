@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 type Config struct {
 	Environment          string
@@ -25,6 +28,10 @@ type Config struct {
 	BedrockModelID       string
 	DoccoEnabled         bool
 	ClinicTZ             string
+	SMTPHost             string
+	SMTPPort             int
+	SMTPUser             string
+	SMTPPass             string
 }
 
 func Load() Config {
@@ -62,6 +69,10 @@ func Load() Config {
 		BedrockModelID:       getEnv("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0"),
 		DoccoEnabled:         getEnv("DOCCO_ENABLED", "true") == "true",
 		ClinicTZ:             getEnv("CLINIC_TZ", "America/Caracas"),
+		SMTPHost:             getEnv("SMTP_HOST", "smtp.resend.com"),
+		SMTPPort:             getEnvInt("SMTP_PORT", 587),
+		SMTPUser:             getEnv("SMTP_USER", "resend"),
+		SMTPPass:             getEnv("SMTP_PASS", ""),
 	}
 }
 
@@ -76,6 +87,15 @@ func (c Config) ShouldUseDynamoDB() bool {
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
 	}
 	return fallback
 }
