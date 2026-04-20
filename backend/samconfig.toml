@@ -7,6 +7,7 @@ parallel = true
 [default.deploy.parameters]
 stack_name = "clinical-backend"
 region = "us-east-1"
+profile = "aloai"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true

@@ -12,22 +12,22 @@ Serverless clinical management system (odontology-focused, multi-tenant) with a 
 
 Invoke with `@agent-name` to get specialized context for a task:
 
-| Agent | Cuándo usarlo |
-|---|---|
-| `@backend-engineer` | Endpoints Go, modelos, DynamoDB, RBAC, tests, Lambda |
-| `@frontend-engineer` | Páginas React, componentes, API client, TypeScript, rutas |
-| `@qa-engineer` | Tests Go, cobertura, edge cases clínicos, multi-tenant isolation |
-| `@devops` | SAM deploy, CloudFormation, Lambda, CORS, CloudWatch, CodePipeline |
+| Agent                | Cuándo usarlo                                                      |
+| -------------------- | ------------------------------------------------------------------ |
+| `@backend-engineer`  | Endpoints Go, modelos, DynamoDB, RBAC, tests, Lambda               |
+| `@frontend-engineer` | Páginas React, componentes, API client, TypeScript, rutas          |
+| `@qa-engineer`       | Tests Go, cobertura, edge cases clínicos, multi-tenant isolation   |
+| `@devops`            | SAM deploy, CloudFormation, Lambda, CORS, CloudWatch, CodePipeline |
 
 ### Skills (slash commands)
 
-| Comando | Descripción |
-|---|---|
-| `/scaffold-module <nombre>` | Genera módulo completo (backend Go + frontend React) siguiendo patrones del proyecto |
-| `/deploy-backend` | Flujo completo de deploy (tests → build → sam deploy → fix CORS) |
-| `/build-test [backend\|frontend]` | Compila y ejecuta tests; detecta errores antes de deploy |
-| `/db-pattern <entidad>` | Diseña patrón DynamoDB (struct + interfaz repo + implementación) |
-| `/triage-bug <descripción>` | Triagea un bug: causa raíz + plan de fix + test de regresión |
+| Comando                           | Descripción                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `/scaffold-module <nombre>`       | Genera módulo completo (backend Go + frontend React) siguiendo patrones del proyecto |
+| `/deploy-backend`                 | Flujo completo de deploy (tests → build → sam deploy → fix CORS)                     |
+| `/build-test [backend\|frontend]` | Compila y ejecuta tests; detecta errores antes de deploy                             |
+| `/db-pattern <entidad>`           | Diseña patrón DynamoDB (struct + interfaz repo + implementación)                     |
+| `/triage-bug <descripción>`       | Triagea un bug: causa raíz + plan de fix + test de regresión                         |
 
 ## Commands
 
@@ -84,6 +84,7 @@ Single Go binary (`./cmd/api`) deployed as three Lambda functions sharing the sa
 The Lambda entry point (`cmd/api/main.go`) detects the event type via JSON unmarshaling and routes accordingly. When `LOCAL_HTTP=true`, it starts a plain HTTP server instead.
 
 **Layer stack** (top-down):
+
 1. `internal/api/router.go` — HTTP routing, JWT auth middleware, RBAC enforcement
 2. `internal/service/` — Business logic (appointment, patient, consent, auth, odontogram, treatment plan)
 3. `internal/store/dynamodb.go` — DynamoDB repositories (package `store`)
@@ -128,7 +129,7 @@ React 18 SPA with React Router v6. Feature-organized under `src/modules/` (appoi
 
 ## AWS Credentials
 
-- **Cuenta:** 975738006503
-- **Profile:** `aski` (puede estar comentado en `~/.aws/config`)
-- **Para deployar:** descomentar profile aski + `aws sso login --profile aski`
-- **SAM:** usar `sam deploy --profile aski` explícito (samconfig.toml no especifica profile)
+- **Cuenta:** 952191196224 (`ms@aloai.me`)
+- **Profile:** `aloai`
+- **Para deployar:** `aws sso login --profile aloai` + `sam deploy` (samconfig.toml ya incluye profile aloai)
+- **Frontend:** `https://docco.aloai.me`

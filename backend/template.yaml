@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Clinical backend serverless (Lambda + API Gateway + EventBridge + DynamoDB)
 
@@ -29,14 +29,17 @@ Globals:
         SEND_EMAIL: "true"
         USE_DYNAMODB: "true"
         CLINIC_TZ: America/Caracas
-        SES_SENDER_EMAIL: mserranolm@gmail.com
-        FRONTEND_BASE_URL: https://duh0brj74tv5r.cloudfront.net
-        IMAGES_BUCKET: clinical-appointment-images-952191196224
+        SES_SENDER_EMAIL: no-reply@aloai.me
+        FRONTEND_BASE_URL: https://docco.aloai.me
+        IMAGES_BUCKET: !Sub "clinical-appointment-images-${AWS::AccountId}"
         BEDROCK_MODEL_ID: "amazon.nova-lite-v1:0"
         DOCCO_ENABLED: "true"
+        SMTP_HOST: email-smtp.us-east-1.amazonaws.com
+        SMTP_PORT: "587"
+        SMTP_USER: AKIA53MYETRACFNKDPPF
+        SMTP_PASS: "{{resolve:ssm:/clinical/smtp_pass}}"
 
 Resources:
-
   # API Gateway REST API (para API Keys)
   ClinicalRestApi:
     Type: AWS::Serverless::Api
@@ -52,7 +55,7 @@ Resources:
         AllowOrigin: "'*'"
         AllowHeaders: "'Content-Type,Authorization,x-api-key'"
         AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-      
+
   # GatewayResponses: añadir CORS headers a errores que API Gateway devuelve antes de llegar a Lambda
   GatewayResponseDefault4XX:
     Type: AWS::ApiGateway::GatewayResponse
@@ -114,7 +117,7 @@ Resources:
       Tags:
         - Key: product
           Value: clinisense
-      
+
   # Usage Plan con límite de llamadas diarias
   ClinicalUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
@@ -132,7 +135,7 @@ Resources:
       Tags:
         - Key: product
           Value: clinisense
-          
+
   # Asociar API Key con Usage Plan
   ClinicalUsagePlanKey:
     Type: AWS::ApiGateway::UsagePlanKey
@@ -168,39 +171,39 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref BudgetsTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:GetObject
-              - s3:DeleteObject
-            Resource: "arn:aws:s3:::clinical-appointment-images-952191196224/*"
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource: !Sub "arn:aws:s3:::clinical-appointment-images-${AWS::AccountId}/*"
         - Statement:
-          - Effect: Allow
-            Action:
-              - ses:SendEmail
-              - ses:SendRawEmail
-            Resource: arn:aws:ses:us-east-1:952191196224:identity/mserranolm@gmail.com
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/aloai.me"
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: "*"
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: "*"
         - Statement:
-          - Effect: Allow
-            Action:
-              - dynamodb:CreateTable
-              - dynamodb:DescribeTable
-              - dynamodb:ListTables
-              - dynamodb:TagResource
-            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
+            - Effect: Allow
+              Action:
+                - dynamodb:CreateTable
+                - dynamodb:DescribeTable
+                - dynamodb:ListTables
+                - dynamodb:TagResource
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
         - Statement:
-          - Effect: Allow
-            Action:
-              - bedrock:InvokeModel
-            Resource:
-              - "arn:aws:bedrock:*::foundation-model/*"
-              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-              - !Sub "arn:aws:bedrock:us:${AWS::AccountId}:inference-profile/*"
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+                - !Sub "arn:aws:bedrock:us:${AWS::AccountId}:inference-profile/*"
       Events:
         Api:
           Type: Api
@@ -224,16 +227,16 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - ses:SendEmail
-              - ses:SendRawEmail
-            Resource: arn:aws:ses:us-east-1:952191196224:identity/mserranolm@gmail.com
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/aloai.me"
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: "*"
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: "*"
       Events:
         Every15Minutes:
           Type: Schedule
@@ -254,18 +257,17 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - ses:SendEmail
-              - ses:SendRawEmail
-            Resource: arn:aws:ses:us-east-1:952191196224:identity/mserranolm@gmail.com
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/aloai.me"
       Events:
         DailyClose:
           Type: Schedule
           Properties:
             Schedule: cron(0 22 * * ? *)
             Name: clinical-end-day-reminder
-
 
   AppointmentsTable:
     Type: AWS::DynamoDB::Table
@@ -440,26 +442,25 @@ Resources:
         - Key: product
           Value: clinisense
 
-
 Outputs:
   ApiUrl:
     Description: REST API endpoint with API Key authentication
     Value: !Sub https://${ClinicalRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod
     Export:
       Name: !Sub ${AWS::StackName}-ApiUrl
-      
+
   ApiKey:
-    Description: API Key for frontend authentication  
+    Description: API Key for frontend authentication
     Value: !Ref ClinicalApiKey
     Export:
       Name: !Sub ${AWS::StackName}-ApiKey
-      
+
   ApiKeyId:
     Description: API Key ID for retrieving the actual key value
     Value: !Ref ClinicalApiKey
     Export:
       Name: !Sub ${AWS::StackName}-ApiKeyId
-      
+
   UsagePlanId:
     Description: Usage Plan ID (100 requests per day)
     Value: !Ref ClinicalUsagePlan
