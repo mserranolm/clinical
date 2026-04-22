@@ -115,14 +115,15 @@ func (r *Router) require(ctx context.Context, req events.APIGatewayV2HTTPRequest
 }
 
 type Router struct {
-	appointments *service.AppointmentService
-	patients     *service.PatientService
-	consents     *service.ConsentService
-	auth         *service.AuthService
-	odontogram   *OdontogramHandler
-	payments     *service.PaymentService
-	budgets      *service.BudgetService
-	chat         *service.ChatService
+	appointments     *service.AppointmentService
+	patients         *service.PatientService
+	consents         *service.ConsentService
+	auth             *service.AuthService
+	odontogram       *OdontogramHandler
+	payments         *service.PaymentService
+	budgets          *service.BudgetService
+	chat             *service.ChatService
+	platformSettings *service.PlatformSettingsService
 }
 
 func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -155,12 +156,37 @@ func (r *Router) registerPayment(ctx context.Context, id string, req events.APIG
 	return response(200, appt)
 }
 
-func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService, chat *service.ChatService) *Router {
-	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram, payments: payments, budgets: budgets, chat: chat}
+func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService, chat *service.ChatService, platformSettings *service.PlatformSettingsService) *Router {
+	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram, payments: payments, budgets: budgets, chat: chat, platformSettings: platformSettings}
 }
 
 func (r *Router) isPublicConsentAccept(method, path string) bool {
 	return method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept")
+}
+
+func (r *Router) getPlatformSettings(ctx context.Context) (events.APIGatewayV2HTTPResponse, error) {
+	if r.platformSettings == nil {
+		return response(503, map[string]string{"error": "settings_service_unavailable"})
+	}
+	settings, err := r.platformSettings.GetSettings(ctx)
+	if err != nil {
+		return response(500, map[string]string{"error": err.Error()})
+	}
+	return response(200, settings)
+}
+
+func (r *Router) updatePlatformSettings(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	if r.platformSettings == nil {
+		return response(503, map[string]string{"error": "settings_service_unavailable"})
+	}
+	var input store.PlatformSettings
+	if err := json.Unmarshal([]byte(req.Body), &input); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+	if err := r.platformSettings.UpdateSettings(ctx, input); err != nil {
+		return response(500, map[string]string{"error": err.Error()})
+	}
+	return response(200, input)
 }
 
 // logResponse logs the response details and returns the response
@@ -209,6 +235,18 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = deny, nil
 			} else {
 				resp, err = r.getPlatformStats(actx)
+			}
+		case method == "GET" && path == "/platform/settings":
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.getPlatformSettings(actx)
+			}
+		case method == "PUT" && path == "/platform/settings":
+			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.updatePlatformSettings(actx, req)
 			}
 		case method == "GET" && path == "/org/stats":
 			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {

@@ -23,6 +23,7 @@ Globals:
         USER_TABLE: !Ref UsersTable
         PAYMENT_TABLE: !Ref PaymentsTable
         BUDGET_TABLE: !Ref BudgetsTable
+        PLATFORM_SETTINGS_TABLE: !Ref PlatformSettingsTable
         PLATFORM_ADMIN_EMAIL: mserranolm@gmail.com
         BOOTSTRAP_SECRET: ""
         SEND_SMS: "true"
@@ -170,6 +171,8 @@ Resources:
             TableName: !Ref PaymentsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref BudgetsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlatformSettingsTable
         - Statement:
             - Effect: Allow
               Action:
@@ -226,6 +229,8 @@ Resources:
             TableName: !Ref PatientsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlatformSettingsTable
         - Statement:
             - Effect: Allow
               Action:
@@ -256,6 +261,8 @@ Resources:
             TableName: !Ref PatientsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConsentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PlatformSettingsTable
         - Statement:
             - Effect: Allow
               Action:
@@ -268,6 +275,27 @@ Resources:
           Properties:
             Schedule: cron(0 22 * * ? *)
             Name: clinical-end-day-reminder
+
+  PlatformSettingsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: clinical-platform-settings
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
 
   AppointmentsTable:
     Type: AWS::DynamoDB::Table

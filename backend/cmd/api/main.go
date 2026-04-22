@@ -21,7 +21,6 @@ import (
 
 func main() {
 	cfg := config.Load()
-	notifier := notifications.NewRouter(cfg)
 
 	// Initialize repositories based on environment
 	var repos struct {
@@ -34,6 +33,7 @@ func main() {
 		TreatmentPlans   store.TreatmentPlanRepository
 		Payments         store.PaymentRepository
 		Budgets          store.BudgetRepository
+		PlatformSettings store.PlatformSettingsRepository
 	}
 
 	if cfg.ShouldUseDynamoDB() {
@@ -48,8 +48,9 @@ func main() {
 			OdontogramTableName:      cfg.OdontogramTable,
 			TreatmentPlanTableName:   cfg.TreatmentPlanTable,
 			PaymentTableName:         cfg.PaymentTable,
-			BudgetTableName:          cfg.BudgetTable,
-			UseLocalProfile:          cfg.IsLocal(),
+			BudgetTableName:           cfg.BudgetTable,
+			PlatformSettingsTableName: cfg.PlatformSettingsTable,
+			UseLocalProfile:           cfg.IsLocal(),
 			ProfileName:              cfg.AWSProfile,
 		}
 
@@ -67,6 +68,7 @@ func main() {
 			repos.TreatmentPlans = memRepos.TreatmentPlans
 			repos.Payments = memRepos.Payments
 			repos.Budgets = memRepos.Budgets
+			repos.PlatformSettings = memRepos.PlatformSettings
 		} else {
 			repos.Patients = dynamoRepos.Patients
 			repos.Appointments = dynamoRepos.Appointments
@@ -77,6 +79,7 @@ func main() {
 			repos.TreatmentPlans = dynamoRepos.TreatmentPlans
 			repos.Payments = dynamoRepos.Payments
 			repos.Budgets = dynamoRepos.Budgets
+			repos.PlatformSettings = dynamoRepos.PlatformSettings
 		}
 	} else {
 		log.Printf("Using in-memory repositories (local development)")
@@ -90,7 +93,10 @@ func main() {
 		repos.TreatmentPlans = memRepos.TreatmentPlans
 		repos.Payments = memRepos.Payments
 		repos.Budgets = memRepos.Budgets
+		repos.PlatformSettings = memRepos.PlatformSettings
 	}
+
+	notifier := notifications.NewRouter(cfg, repos.PlatformSettings)
 
 	consents := service.NewConsentService(repos.Consents, repos.ConsentTemplates, notifier)
 	appointments := service.NewAppointmentService(repos.Appointments, notifier,
@@ -119,6 +125,7 @@ func main() {
 		service.WithPaymentUserRepo(repos.Users),
 	)
 	budgetService := service.NewBudgetService(repos.Budgets)
+	platformSettingsService := service.NewPlatformSettingsService(repos.PlatformSettings)
 
 	// Initialize Bedrock client and chat service
 	clinicTZ, err := time.LoadLocation(cfg.ClinicTZ)
@@ -139,7 +146,7 @@ func main() {
 		}
 	}
 
-	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService, chatService)
+	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService, chatService, platformSettingsService)
 
 	if os.Getenv("LOCAL_HTTP") == "true" {
 		if err := runLocalHTTP(router); err != nil {

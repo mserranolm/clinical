@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"clinical-backend/internal/config"
@@ -45,14 +46,16 @@ type ConsentLink struct {
 }
 
 type Router struct {
-	sendSMS   bool
-	sendEmail bool
-	cfg       config.Config
-	ddb       *dynamodb.Client
-	sns       *sns.Client
+	cfg            config.Config
+	ddb            *dynamodb.Client
+	sns            *sns.Client
+	settingsRepo   store.PlatformSettingsRepository
+	mu             sync.Mutex
+	cachedSettings *store.PlatformSettings
+	cacheUntil     time.Time
 }
 
-func NewRouter(cfg config.Config) *Router {
+func NewRouter(cfg config.Config, settingsRepo store.PlatformSettingsRepository) *Router {
 	ctx := context.Background()
 	var opts []func(*awsconfig.LoadOptions) error
 	if cfg.AWSProfile != "" {
@@ -62,12 +65,30 @@ func NewRouter(cfg config.Config) *Router {
 	if err != nil {
 		log.Printf("[notify] warn: failed to load aws cfg: %v", err)
 	}
-	r := &Router{sendSMS: cfg.SendSMS, sendEmail: cfg.SendEmail, cfg: cfg}
+	r := &Router{cfg: cfg, settingsRepo: settingsRepo}
 	if err == nil {
 		r.ddb = dynamodb.NewFromConfig(awsCfg)
 		r.sns = sns.NewFromConfig(awsCfg)
 	}
 	return r
+}
+
+func (r *Router) getSettings(ctx context.Context) store.PlatformSettings {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.cachedSettings != nil && time.Now().Before(r.cacheUntil) {
+		return *r.cachedSettings
+	}
+	if r.settingsRepo != nil {
+		s, err := r.settingsRepo.GetSettings(ctx)
+		if err == nil {
+			r.cachedSettings = &s
+			r.cacheUntil = time.Now().Add(60 * time.Second)
+			return s
+		}
+		log.Printf("[notify] warn: could not load platform settings from DB: %v", err)
+	}
+	return store.PlatformSettings{SendSMS: r.cfg.SendSMS, SendEmail: r.cfg.SendEmail}
 }
 
 func (r *Router) sendMail(_ context.Context, from, to, subject, htmlBody, textBody string) error {
@@ -239,10 +260,10 @@ func normalizePhoneForSMS(phone string) string {
 // ── Notification Methods ──────────────────────────────────────────────────────
 
 func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel, message string) error {
-	if !r.allowed(channel) {
+	if !r.allowed(ctx, channel) {
 		return fmt.Errorf("channel %s disabled", channel)
 	}
-	if channel == "email" && r.sendEmail {
+	if channel == "email" {
 		to := patientID
 		if !strings.Contains(to, "@") && r.ddb != nil {
 			orgID := store.OrgIDFromContext(ctx)
@@ -323,7 +344,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	)
 
 	log.Printf("[notify:appointment-created] to=%s appointmentId=%s confirmToken=%s consentLinks=%d", toEmail, appt.ID, appt.ConfirmToken, len(consentLinks))
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -343,7 +364,7 @@ func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patient
 		log.Printf("[notify:sms] skip: paciente sin teléfono válido (patientName=%s)", patientName)
 		return nil
 	}
-	if !r.sendSMS || r.sns == nil {
+	if !r.getSettings(ctx).SendSMS || r.sns == nil {
 		log.Printf("[notify:sms] skip: SMS deshabilitado o cliente nil")
 		return nil
 	}
@@ -380,16 +401,16 @@ func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patient
 	return nil
 }
 
-func (r *Router) SendConsentRequest(_ context.Context, patientID, channel, message string) error {
-	if !r.allowed(channel) {
+func (r *Router) SendConsentRequest(ctx context.Context, patientID, channel, message string) error {
+	if !r.allowed(ctx, channel) {
 		return fmt.Errorf("channel %s disabled", channel)
 	}
 	log.Printf("[notify:consent] patient=%s channel=%s message=%s", patientID, channel, message)
 	return nil
 }
 
-func (r *Router) SendDoctorDailySummary(_ context.Context, doctorID, channel, message string) error {
-	if !r.allowed(channel) {
+func (r *Router) SendDoctorDailySummary(ctx context.Context, doctorID, channel, message string) error {
+	if !r.allowed(ctx, channel) {
 		return fmt.Errorf("channel %s disabled", channel)
 	}
 	log.Printf("[notify:doctor-summary] doctor=%s channel=%s message=%s", doctorID, channel, message)
@@ -526,7 +547,7 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	}
 
 	log.Printf("[notify:appointment] to=%s event=%s start=%s", toEmail, eventType, startAt)
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -570,7 +591,7 @@ func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientN
 		htmlDivider(),
 	)
 	log.Printf("[notify:treatment-plan] to=%s date=%s", toEmail, dateStr)
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -607,7 +628,7 @@ func (r *Router) SendOrgCreated(ctx context.Context, toEmail, orgName, adminName
 		htmlCTAButton("Ir al panel de administración", "https://docco.aloai.me/login"),
 	)
 	log.Printf("[notify:org-created] to=%s org=%s", toEmail, orgName)
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -668,7 +689,7 @@ func (r *Router) SendWelcome(ctx context.Context, toEmail, name, role, password,
 		htmlDivider(),
 	)
 	log.Printf("[notify:welcome] to=%s role=%s", toEmail, role)
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -729,7 +750,7 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
 		htmlDivider(),
 	)
 	log.Printf("[notify:invitation] to=%s role=%s url=%s", toEmail, role, inviteURL)
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -792,7 +813,7 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 		html.EscapeString(acceptURL), html.EscapeString(acceptURL),
 	)
 	log.Printf("[notify:consent] to=%s appointmentId=%s token=%s", toEmail, consent.AppointmentID, consent.AcceptToken)
-	if !r.sendEmail {
+	if !r.getSettings(ctx).SendEmail {
 		return nil
 	}
 	sender := r.cfg.SESSenderEmail
@@ -806,12 +827,13 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 	return err
 }
 
-func (r *Router) allowed(channel string) bool {
+func (r *Router) allowed(ctx context.Context, channel string) bool {
+	s := r.getSettings(ctx)
 	switch channel {
 	case "sms":
-		return r.sendSMS
+		return s.SendSMS
 	case "email":
-		return r.sendEmail
+		return s.SendEmail
 	default:
 		return false
 	}
