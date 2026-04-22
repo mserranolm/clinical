@@ -26,8 +26,9 @@ type DynamoDBConfig struct {
 	TreatmentPlanTableName   string
 	UserTableName            string
 	PaymentTableName         string
-	BudgetTableName          string
-	UseLocalProfile          bool
+	BudgetTableName           string
+	PlatformSettingsTableName string
+	UseLocalProfile           bool
 	ProfileName              string
 }
 
@@ -44,6 +45,7 @@ type DynamoDBRepositories struct {
 	TreatmentPlans   TreatmentPlanRepository
 	Payments         PaymentRepository
 	Budgets          BudgetRepository
+	PlatformSettings PlatformSettingsRepository
 }
 
 // NewDynamoDBRepositories creates new DynamoDB repositories with table auto-creation
@@ -114,6 +116,7 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 		TreatmentPlans:   &dynamoTreatmentPlanRepo{client: client, tableName: cfg.TreatmentPlanTableName},
 		Payments:         &dynamoPaymentRepo{client: client, tableName: cfg.PaymentTableName},
 		Budgets:          &dynamoBudgetRepo{client: client, tableName: cfg.BudgetTableName},
+		PlatformSettings: &dynamoPlatformSettingsRepo{client: client, tableName: cfg.PlatformSettingsTableName},
 	}, nil
 }
 
@@ -1902,6 +1905,62 @@ func (r *dynamoBudgetRepo) Delete(ctx context.Context, id string) error {
 			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("PATIENT#%s", b.PatientID)},
 			"SK": &types.AttributeValueMemberS{Value: fmt.Sprintf("BUDGET#%s", b.ID)},
 		},
+	})
+	return err
+}
+
+// ── Platform Settings ─────────────────────────────────────────────────────────
+
+type dynamoPlatformSettingsRepo struct {
+	client    *dynamodb.Client
+	tableName string
+}
+
+func (r *dynamoPlatformSettingsRepo) GetSettings(ctx context.Context) (PlatformSettings, error) {
+	tbl := r.tableName
+	if tbl == "" {
+		tbl = "clinical-platform-settings"
+	}
+	out, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(tbl),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "PLATFORM#SETTINGS"},
+			"SK": &types.AttributeValueMemberS{Value: "CONFIG"},
+		},
+	})
+	if err != nil {
+		return PlatformSettings{SendSMS: true, SendEmail: true}, fmt.Errorf("get platform settings: %w", err)
+	}
+	if out.Item == nil {
+		return PlatformSettings{SendSMS: true, SendEmail: true}, nil
+	}
+	var row struct {
+		SendSMS   bool `dynamodbav:"sendSMS"`
+		SendEmail bool `dynamodbav:"sendEmail"`
+	}
+	if err := attributevalue.UnmarshalMap(out.Item, &row); err != nil {
+		return PlatformSettings{SendSMS: true, SendEmail: true}, fmt.Errorf("unmarshal platform settings: %w", err)
+	}
+	return PlatformSettings{SendSMS: row.SendSMS, SendEmail: row.SendEmail}, nil
+}
+
+func (r *dynamoPlatformSettingsRepo) UpdateSettings(ctx context.Context, s PlatformSettings) error {
+	tbl := r.tableName
+	if tbl == "" {
+		tbl = "clinical-platform-settings"
+	}
+	item, err := attributevalue.MarshalMap(map[string]interface{}{
+		"PK":        "PLATFORM#SETTINGS",
+		"SK":        "CONFIG",
+		"sendSMS":   s.SendSMS,
+		"sendEmail": s.SendEmail,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal platform settings: %w", err)
+	}
+	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(tbl),
+		Item:      item,
 	})
 	return err
 }

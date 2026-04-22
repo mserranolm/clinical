@@ -182,6 +182,16 @@ type BudgetRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type PlatformSettings struct {
+	SendSMS   bool `json:"sendSMS"`
+	SendEmail bool `json:"sendEmail"`
+}
+
+type PlatformSettingsRepository interface {
+	GetSettings(ctx context.Context) (PlatformSettings, error)
+	UpdateSettings(ctx context.Context, settings PlatformSettings) error
+}
+
 type InMemoryRepositories struct {
 	Patients         PatientRepository
 	Appointments     AppointmentRepository
@@ -192,6 +202,7 @@ type InMemoryRepositories struct {
 	TreatmentPlans   TreatmentPlanRepository
 	Payments         PaymentRepository
 	Budgets          BudgetRepository
+	PlatformSettings PlatformSettingsRepository
 }
 
 func NewInMemoryRepositories() *InMemoryRepositories {
@@ -205,6 +216,7 @@ func NewInMemoryRepositories() *InMemoryRepositories {
 		TreatmentPlans:   &memoryTreatmentPlanRepo{items: map[string]domain.TreatmentPlan{}, byPatient: map[string][]string{}},
 		Payments:         &memoryPaymentRepo{items: []domain.PaymentRecord{}},
 		Budgets:          &memoryBudgetRepo{items: map[string]domain.Budget{}},
+		PlatformSettings: &memoryPlatformSettingsRepo{settings: PlatformSettings{SendSMS: true, SendEmail: true}},
 	}
 }
 
@@ -1146,5 +1158,23 @@ func (r *memoryBudgetRepo) Delete(_ context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.items, id)
+	return nil
+}
+
+type memoryPlatformSettingsRepo struct {
+	mu       sync.Mutex
+	settings PlatformSettings
+}
+
+func (r *memoryPlatformSettingsRepo) GetSettings(_ context.Context) (PlatformSettings, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.settings, nil
+}
+
+func (r *memoryPlatformSettingsRepo) UpdateSettings(_ context.Context, s PlatformSettings) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.settings = s
 	return nil
 }
