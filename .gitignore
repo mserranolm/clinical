@@ -32,3 +32,4 @@ coverage.out
 
 # npm (global safety net)
 node_modules/
+.worktrees/
