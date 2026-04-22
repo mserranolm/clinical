@@ -192,6 +192,13 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
   const [autoRefreshSeconds, setAutoRefreshSeconds] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [activeView, setActiveView] = useState<"orgs" | "settings">("orgs");
+  const [platformSettings, setPlatformSettings] = useState<{
+    sendSMS: boolean;
+    sendEmail: boolean;
+  } | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const token = session.token;
 
@@ -230,6 +237,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
 
   useEffect(() => {
     loadAll();
+    loadPlatformSettings();
   }, []);
 
   // Auto-refresh
@@ -253,6 +261,41 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
     setRefreshing(true);
     await loadAll(true);
     setRefreshing(false);
+  }
+
+  async function loadPlatformSettings() {
+    setSettingsLoading(true);
+    try {
+      const s = await clinicalApi.getPlatformSettings(token);
+      setPlatformSettings(s);
+    } catch (e) {
+      notify.error(
+        "Error cargando configuración",
+        e instanceof Error ? e.message : "",
+      );
+    } finally {
+      setSettingsLoading(false);
+    }
+  }
+
+  async function savePlatformSettings() {
+    if (!platformSettings) return;
+    setSettingsSaving(true);
+    try {
+      const updated = await clinicalApi.updatePlatformSettings(
+        platformSettings,
+        token,
+      );
+      setPlatformSettings(updated);
+      notify.success("Configuración guardada");
+    } catch (e) {
+      notify.error(
+        "Error guardando configuración",
+        e instanceof Error ? e.message : "",
+      );
+    } finally {
+      setSettingsSaving(false);
+    }
   }
 
   function openCreate() {
@@ -487,729 +530,1026 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
         </div>
       </div>
 
-      {/* Stats dashboard */}
-      {stats && (
-        <div style={{ marginBottom: "2rem" }}>
-          <h2
-            style={{
-              fontWeight: 700,
-              fontSize: "0.875rem",
-              color: "#6b7280",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              marginBottom: "0.75rem",
-            }}
-          >
-            Resumen de la plataforma
-          </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: "0.75rem",
-            }}
-          >
-            <StatCard
-              value={stats.totalOrgs}
-              label="Organizaciones"
-              color="#ede9fe"
-              icon="🏥"
-            />
-            <StatCard
-              value={stats.activeOrgs}
-              label="Activas"
-              color="#d1fae5"
-              icon="✅"
-            />
-            <StatCard
-              value={stats.totalDoctors}
-              label="Doctores"
-              color="#dbeafe"
-              icon="🩺"
-            />
-            <StatCard
-              value={stats.totalAssistants}
-              label="Asistentes"
-              color="#f0fdf4"
-              icon="�‍⚕️"
-            />
-            <StatCard
-              value={stats.totalPatients}
-              label="Pacientes"
-              color="#fce7f3"
-              icon="🧑"
-            />
-            <StatCard
-              value={stats.totalConsultations ?? 0}
-              label="Consultas finalizadas"
-              color="#fef9c3"
-              icon="📋"
-            />
-            <div
-              style={{
-                background: "#fff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: "1.25rem 1.5rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                gridColumn: "span 2",
-              }}
-            >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: "#d1fae5",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  flexShrink: 0,
-                }}
-              >
-                💰
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "1.75rem",
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    color: "#10b981",
-                  }}
-                >
-                  $
-                  {(stats.totalRevenue ?? 0).toLocaleString("es-ES", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </div>
-                <div
-                  style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: 2 }}
-                >
-                  Ingresos totales (todas las orgs)
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Form crear/editar org */}
-      {showForm && (
-        <div
-          style={{
-            background: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: 12,
-            padding: "1.5rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "1.25rem",
-            }}
-          >
-            <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>
-              {editingOrg
-                ? `✏️ Editar: ${editingOrg.name}`
-                : "🏥 Nueva organización"}
-            </h3>
-            <button
-              onClick={() => setShowForm(false)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "1.25rem",
-                color: "#6b7280",
-                lineHeight: 1,
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            {/* Datos de la organización */}
-            <p
-              style={{
-                fontWeight: 700,
-                fontSize: "0.8rem",
-                color: "#6b7280",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Datos de la organización
-            </p>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "0.75rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <div>
-                <label style={lbl}>Nombre de la clínica *</label>
-                <input
-                  required
-                  style={inp}
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  placeholder="Clínica San José"
-                />
-              </div>
-              <div>
-                <label style={lbl}>Razón social</label>
-                <input
-                  style={inp}
-                  value={form.businessName}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, businessName: e.target.value }))
-                  }
-                  placeholder="Clínica San José S.A.S."
-                />
-              </div>
-              <div>
-                <label style={lbl}>NIT / RUC / Tax ID</label>
-                <input
-                  style={inp}
-                  value={form.taxId}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, taxId: e.target.value }))
-                  }
-                  placeholder="900.123.456-7"
-                />
-              </div>
-              <div>
-                <label style={lbl}>Teléfono</label>
-                <PhoneInput
-                  style={inp}
-                  value={form.phone}
-                  onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
-                  placeholder="300 000 0000"
-                />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Dirección</label>
-                <input
-                  style={inp}
-                  value={form.address}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, address: e.target.value }))
-                  }
-                  placeholder="Calle 10 # 5-20, Bogotá"
-                />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Email de contacto</label>
-                <input
-                  type="email"
-                  style={inp}
-                  value={form.email}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, email: e.target.value }))
-                  }
-                  placeholder="contacto@clinica.com"
-                />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Zona horaria (GMT) *</label>
-                <select
-                  style={inp}
-                  value={form.timezone}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, timezone: e.target.value }))
-                  }
-                >
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value}>
-                      {tz.label} — {tz.value}
-                    </option>
-                  ))}
-                </select>
-                <p
-                  style={{
-                    margin: "4px 0 0",
-                    fontSize: "0.72rem",
-                    color: "#6b7280",
-                  }}
-                >
-                  Define el horario local para notificaciones y validación de
-                  citas.
-                </p>
-              </div>
-            </div>
-
-            {/* Estado y pago */}
-            <div style={sec}>
-              <p
-                style={{
-                  fontWeight: 700,
-                  fontSize: "0.8rem",
-                  color: "#6b7280",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                Estado y pago
-              </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "0.75rem",
-                }}
-              >
-                <div>
-                  <label style={lbl}>Estado</label>
-                  <select
-                    style={inp}
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value }))
-                    }
-                  >
-                    <option value="active">Activa</option>
-                    <option value="inactive">Inactiva</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={lbl}>Estado de pago</label>
-                  <select
-                    style={inp}
-                    value={form.paymentStatus}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, paymentStatus: e.target.value }))
-                    }
-                  >
-                    <option value="current">Al día</option>
-                    <option value="overdue">Vencido</option>
-                    <option value="suspended">Suspendido</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Límites */}
-            <div style={sec}>
-              <p
-                style={{
-                  fontWeight: 700,
-                  fontSize: "0.8rem",
-                  color: "#6b7280",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                Límites de usuarios
-              </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: "0.75rem",
-                }}
-              >
-                <div>
-                  <label style={lbl}>Máx. Doctores</label>
-                  <input
-                    type="number"
-                    min={1}
-                    style={inp}
-                    value={form.maxDoctors}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        maxDoctors: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label style={lbl}>Máx. Asistentes</label>
-                  <input
-                    type="number"
-                    min={1}
-                    style={inp}
-                    value={form.maxAssistants}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        maxAssistants: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label style={lbl}>Máx. Pacientes</label>
-                  <input
-                    type="number"
-                    min={1}
-                    style={inp}
-                    value={form.maxPatients}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        maxPatients: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Admin inicial — solo al crear */}
-            {!editingOrg && (
-              <div
-                style={{
-                  ...sec,
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: 8,
-                  padding: "1rem",
-                  marginBottom: "1rem",
-                }}
-              >
-                <p
-                  style={{
-                    fontWeight: 700,
-                    fontSize: "0.8rem",
-                    color: "#1d4ed8",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "0.75rem",
-                  }}
-                >
-                  👤 Admin de la organización
-                </p>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "0.75rem",
-                  }}
-                >
-                  <div>
-                    <label style={lbl}>Nombre del admin</label>
-                    <input
-                      style={inp}
-                      value={form.adminName}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, adminName: e.target.value }))
-                      }
-                      placeholder="Dr. Juan Pérez"
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Email del admin</label>
-                    <input
-                      type="email"
-                      style={inp}
-                      value={form.adminEmail}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, adminEmail: e.target.value }))
-                      }
-                      placeholder="admin@clinica.com"
-                    />
-                  </div>
-                </div>
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#3b82f6",
-                    marginTop: "0.5rem",
-                  }}
-                >
-                  Se enviará un correo con una contraseña temporal. El admin
-                  deberá cambiarla en el primer inicio de sesión. Opcional — si
-                  no indicas email, podrás crear el admin después desde la
-                  organización.
-                </p>
-              </div>
-            )}
-
-            <div
-              style={{
-                display: "flex",
-                gap: "0.75rem",
-                justifyContent: "flex-end",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                style={btnCancel}
-              >
-                Cancelar
-              </button>
-              <button type="submit" disabled={submitting} style={btnPrimary}>
-                {submitting
-                  ? "Guardando..."
-                  : editingOrg
-                    ? "Guardar cambios"
-                    : "Crear organización"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Lista de organizaciones */}
+      {/* Tab navigation */}
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "0.75rem",
+          gap: "0.5rem",
+          marginBottom: "1.5rem",
+          borderBottom: "2px solid #e5e7eb",
+          paddingBottom: 0,
         }}
       >
-        <h2 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>
-          Organizaciones ({orgs.length})
-        </h2>
+        {(["orgs", "settings"] as const).map((view) => {
+          const labels = {
+            orgs: "Organizaciones",
+            settings: "Configuración de Plataforma",
+          };
+          const active = activeView === view;
+          return (
+            <button
+              key={view}
+              onClick={() => setActiveView(view)}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom: active
+                  ? "2px solid #6366f1"
+                  : "2px solid transparent",
+                marginBottom: -2,
+                padding: "0.5rem 1rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                fontWeight: active ? 700 : 500,
+                color: active ? "#6366f1" : "#6b7280",
+              }}
+            >
+              {labels[view]}
+            </button>
+          );
+        })}
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>
-          Cargando...
-        </div>
-      ) : orgs.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "3rem",
-            color: "#6b7280",
-            background: "#f9fafb",
-            borderRadius: 12,
-            border: "1px dashed #d1d5db",
-          }}
-        >
-          <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏥</p>
-          <p>No hay organizaciones aún. Crea la primera.</p>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: "0.75rem" }}>
-          {orgs.map((org) => (
+      {activeView === "orgs" && (
+        <>
+          {/* Stats dashboard */}
+          {stats && (
+            <div style={{ marginBottom: "2rem" }}>
+              <h2
+                style={{
+                  fontWeight: 700,
+                  fontSize: "0.875rem",
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                Resumen de la plataforma
+              </h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                  gap: "0.75rem",
+                }}
+              >
+                <StatCard
+                  value={stats.totalOrgs}
+                  label="Organizaciones"
+                  color="#ede9fe"
+                  icon="🏥"
+                />
+                <StatCard
+                  value={stats.activeOrgs}
+                  label="Activas"
+                  color="#d1fae5"
+                  icon="✅"
+                />
+                <StatCard
+                  value={stats.totalDoctors}
+                  label="Doctores"
+                  color="#dbeafe"
+                  icon="🩺"
+                />
+                <StatCard
+                  value={stats.totalAssistants}
+                  label="Asistentes"
+                  color="#f0fdf4"
+                  icon="�‍⚕️"
+                />
+                <StatCard
+                  value={stats.totalPatients}
+                  label="Pacientes"
+                  color="#fce7f3"
+                  icon="🧑"
+                />
+                <StatCard
+                  value={stats.totalConsultations ?? 0}
+                  label="Consultas finalizadas"
+                  color="#fef9c3"
+                  icon="📋"
+                />
+                <div
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 12,
+                    padding: "1.25rem 1.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1rem",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                    gridColumn: "span 2",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      background: "#d1fae5",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.5rem",
+                      flexShrink: 0,
+                    }}
+                  >
+                    💰
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "1.75rem",
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        color: "#10b981",
+                      }}
+                    >
+                      $
+                      {(stats.totalRevenue ?? 0).toLocaleString("es-ES", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.8rem",
+                        color: "#6b7280",
+                        marginTop: 2,
+                      }}
+                    >
+                      Ingresos totales (todas las orgs)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Form crear/editar org */}
+          {showForm && (
             <div
-              key={org.id}
               style={{
-                background: "#fff",
+                background: "#f9fafb",
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
-                padding: "1.25rem",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                padding: "1.5rem",
+                marginBottom: "1.5rem",
               }}
             >
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  flexWrap: "wrap",
-                  gap: "0.75rem",
+                  alignItems: "center",
+                  marginBottom: "1.25rem",
                 }}
               >
-                <div style={{ flex: 1, minWidth: 200 }}>
+                <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>
+                  {editingOrg
+                    ? `✏️ Editar: ${editingOrg.name}`
+                    : "🏥 Nueva organización"}
+                </h3>
+                <button
+                  onClick={() => setShowForm(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.25rem",
+                    color: "#6b7280",
+                    lineHeight: 1,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                {/* Datos de la organización */}
+                <p
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.8rem",
+                    color: "#6b7280",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  Datos de la organización
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "0.75rem",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <div>
+                    <label style={lbl}>Nombre de la clínica *</label>
+                    <input
+                      required
+                      style={inp}
+                      value={form.name}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, name: e.target.value }))
+                      }
+                      placeholder="Clínica San José"
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Razón social</label>
+                    <input
+                      style={inp}
+                      value={form.businessName}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, businessName: e.target.value }))
+                      }
+                      placeholder="Clínica San José S.A.S."
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>NIT / RUC / Tax ID</label>
+                    <input
+                      style={inp}
+                      value={form.taxId}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, taxId: e.target.value }))
+                      }
+                      placeholder="900.123.456-7"
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Teléfono</label>
+                    <PhoneInput
+                      style={inp}
+                      value={form.phone}
+                      onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+                      placeholder="300 000 0000"
+                    />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={lbl}>Dirección</label>
+                    <input
+                      style={inp}
+                      value={form.address}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, address: e.target.value }))
+                      }
+                      placeholder="Calle 10 # 5-20, Bogotá"
+                    />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={lbl}>Email de contacto</label>
+                    <input
+                      type="email"
+                      style={inp}
+                      value={form.email}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, email: e.target.value }))
+                      }
+                      placeholder="contacto@clinica.com"
+                    />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={lbl}>Zona horaria (GMT) *</label>
+                    <select
+                      style={inp}
+                      value={form.timezone}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, timezone: e.target.value }))
+                      }
+                    >
+                      {TIMEZONES.map((tz) => (
+                        <option key={tz.value} value={tz.value}>
+                          {tz.label} — {tz.value}
+                        </option>
+                      ))}
+                    </select>
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+                        fontSize: "0.72rem",
+                        color: "#6b7280",
+                      }}
+                    >
+                      Define el horario local para notificaciones y validación
+                      de citas.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Estado y pago */}
+                <div style={sec}>
+                  <p
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "0.8rem",
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    Estado y pago
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div>
+                      <label style={lbl}>Estado</label>
+                      <select
+                        style={inp}
+                        value={form.status}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, status: e.target.value }))
+                        }
+                      >
+                        <option value="active">Activa</option>
+                        <option value="inactive">Inactiva</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={lbl}>Estado de pago</label>
+                      <select
+                        style={inp}
+                        value={form.paymentStatus}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            paymentStatus: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="current">Al día</option>
+                        <option value="overdue">Vencido</option>
+                        <option value="suspended">Suspendido</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Límites */}
+                <div style={sec}>
+                  <p
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "0.8rem",
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    Límites de usuarios
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div>
+                      <label style={lbl}>Máx. Doctores</label>
+                      <input
+                        type="number"
+                        min={1}
+                        style={inp}
+                        value={form.maxDoctors}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            maxDoctors: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label style={lbl}>Máx. Asistentes</label>
+                      <input
+                        type="number"
+                        min={1}
+                        style={inp}
+                        value={form.maxAssistants}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            maxAssistants: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label style={lbl}>Máx. Pacientes</label>
+                      <input
+                        type="number"
+                        min={1}
+                        style={inp}
+                        value={form.maxPatients}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            maxPatients: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Admin inicial — solo al crear */}
+                {!editingOrg && (
+                  <div
+                    style={{
+                      ...sec,
+                      background: "#eff6ff",
+                      border: "1px solid #bfdbfe",
+                      borderRadius: 8,
+                      padding: "1rem",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontWeight: 700,
+                        fontSize: "0.8rem",
+                        color: "#1d4ed8",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      👤 Admin de la organización
+                    </p>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <div>
+                        <label style={lbl}>Nombre del admin</label>
+                        <input
+                          style={inp}
+                          value={form.adminName}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              adminName: e.target.value,
+                            }))
+                          }
+                          placeholder="Dr. Juan Pérez"
+                        />
+                      </div>
+                      <div>
+                        <label style={lbl}>Email del admin</label>
+                        <input
+                          type="email"
+                          style={inp}
+                          value={form.adminEmail}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              adminEmail: e.target.value,
+                            }))
+                          }
+                          placeholder="admin@clinica.com"
+                        />
+                      </div>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#3b82f6",
+                        marginTop: "0.5rem",
+                      }}
+                    >
+                      Se enviará un correo con una contraseña temporal. El admin
+                      deberá cambiarla en el primer inicio de sesión. Opcional —
+                      si no indicas email, podrás crear el admin después desde
+                      la organización.
+                    </p>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.75rem",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    style={btnCancel}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    style={btnPrimary}
+                  >
+                    {submitting
+                      ? "Guardando..."
+                      : editingOrg
+                        ? "Guardar cambios"
+                        : "Crear organización"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Lista de organizaciones */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "0.75rem",
+            }}
+          >
+            <h2 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>
+              Organizaciones ({orgs.length})
+            </h2>
+          </div>
+
+          {loading ? (
+            <div
+              style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}
+            >
+              Cargando...
+            </div>
+          ) : orgs.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "3rem",
+                color: "#6b7280",
+                background: "#f9fafb",
+                borderRadius: 12,
+                border: "1px dashed #d1d5db",
+              }}
+            >
+              <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏥</p>
+              <p>No hay organizaciones aún. Crea la primera.</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: "0.75rem" }}>
+              {orgs.map((org) => (
+                <div
+                  key={org.id}
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 12,
+                    padding: "1.25rem",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      flexWrap: "wrap",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          marginBottom: "0.25rem",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <strong style={{ fontSize: "1rem" }}>{org.name}</strong>
+                        <span
+                          style={{
+                            background: SC[org.status] || "#f3f4f6",
+                            color: ST[org.status] || "#374151",
+                            padding: "2px 8px",
+                            borderRadius: 4,
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {SL[org.status] || org.status}
+                        </span>
+                        <span
+                          style={{
+                            background: PC[org.paymentStatus] || "#f3f4f6",
+                            color: PT[org.paymentStatus] || "#374151",
+                            padding: "2px 8px",
+                            borderRadius: 4,
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                          }}
+                        >
+                          💳 {PL[org.paymentStatus] || org.paymentStatus}
+                        </span>
+                      </div>
+                      {org.businessName && (
+                        <p
+                          style={{
+                            color: "#6b7280",
+                            fontSize: "0.8rem",
+                            margin: "0 0 0.25rem",
+                          }}
+                        >
+                          {org.businessName}
+                          {org.taxId ? ` · ${org.taxId}` : ""}
+                        </p>
+                      )}
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "1rem",
+                          flexWrap: "wrap",
+                          fontSize: "0.8rem",
+                          color: "#6b7280",
+                        }}
+                      >
+                        {org.address && <span>📍 {org.address}</span>}
+                        {org.email && <span>✉️ {org.email}</span>}
+                        {org.phone && <span>📞 {org.phone}</span>}
+                        {org.timezone && <span>🕐 {org.timezone}</span>}
+                      </div>
+                      {orgAdmins[org.id] ? (
+                        <div
+                          style={{
+                            marginTop: "0.4rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <span
+                            style={{
+                              background: "#ede9fe",
+                              color: "#5b21b6",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            ADMIN
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.8rem",
+                              color: "#374151",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {orgAdmins[org.id].name}
+                          </span>
+                          <span
+                            style={{ fontSize: "0.8rem", color: "#6b7280" }}
+                          >
+                            {orgAdmins[org.id].email}
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: "0.4rem" }}>
+                          <span
+                            style={{
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            Sin admin asignado
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: "#f0f9ff",
+                          border: "1px solid #bae6fd",
+                          borderRadius: 8,
+                          padding: "0.4rem 0.6rem",
+                          fontSize: "0.75rem",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: "#0369a1" }}>
+                          {org.limits?.maxDoctors ?? 5}
+                        </div>
+                        <div style={{ color: "#6b7280" }}>Dr.</div>
+                      </div>
+                      <div
+                        style={{
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: 8,
+                          padding: "0.4rem 0.6rem",
+                          fontSize: "0.75rem",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: "#15803d" }}>
+                          {org.limits?.maxAssistants ?? 2}
+                        </div>
+                        <div style={{ color: "#6b7280" }}>Asist.</div>
+                      </div>
+                      <div
+                        style={{
+                          background: "#fefce8",
+                          border: "1px solid #fde68a",
+                          borderRadius: 8,
+                          padding: "0.4rem 0.6rem",
+                          fontSize: "0.75rem",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: "#a16207" }}>
+                          {org.limits?.maxPatients ?? 20}
+                        </div>
+                        <div style={{ color: "#6b7280" }}>Pac.</div>
+                      </div>
+                      <button onClick={() => openEdit(org)} style={btnEdit}>
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(org)}
+                        style={btnDanger}
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: "0.5rem",
+                      fontSize: "0.7rem",
+                      color: "#9ca3af",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    ID: {org.id} · Creada:{" "}
+                    {new Date(org.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {activeView === "settings" && (
+        <div style={{ maxWidth: 520 }}>
+          <h2
+            style={{
+              fontWeight: 700,
+              fontSize: "1rem",
+              marginBottom: "1.5rem",
+              color: "#1e293b",
+            }}
+          >
+            Configuración de Plataforma
+          </h2>
+
+          {settingsLoading ? (
+            <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
+              Cargando...
+            </p>
+          ) : platformSettings ? (
+            <>
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: "1.5rem",
+                  marginBottom: "1.5rem",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                }}
+              >
+                <h3
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.875rem",
+                    color: "#374151",
+                    marginBottom: "1rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Canales de Notificación
+                </h3>
+
+                {/* Toggle Email */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    paddingBottom: "1rem",
+                    marginBottom: "1rem",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#1e293b",
+                      }}
+                    >
+                      Email
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                      Notificaciones por correo (bienvenida, citas,
+                      consentimientos)
+                    </div>
+                  </div>
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: "0.5rem",
-                      marginBottom: "0.25rem",
-                      flexWrap: "wrap",
                     }}
                   >
-                    <strong style={{ fontSize: "1rem" }}>{org.name}</strong>
                     <span
                       style={{
-                        background: SC[org.status] || "#f3f4f6",
-                        color: ST[org.status] || "#374151",
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        fontSize: "0.7rem",
-                        fontWeight: 700,
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        color: platformSettings.sendEmail
+                          ? "#059669"
+                          : "#dc2626",
                       }}
                     >
-                      {SL[org.status] || org.status}
+                      {platformSettings.sendEmail ? "Activo" : "Inactivo"}
                     </span>
-                    <span
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPlatformSettings({
+                          ...platformSettings,
+                          sendEmail: !platformSettings.sendEmail,
+                        })
+                      }
                       style={{
-                        background: PC[org.paymentStatus] || "#f3f4f6",
-                        color: PT[org.paymentStatus] || "#374151",
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        fontSize: "0.7rem",
-                        fontWeight: 700,
+                        width: 44,
+                        height: 24,
+                        borderRadius: 12,
+                        border: "none",
+                        background: platformSettings.sendEmail
+                          ? "#6366f1"
+                          : "#d1d5db",
+                        cursor: "pointer",
+                        position: "relative",
+                        transition: "background 0.2s",
                       }}
                     >
-                      💳 {PL[org.paymentStatus] || org.paymentStatus}
-                    </span>
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 3,
+                          left: platformSettings.sendEmail ? 23 : 3,
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 0.2s",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }}
+                      />
+                    </button>
                   </div>
-                  {org.businessName && (
-                    <p
-                      style={{
-                        color: "#6b7280",
-                        fontSize: "0.8rem",
-                        margin: "0 0 0.25rem",
-                      }}
-                    >
-                      {org.businessName}
-                      {org.taxId ? ` · ${org.taxId}` : ""}
-                    </p>
-                  )}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "1rem",
-                      flexWrap: "wrap",
-                      fontSize: "0.8rem",
-                      color: "#6b7280",
-                    }}
-                  >
-                    {org.address && <span>📍 {org.address}</span>}
-                    {org.email && <span>✉️ {org.email}</span>}
-                    {org.phone && <span>📞 {org.phone}</span>}
-                    {org.timezone && <span>🕐 {org.timezone}</span>}
-                  </div>
-                  {orgAdmins[org.id] ? (
-                    <div
-                      style={{
-                        marginTop: "0.4rem",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                      }}
-                    >
-                      <span
-                        style={{
-                          background: "#ede9fe",
-                          color: "#5b21b6",
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          fontSize: "0.7rem",
-                          fontWeight: 700,
-                        }}
-                      >
-                        ADMIN
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "0.8rem",
-                          color: "#374151",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {orgAdmins[org.id].name}
-                      </span>
-                      <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>
-                        {orgAdmins[org.id].email}
-                      </span>
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: "0.4rem" }}>
-                      <span
-                        style={{
-                          background: "#fef3c7",
-                          color: "#92400e",
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          fontSize: "0.7rem",
-                          fontWeight: 700,
-                        }}
-                      >
-                        Sin admin asignado
-                      </span>
-                    </div>
-                  )}
                 </div>
+
+                {/* Toggle SMS */}
                 <div
                   style={{
                     display: "flex",
-                    gap: "0.5rem",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    flexWrap: "wrap",
                   }}
                 >
-                  <div
-                    style={{
-                      background: "#f0f9ff",
-                      border: "1px solid #bae6fd",
-                      borderRadius: 8,
-                      padding: "0.4rem 0.6rem",
-                      fontSize: "0.75rem",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, color: "#0369a1" }}>
-                      {org.limits?.maxDoctors ?? 5}
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#1e293b",
+                      }}
+                    >
+                      SMS
                     </div>
-                    <div style={{ color: "#6b7280" }}>Dr.</div>
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                      Notificaciones por mensaje de texto (confirmación de
+                      citas)
+                    </div>
                   </div>
                   <div
                     style={{
-                      background: "#f0fdf4",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: 8,
-                      padding: "0.4rem 0.6rem",
-                      fontSize: "0.75rem",
-                      textAlign: "center",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
                     }}
                   >
-                    <div style={{ fontWeight: 700, color: "#15803d" }}>
-                      {org.limits?.maxAssistants ?? 2}
-                    </div>
-                    <div style={{ color: "#6b7280" }}>Asist.</div>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        color: platformSettings.sendSMS ? "#059669" : "#dc2626",
+                      }}
+                    >
+                      {platformSettings.sendSMS ? "Activo" : "Inactivo"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPlatformSettings({
+                          ...platformSettings,
+                          sendSMS: !platformSettings.sendSMS,
+                        })
+                      }
+                      style={{
+                        width: 44,
+                        height: 24,
+                        borderRadius: 12,
+                        border: "none",
+                        background: platformSettings.sendSMS
+                          ? "#6366f1"
+                          : "#d1d5db",
+                        cursor: "pointer",
+                        position: "relative",
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 3,
+                          left: platformSettings.sendSMS ? 23 : 3,
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 0.2s",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }}
+                      />
+                    </button>
                   </div>
-                  <div
-                    style={{
-                      background: "#fefce8",
-                      border: "1px solid #fde68a",
-                      borderRadius: 8,
-                      padding: "0.4rem 0.6rem",
-                      fontSize: "0.75rem",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, color: "#a16207" }}>
-                      {org.limits?.maxPatients ?? 20}
-                    </div>
-                    <div style={{ color: "#6b7280" }}>Pac.</div>
-                  </div>
-                  <button onClick={() => openEdit(org)} style={btnEdit}>
-                    ✏️ Editar
-                  </button>
-                  <button onClick={() => handleDelete(org)} style={btnDanger}>
-                    🗑️ Eliminar
-                  </button>
                 </div>
               </div>
-              <div
+
+              <button
+                type="button"
+                onClick={savePlatformSettings}
+                disabled={settingsSaving}
                 style={{
-                  marginTop: "0.5rem",
-                  fontSize: "0.7rem",
-                  color: "#9ca3af",
-                  fontFamily: "monospace",
+                  background: "#6366f1",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "0.625rem 1.5rem",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  cursor: settingsSaving ? "not-allowed" : "pointer",
+                  opacity: settingsSaving ? 0.7 : 1,
                 }}
               >
-                ID: {org.id} · Creada:{" "}
-                {new Date(org.createdAt).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
+                {settingsSaving ? "Guardando..." : "Guardar configuración"}
+              </button>
+            </>
+          ) : (
+            <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
+              No se pudo cargar la configuración.
+            </p>
+          )}
         </div>
       )}
     </div>
