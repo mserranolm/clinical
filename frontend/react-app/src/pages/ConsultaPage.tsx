@@ -622,10 +622,12 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
             )}
             <button
               className="btn-patient-history"
-              onClick={() => navigate(`/dashboard/pacientes/${patientId}`)}
+              onClick={() =>
+                navigate(`/dashboard/pacientes/${patientId}?tab=historial`)
+              }
             >
               <FileText size={15} />
-              Ver ficha completa
+              Historial completo
             </button>
           </div>
         </div>
@@ -672,7 +674,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
             <span className="consulta-hint" style={{ margin: 0 }}>
               {isClosed
                 ? "Solo lectura — consulta finalizada"
-                : "Antecedentes permanentes del paciente"}
+                : "Antecedentes permanentes / familiares"}
             </span>
           </div>
 

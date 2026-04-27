@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
@@ -79,11 +79,22 @@ function formatDateTime(iso: string) {
 export function PatientDetailPage({ token }: { token: string }) {
   const navigate = useNavigate();
   const { patientId = "" } = useParams();
+  const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "general" | "historial" | "odontograma" | "citas"
-  >("general");
+  >(() => {
+    const t = searchParams.get("tab");
+    if (
+      t === "historial" ||
+      t === "odontograma" ||
+      t === "citas" ||
+      t === "general"
+    )
+      return t;
+    return "general";
+  });
   const [search, setSearch] = useState("");
   const [patient, setPatient] = useState<PatientDetailData | null>(null);
   const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
