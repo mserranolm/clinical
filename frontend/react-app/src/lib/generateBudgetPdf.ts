@@ -9,177 +9,315 @@ export interface PdfBudgetData {
   doctorName: string;
   doctorPhone: string;
   doctorEmail: string;
+  // Opcionales — identidad visual de la clínica
+  logoBase64?: string;
+  logoMimeType?: string; // "PNG" | "JPEG"
+  signatureBase64?: string;
+  signatureMimeType?: string; // "PNG" | "JPEG"
 }
 
 // -- helpers --
 
-function fmtCedula(doc: string): string {
-  if (!doc) return "—";
-  const digits = doc.replace(/\D/g, "");
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-}
-
 function fmtTarifa(amount: number, currency: string): string {
   const symbol = currency === "VES" ? "Bs." : "$";
-  return `${symbol}${amount.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${symbol}${amount.toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
 }
 
 // -- colors --
-const BEIGE = "#f5ece4";
-const DARK_BROWN = "#3d2c1e";
-const DOCTOR_NAME = "#2d2018";
-const MUTED_TEXT = "#5a4a3a";
-const LABEL_SIENNA = "#a0522d";
-const TABLE_HEADER_BG = "#f0ebe5";
+const HEADER_BG = "#e8edf2";
+const DARK = "#1e293b";
+const MUTED = "#64748b";
+const TABLE_HEAD = "#1e293b";
+const ZEBRA_ODD = "#f8fafc";
+const TABLE_FOOT = "#1e293b";
 
 export function generateBudgetPdf(data: PdfBudgetData): void {
-  const { budget, patientName, patientDocumentId, doctorName, doctorPhone, doctorEmail } = data;
+  const {
+    budget,
+    patientName,
+    doctorName,
+    doctorPhone,
+    doctorEmail,
+    logoBase64,
+    logoMimeType,
+    signatureBase64,
+    signatureMimeType,
+  } = data;
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 18;
   const contentWidth = pageWidth - margin * 2;
 
   // ═══════════════════════════════════════════
-  // 1. HEADER — beige rectangle
+  // 1. HEADER — fondo gris azulado suave
   // ═══════════════════════════════════════════
-  const headerH = 38;
-  doc.setFillColor(BEIGE);
+  const headerH = 58;
+  const [hR, hG, hB] = hexToRgb(HEADER_BG);
+  doc.setFillColor(hR, hG, hB);
   doc.rect(0, 0, pageWidth, headerH, "F");
 
-  // Left: "Presupuesto"
-  doc.setFont("times", "normal");
-  doc.setFontSize(28);
-  doc.setTextColor(DARK_BROWN);
-  doc.text("Presupuesto", margin, 22);
+  // Logo (arriba izquierda) o nombre de la clínica
+  if (logoBase64 && logoMimeType) {
+    try {
+      // Ancho máx 40mm, alto máx 20mm — mantener proporciones
+      doc.addImage(
+        logoBase64,
+        logoMimeType as "PNG" | "JPEG",
+        margin,
+        8,
+        40,
+        20,
+      );
+    } catch {
+      // fallback: nombre de la clínica en texto
+      doc.setFont("times", "italic");
+      doc.setFontSize(18);
+      doc.setTextColor(hexToRgb(DARK)[0], hexToRgb(DARK)[1], hexToRgb(DARK)[2]);
+      doc.text(doctorName, margin, 22);
+    }
+  } else {
+    doc.setFont("times", "italic");
+    doc.setFontSize(18);
+    const [dR, dG, dB] = hexToRgb(DARK);
+    doc.setTextColor(dR, dG, dB);
+    doc.text(doctorName, margin, 22);
+  }
 
-  // Right: doctor info
+  // Título "Cotización" (arriba derecha)
   const rightX = pageWidth - margin;
+  doc.setFont("times", "normal");
+  doc.setFontSize(36);
+  const [dkR, dkG, dkB] = hexToRgb(DARK);
+  doc.setTextColor(dkR, dkG, dkB);
+  doc.text("Cotización", rightX, 22, { align: "right" });
+
+  // Fecha y folio debajo del título
+  const today = new Date().toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const shortId = budget.id ? budget.id.slice(-8).toUpperCase() : "—";
+  const [mR, mG, mB] = hexToRgb(MUTED);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(mR, mG, mB);
+  doc.text(`Fecha: ${today}`, rightX, 30, { align: "right" });
+  doc.text(`Folio: ${shortId}`, rightX, 36, { align: "right" });
+
+  // Nombre del paciente (debajo del logo)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(DOCTOR_NAME);
-  doc.text(doctorName, rightX, 13, { align: "right" });
+  doc.setFontSize(13);
+  doc.setTextColor(dkR, dkG, dkB);
+  doc.text(`Pac. ${patientName}`, margin, 40);
+
+  // Info del doctor (debajo del paciente, lado izquierdo)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(dkR, dkG, dkB);
+  doc.text(`DR. ${doctorName.toUpperCase()}`, margin, 50);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(MUTED_TEXT);
-  doc.text("ODONTOLOGÍA", rightX, 18, { align: "right" });
-
-  if (doctorPhone) {
-    doc.setFontSize(8);
-    doc.text(`\u260E  ${doctorPhone}`, rightX, 25, { align: "right" });
-  }
-  if (doctorEmail) {
-    doc.setFontSize(8);
-    doc.text(`\u2709  ${doctorEmail}`, rightX, 30, { align: "right" });
+  doc.setFontSize(8.5);
+  doc.setTextColor(mR, mG, mB);
+  const infoY = 56;
+  const contactParts: string[] = [];
+  if (doctorPhone) contactParts.push(doctorPhone);
+  if (doctorEmail) contactParts.push(doctorEmail);
+  if (contactParts.length > 0) {
+    doc.text(contactParts.join("  ·  "), margin, infoY);
   }
 
   // ═══════════════════════════════════════════
-  // 2. PATIENT SECTION
+  // 2. TABLA DE ITEMS
   // ═══════════════════════════════════════════
-  let y = headerH + 14;
+  const tableStartY = headerH + 10;
 
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(10);
-  doc.setTextColor(LABEL_SIENNA);
-  doc.text("Paciente:", margin, y);
-  y += 4;
+  const rows = (budget.items || []).map((it, i) => [
+    it.description,
+    String(i + 1).padStart(2, "0"),
+    fmtTarifa(it.unitPrice, budget.currency),
+    fmtTarifa(it.total, budget.currency),
+  ]);
 
-  // Mini patient table
-  autoTable(doc, {
-    startY: y,
-    margin: { left: margin, right: margin },
-    theme: "plain",
-    styles: { fontSize: 9, cellPadding: { top: 2, bottom: 2, left: 4, right: 4 } },
-    columnStyles: {
-      0: { fontStyle: "bold", textColor: DARK_BROWN, cellWidth: 50 },
-      1: { textColor: "#333333" },
-    },
-    body: [
-      ["Nombre y Apellido", patientName],
-      ["Cédula", fmtCedula(patientDocumentId)],
-    ],
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  y = (doc as any).lastAutoTable.finalY + 10;
-
-  // ═══════════════════════════════════════════
-  // 3. ITEMS TABLE
-  // ═══════════════════════════════════════════
-  const rows = (budget.items || []).map(it => {
-    const desc = it.quantity > 1 ? `(${it.quantity}) ${it.description}` : it.description;
-    return [desc, fmtTarifa(it.total, budget.currency)];
-  });
+  const [thR, thG, thB] = hexToRgb(TABLE_HEAD);
+  const [tfR, tfG, tfB] = hexToRgb(TABLE_FOOT);
+  const [zoR, zoG, zoB] = hexToRgb(ZEBRA_ODD);
 
   autoTable(doc, {
-    startY: y,
+    startY: tableStartY,
     margin: { left: margin, right: margin },
-    head: [["Descripción", "Tarifa"]],
+    head: [["Descripción", "CANTIDAD", "PRECIO UNIT.", "TOTAL"]],
     body: rows,
-    foot: [["TOTAL", fmtTarifa(budget.totalAmount, budget.currency)]],
+    foot: [
+      [
+        {
+          content: `TOTAL A PAGAR: ${fmtTarifa(budget.totalAmount, budget.currency)}`,
+          colSpan: 4,
+          styles: { halign: "right" },
+        },
+      ],
+    ],
     theme: "grid",
     headStyles: {
-      fillColor: TABLE_HEADER_BG,
-      textColor: DARK_BROWN,
+      fillColor: [thR, thG, thB],
+      textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 10,
-      lineWidth: 0.1,
-      lineColor: "#d6cfc7",
+      fontSize: 9,
+      lineWidth: 0,
     },
     bodyStyles: {
       fontSize: 9.5,
-      textColor: "#333333",
+      textColor: hexToRgb("#334155"),
       lineWidth: 0.1,
-      lineColor: "#e8e2da",
+      lineColor: hexToRgb("#e2e8f0"),
     },
     footStyles: {
-      fillColor: BEIGE,
-      textColor: DOCTOR_NAME,
+      fillColor: [tfR, tfG, tfB],
+      textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 10.5,
-      lineWidth: 0.1,
-      lineColor: "#d6cfc7",
+      fontSize: 10,
+      lineWidth: 0,
+    },
+    alternateRowStyles: {
+      fillColor: [zoR, zoG, zoB],
     },
     columnStyles: {
-      0: { cellWidth: contentWidth * 0.65 },
-      1: { halign: "right" },
+      0: { cellWidth: contentWidth * 0.5 },
+      1: { halign: "center", cellWidth: contentWidth * 0.15 },
+      2: { halign: "right", cellWidth: contentWidth * 0.17 },
+      3: { halign: "right", cellWidth: contentWidth * 0.18 },
     },
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  y = (doc as any).lastAutoTable.finalY + 10;
+  let y = (doc as any).lastAutoTable.finalY + 12;
 
   // ═══════════════════════════════════════════
-  // 4. FOOTER — notes, validity, date
+  // 3. FOOTER — nota legal + firma
   // ═══════════════════════════════════════════
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(MUTED_TEXT);
+  const halfWidth = contentWidth / 2;
+  const signatureX = margin + halfWidth + 4;
 
+  // Notas personalizadas (si existen)
   if (budget.notes) {
     doc.setFont("helvetica", "italic");
-    doc.text("Notas:", margin, y);
-    doc.setFont("helvetica", "normal");
-    const noteLines = doc.splitTextToSize(budget.notes, contentWidth);
-    doc.text(noteLines, margin, y + 5);
-    y += 5 + noteLines.length * 4;
+    doc.setFontSize(8.5);
+    doc.setTextColor(mR, mG, mB);
+    const noteLines = doc.splitTextToSize(budget.notes, halfWidth - 4);
+    doc.text(noteLines, margin, y);
+    y += noteLines.length * 4 + 4;
   }
 
-  if (budget.validUntil) {
-    const validDate = new Date(budget.validUntil).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
-    doc.text(`Válido hasta: ${validDate}`, margin, y);
-    y += 6;
-  }
+  // Nota legal (lado izquierdo)
+  const legalY = y;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(dkR, dkG, dkB);
+  doc.text("NOTA", margin, legalY);
 
-  const today = new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.setTextColor("#999999");
-  doc.text(`Generado el ${today}`, margin, y + 4);
+  doc.setTextColor(mR, mG, mB);
+  const legal1 =
+    "Algunos tratamientos pudieran estar sujetos a cambios al momento de la apertura de la unidad dentaria.";
+  const legal2 =
+    "Este documento tiene un tiempo de 15 (quince) días de validez.";
+  const l1Lines = doc.splitTextToSize(legal1, halfWidth - 4);
+  const l2Lines = doc.splitTextToSize(legal2, halfWidth - 4);
+  doc.text(l1Lines, margin, legalY + 5);
+  doc.text(l2Lines, margin, legalY + 5 + l1Lines.length * 3.8);
+
+  // Bloque de firma (lado derecho)
+  const signCenterX = signatureX + halfWidth / 2;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(mR, mG, mB);
+  doc.text("APROBADO POR", signCenterX, legalY, { align: "center" });
+
+  if (signatureBase64 && signatureMimeType) {
+    try {
+      // Imagen de firma: 40mm de ancho, centrada, con margen superior
+      const imgW = 40;
+      const imgH = 18;
+      const imgX = signCenterX - imgW / 2;
+      doc.addImage(
+        signatureBase64,
+        signatureMimeType as "PNG" | "JPEG",
+        imgX,
+        legalY + 4,
+        imgW,
+        imgH,
+      );
+      // Línea debajo de la imagen
+      const lineY = legalY + 4 + imgH + 2;
+      doc.setDrawColor(mR, mG, mB);
+      doc.setLineWidth(0.3);
+      doc.line(signatureX, lineY, signatureX + halfWidth - 4, lineY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(dkR, dkG, dkB);
+      doc.text(doctorName, signCenterX, lineY + 5, { align: "center" });
+    } catch {
+      // fallback sin imagen
+      doc.text("______________________", signCenterX, legalY + 20, {
+        align: "center",
+      });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(dkR, dkG, dkB);
+      doc.text(doctorName, signCenterX, legalY + 26, { align: "center" });
+    }
+  } else {
+    doc.setTextColor(mR, mG, mB);
+    doc.text("______________________", signCenterX, legalY + 20, {
+      align: "center",
+    });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(dkR, dkG, dkB);
+    doc.text(doctorName, signCenterX, legalY + 26, { align: "center" });
+  }
+
+  // Línea separadora inferior
+  const footerLineY = pageHeight - 12;
+  doc.setDrawColor(
+    hexToRgb("#e2e8f0")[0],
+    hexToRgb("#e2e8f0")[1],
+    hexToRgb("#e2e8f0")[2],
+  );
+  doc.setLineWidth(0.3);
+  doc.line(margin, footerLineY, pageWidth - margin, footerLineY);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(mR, mG, mB);
+  doc.text("DOCCO — Sistema de gestión clínica", margin, footerLineY + 5);
+  doc.text(`Generado el ${today}`, pageWidth - margin, footerLineY + 5, {
+    align: "right",
+  });
 
   // ═══════════════════════════════════════════
-  // 5. SAVE
+  // 4. GUARDAR
   // ═══════════════════════════════════════════
-  const slug = budget.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const slug = budget.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
   const dateStr = new Date().toISOString().slice(0, 10);
   doc.save(`presupuesto-${slug}-${dateStr}.pdf`);
 }

@@ -196,9 +196,13 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
   const [platformSettings, setPlatformSettings] = useState<{
     sendSMS: boolean;
     sendEmail: boolean;
+    logoUrl?: string;
+    signatureUrl?: string;
   } | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
 
   const token = session.token;
 
@@ -392,6 +396,37 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
       },
       error: "Error al eliminar",
     });
+  }
+
+  async function uploadOrgAsset(kind: "logo" | "signature", file: File) {
+    const setter = kind === "logo" ? setUploadingLogo : setUploadingSignature;
+    setter(true);
+    try {
+      const { uploadUrl, imageUrl } = await clinicalApi.getOrgUploadUrl(
+        kind,
+        file.name,
+        token,
+      );
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      const fieldKey = kind === "logo" ? "logoUrl" : "signatureUrl";
+      const updated = {
+        ...(platformSettings ?? { sendEmail: true, sendSMS: true }),
+        [fieldKey]: imageUrl,
+      };
+      const saved = await clinicalApi.updatePlatformSettings(updated, token);
+      setPlatformSettings(saved);
+      notify.success(
+        kind === "logo" ? "Logo actualizado" : "Firma actualizada",
+      );
+    } catch {
+      notify.error("Error al subir el archivo");
+    } finally {
+      setter(false);
+    }
   }
 
   const btnPrimary: React.CSSProperties = {
@@ -1522,6 +1557,155 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                         }}
                       />
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Identidad Visual */}
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: "1.5rem",
+                  marginBottom: "1.5rem",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                }}
+              >
+                <h3
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.875rem",
+                    color: "#374151",
+                    marginBottom: "1rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Identidad Visual (PDF de Presupuesto)
+                </h3>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "1.5rem",
+                  }}
+                >
+                  {/* Logo */}
+                  <div>
+                    <p
+                      style={{
+                        fontSize: "0.8125rem",
+                        fontWeight: 600,
+                        color: "#374151",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Logo de la clínica
+                    </p>
+                    {platformSettings?.logoUrl && (
+                      <img
+                        src={platformSettings.logoUrl}
+                        alt="Logo"
+                        style={{
+                          maxHeight: 60,
+                          maxWidth: "100%",
+                          objectFit: "contain",
+                          marginBottom: 8,
+                          borderRadius: 6,
+                          border: "1px solid #e5e7eb",
+                          display: "block",
+                        }}
+                      />
+                    )}
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "7px 14px",
+                        background: uploadingLogo
+                          ? "#e5e7eb"
+                          : "linear-gradient(135deg, #0ea5e9, #0284c7)",
+                        color: uploadingLogo ? "#6b7280" : "white",
+                        borderRadius: 8,
+                        fontSize: "0.8125rem",
+                        fontWeight: 500,
+                        cursor: uploadingLogo ? "default" : "pointer",
+                      }}
+                    >
+                      {uploadingLogo ? "Subiendo..." : "Subir logo"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                        style={{ display: "none" }}
+                        disabled={uploadingLogo}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadOrgAsset("logo", file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Firma */}
+                  <div>
+                    <p
+                      style={{
+                        fontSize: "0.8125rem",
+                        fontWeight: 600,
+                        color: "#374151",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Firma del doctor
+                    </p>
+                    {platformSettings?.signatureUrl && (
+                      <img
+                        src={platformSettings.signatureUrl}
+                        alt="Firma"
+                        style={{
+                          maxHeight: 60,
+                          maxWidth: "100%",
+                          objectFit: "contain",
+                          marginBottom: 8,
+                          borderRadius: 6,
+                          border: "1px solid #e5e7eb",
+                          display: "block",
+                        }}
+                      />
+                    )}
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "7px 14px",
+                        background: uploadingSignature
+                          ? "#e5e7eb"
+                          : "linear-gradient(135deg, #6366f1, #4f46e5)",
+                        color: uploadingSignature ? "#6b7280" : "white",
+                        borderRadius: 8,
+                        fontSize: "0.8125rem",
+                        fontWeight: 500,
+                        cursor: uploadingSignature ? "default" : "pointer",
+                      }}
+                    >
+                      {uploadingSignature ? "Subiendo..." : "Subir firma"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        disabled={uploadingSignature}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadOrgAsset("signature", file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                   </div>
                 </div>
               </div>

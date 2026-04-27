@@ -237,6 +237,39 @@ export function PresupuestoPage({
     setPdfLoading(b.id);
     try {
       const profile = await clinicalApi.getUserProfile(token);
+
+      // Cargar logo y firma de la organización
+      let logoBase64: string | undefined;
+      let logoMimeType: string | undefined;
+      let signatureBase64: string | undefined;
+      let signatureMimeType: string | undefined;
+
+      try {
+        const settings = await clinicalApi.getPlatformSettings(token);
+        if (settings?.logoUrl) {
+          const r = await fetch(settings.logoUrl);
+          const blob = await r.blob();
+          logoMimeType = blob.type.includes("png") ? "PNG" : "JPEG";
+          logoBase64 = await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onload = () => res((reader.result as string).split(",")[1]);
+            reader.readAsDataURL(blob);
+          });
+        }
+        if (settings?.signatureUrl) {
+          const r = await fetch(settings.signatureUrl);
+          const blob = await r.blob();
+          signatureMimeType = blob.type.includes("png") ? "PNG" : "JPEG";
+          signatureBase64 = await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onload = () => res((reader.result as string).split(",")[1]);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch {
+        // Si falla la carga de assets, el PDF se genera sin logo/firma
+      }
+
       generateBudgetPdf({
         budget: b,
         patientName,
@@ -244,6 +277,10 @@ export function PresupuestoPage({
         doctorName: session.name || "",
         doctorPhone: (profile as any).phone || "",
         doctorEmail: profile.email || "",
+        logoBase64,
+        logoMimeType,
+        signatureBase64,
+        signatureMimeType,
       });
     } catch (err) {
       notify.error(
