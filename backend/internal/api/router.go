@@ -248,6 +248,12 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.updatePlatformSettings(actx, req)
 			}
+		case method == "GET" && path == "/platform/uploads/presigned":
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.getOrgUploadURL(actx, req)
+			}
 		case method == "GET" && path == "/org/stats":
 			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
 				resp, err = deny, nil

@@ -246,6 +246,8 @@ type UpdateOrganizationInput struct {
 	MaxAssistants int    `json:"maxAssistants"`
 	MaxPatients   int    `json:"maxPatients"`
 	Timezone      string `json:"timezone"`
+	LogoURL       string `json:"logoUrl,omitempty"`
+	SignatureURL   string `json:"signatureUrl,omitempty"`
 }
 
 type OrgLimitsDTO struct {
@@ -266,6 +268,8 @@ type OrganizationDTO struct {
 	PaymentStatus string       `json:"paymentStatus"`
 	Limits        OrgLimitsDTO `json:"limits"`
 	Timezone      string       `json:"timezone,omitempty"`
+	LogoURL       string       `json:"logoUrl,omitempty"`
+	SignatureURL   string       `json:"signatureUrl,omitempty"`
 	CreatedAt     time.Time    `json:"createdAt"`
 	UpdatedAt     *time.Time   `json:"updatedAt,omitempty"`
 }
@@ -362,6 +366,8 @@ func orgToDTO(org store.Organization) OrganizationDTO {
 		PaymentStatus: org.PaymentStatus,
 		Limits:        OrgLimitsDTO{MaxDoctors: org.Limits.MaxDoctors, MaxAssistants: org.Limits.MaxAssistants, MaxPatients: org.Limits.MaxPatients},
 		Timezone:      org.Timezone,
+		LogoURL:       org.LogoURL,
+		SignatureURL:   org.SignatureURL,
 		CreatedAt:     org.CreatedAt,
 		UpdatedAt:     org.UpdatedAt,
 	}
@@ -454,6 +460,12 @@ func (s *AuthService) UpdateOrganization(ctx context.Context, orgID string, in U
 	}
 	if in.MaxPatients > 0 {
 		org.Limits.MaxPatients = in.MaxPatients
+	}
+	if in.LogoURL != "" {
+		org.LogoURL = in.LogoURL
+	}
+	if in.SignatureURL != "" {
+		org.SignatureURL = in.SignatureURL
 	}
 	updated, err := s.repo.UpdateOrganization(ctx, org)
 	if err != nil {

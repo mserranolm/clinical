@@ -107,6 +107,8 @@ type Organization struct {
 	PaymentStatus string     `json:"paymentStatus"`
 	Limits        OrgLimits  `json:"limits"`
 	Timezone      string     `json:"timezone,omitempty"`
+	LogoURL       string     `json:"logoUrl,omitempty"`
+	SignatureURL   string     `json:"signatureUrl,omitempty"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	UpdatedAt     *time.Time `json:"updatedAt,omitempty"`
 }
