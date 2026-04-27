@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
@@ -1380,15 +1381,6 @@ export function PatientsPage({
                     placeholder="414 000 0000"
                   />
                 </div>
-                <div className="input-group" style={{ margin: 0 }}>
-                  <label>Teléfono fijo / habitación</label>
-                  <PhoneInput
-                    className="elite-input"
-                    value={homePhone}
-                    onChange={setHomePhone}
-                    placeholder="212 000 0000"
-                  />
-                </div>
                 <div
                   className="input-group"
                   style={{ margin: 0, gridColumn: "1 / -1" }}
@@ -1411,23 +1403,48 @@ export function PatientsPage({
                     placeholder="Seguros Caracas, PDVSA..."
                   />
                 </div>
-                <div className="input-group" style={{ margin: 0 }}>
-                  <label>Contacto de emergencia</label>
-                  <input
-                    className="elite-input"
-                    value={emergencyContact}
-                    onChange={(e) => setEmergencyContact(e.target.value)}
-                    placeholder="Nombre del contacto"
-                  />
-                </div>
-                <div className="input-group" style={{ margin: 0 }}>
-                  <label>Teléfono de emergencia</label>
-                  <PhoneInput
-                    className="elite-input"
-                    value={emergencyPhone}
-                    onChange={setEmergencyPhone}
-                    placeholder="414 111 2222"
-                  />
+                <div
+                  className="input-group"
+                  style={{ margin: 0, gridColumn: "1 / -1" }}
+                >
+                  <details className="optional-fields-section">
+                    <summary className="optional-fields-toggle">
+                      <span>Más datos opcionales</span>
+                      <ChevronDown
+                        size={16}
+                        className="optional-fields-chevron"
+                      />
+                    </summary>
+                    <div className="optional-fields-content">
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label>Teléfono fijo / habitación</label>
+                        <PhoneInput
+                          className="elite-input"
+                          value={homePhone}
+                          onChange={setHomePhone}
+                          placeholder="212 000 0000"
+                        />
+                      </div>
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label>Contacto de emergencia</label>
+                        <input
+                          className="elite-input"
+                          value={emergencyContact}
+                          onChange={(e) => setEmergencyContact(e.target.value)}
+                          placeholder="Nombre del contacto"
+                        />
+                      </div>
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label>Teléfono de emergencia</label>
+                        <PhoneInput
+                          className="elite-input"
+                          value={emergencyPhone}
+                          onChange={setEmergencyPhone}
+                          placeholder="414 111 2222"
+                        />
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
