@@ -5,7 +5,10 @@ interface MedicalHistoryFormProps {
   readOnly?: boolean;
 }
 
-export function MedicalHistoryForm({ patientData, readOnly = false }: MedicalHistoryFormProps) {
+export function MedicalHistoryForm({
+  patientData,
+  readOnly = false,
+}: MedicalHistoryFormProps) {
   const historyMap = useMemo(() => {
     const map: Record<string, boolean> = {};
     if (Array.isArray(patientData?.medicalBackgrounds)) {
@@ -25,6 +28,13 @@ export function MedicalHistoryForm({ patientData, readOnly = false }: MedicalHis
     { id: "diabetes", label: "Diabetes" },
     { id: "hypertension", label: "Hipertensión" },
     { id: "cholesterol", label: "Colesterol" },
+    { id: "cancer", label: "Cáncer" },
+    { id: "family_anemia", label: "Anemia (familiar)" },
+    { id: "family_hepatitis", label: "Hepatitis (familiar)" },
+    { id: "family_diabetes", label: "Diabetes (familiar)" },
+    { id: "family_hypertension", label: "Hipertensión (familiar)" },
+    { id: "family_cholesterol", label: "Colesterol (familiar)" },
+    { id: "family_cancer", label: "Cáncer (familiar)" },
   ];
 
   return (
@@ -32,11 +42,13 @@ export function MedicalHistoryForm({ patientData, readOnly = false }: MedicalHis
       <header className="form-section-header">
         <h4>Histórico Médico</h4>
       </header>
-      
+
       <div className="history-checklist">
         {pathologies.map((path) => (
           <div key={path.id} className="check-item">
-            <div className={`custom-checkbox ${historyMap[path.id] ? 'checked' : ''} ${readOnly ? 'readonly' : ''}`}>
+            <div
+              className={`custom-checkbox ${historyMap[path.id] ? "checked" : ""} ${readOnly ? "readonly" : ""}`}
+            >
               {historyMap[path.id] && "✓"}
             </div>
             <label>{path.label}</label>
@@ -46,8 +58,10 @@ export function MedicalHistoryForm({ patientData, readOnly = false }: MedicalHis
 
       <div className="other-pathologies">
         <label>Otra patología / Observaciones</label>
-        <div className={`dotted-line-text ${readOnly ? 'readonly' : ''}`}>
-          {patientData?.medicalBackgrounds?.find((bg: any) => bg.type === "notes")?.description || "Ninguna observada."}
+        <div className={`dotted-line-text ${readOnly ? "readonly" : ""}`}>
+          {patientData?.medicalBackgrounds?.find(
+            (bg: any) => bg.type === "notes",
+          )?.description || "Ninguna observada."}
         </div>
       </div>
     </div>

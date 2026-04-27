@@ -3558,6 +3558,66 @@ button.ghost:hover {
   box-shadow: 0 4px 14px rgba(59, 130, 246, 0.15);
 }
 
+/* Botón Ver ficha completa en header de consulta */
+.btn-patient-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+  white-space: nowrap;
+}
+.btn-patient-history:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.45);
+}
+
+/* Grid 2 columnas de antecedentes patológicos / familiares */
+.antecedentes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+.antecedentes-col-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.pathology-chip-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.pathology-detail-input {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  color: #334155;
+  background: #f8fafc;
+  width: 100%;
+  outline: none;
+}
+.pathology-detail-input:focus {
+  border-color: #6366f1;
+  background: white;
+}
+
 /* Observaciones textarea section */
 .historia-other {
   margin-top: 4px;
