@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"clinical-backend/internal/service"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -101,4 +104,67 @@ func isAllowedContentType(ct string) bool {
 		}
 	}
 	return false
+}
+
+// getOrgUploadURL genera una presigned PUT URL en S3 para subir logo o firma de la organización.
+// Query params: kind=logo|signature, filename=<nombre-del-archivo>
+// El orgID se obtiene del JWT (claims en el contexto).
+func (r *Router) getOrgUploadURL(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	auth, ok := ctx.Value(ctxAuthKey).(service.Authenticated)
+	if !ok || auth.User.OrgID == "" {
+		return response(401, map[string]string{"error": "unauthorized"})
+	}
+
+	kind := req.QueryStringParameters["kind"]
+	if kind != "logo" && kind != "signature" {
+		return response(400, map[string]string{"error": "kind must be logo or signature"})
+	}
+
+	filename := req.QueryStringParameters["filename"]
+	if filename == "" {
+		return response(400, map[string]string{"error": "filename required"})
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedExts := map[string]string{
+		".jpg":  "image/jpeg",
+		".jpeg": "image/jpeg",
+		".png":  "image/png",
+		".webp": "image/webp",
+		".svg":  "image/svg+xml",
+	}
+	contentType, ok := allowedExts[ext]
+	if !ok {
+		return response(400, map[string]string{"error": "file type not allowed"})
+	}
+
+	bucket := os.Getenv("IMAGES_BUCKET")
+	if bucket == "" {
+		return response(500, map[string]string{"error": "images bucket not configured"})
+	}
+
+	key := fmt.Sprintf("organizations/%s/%s-%d%s", auth.User.OrgID, kind, time.Now().UnixMilli(), ext)
+
+	client := getS3Client(ctx)
+	if client == nil {
+		return response(500, map[string]string{"error": "s3 client unavailable"})
+	}
+
+	presigner := s3.NewPresignClient(client)
+	presigned, err := presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String(contentType),
+	}, s3.WithPresignExpires(10*time.Minute))
+	if err != nil {
+		log.Printf("[images] presign org upload error: %v", err)
+		return response(500, map[string]string{"error": "could not generate upload URL"})
+	}
+
+	imageURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", bucket, key)
+	return response(200, map[string]string{
+		"uploadUrl": presigned.URL,
+		"key":       key,
+		"imageUrl":  imageURL,
+	})
 }

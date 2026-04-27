@@ -118,11 +118,15 @@ func (r *Router) sendMail(_ context.Context, from, to, subject, htmlBody, textBo
 
 // ── HTML Email Helpers ────────────────────────────────────────────────────────
 
-// buildHTMLEmail wraps bodyHTML in the CliniSense email layout.
-// orgName is shown in the footer; pass "" to use the default.
+// buildHTMLEmail wraps bodyHTML in the DOCCO email layout.
+// orgName is shown in the footer; pass "" to omit the org line.
 func buildHTMLEmail(subject, bodyHTML, orgName string) string {
-	if orgName == "" {
-		orgName = "CliniSense"
+	footerOrg := ""
+	if orgName != "" {
+		footerOrg = fmt.Sprintf(
+			`<p style="margin:4px 0 0;font-size:12px;color:#94a3b8;">En nombre de: %s</p>`,
+			html.EscapeString(orgName),
+		)
 	}
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="es">
@@ -131,48 +135,48 @@ func buildHTMLEmail(subject, bodyHTML, orgName string) string {
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>%s</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f8fafc;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
-  <table width="100%%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Inter','Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table width="100%%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;padding:32px 16px;">
     <tr><td align="center">
       <table width="100%%" cellpadding="0" cellspacing="0" border="0"
-             style="max-width:600px;background:#ffffff;border-radius:12px;
+             style="max-width:600px;background:#ffffff;border-radius:16px;
                     box-shadow:0 4px 24px rgba(0,0,0,0.07);overflow:hidden;">
 
         <!-- Header -->
         <tr>
-          <td style="background:#0ea5e9;padding:32px 40px;text-align:center;">
-            <div style="font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">
-              CliniSense
+          <td style="background:linear-gradient(135deg,#0ea5e9 0%%,#0284c7 100%%);padding:32px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                <circle cx="18" cy="18" r="18" fill="rgba(255,255,255,0.2)"/>
+                <path d="M12 10c0-2.2 1.8-4 4-4h4c2.2 0 4 1.8 4 4 0 1.5-.5 2.8-1.2 3.8C21.6 15.5 22 17.2 22 19c0 3.3-1.8 9-4 9s-4-5.7-4-9c0-1.8.4-3.5 1.2-5.2C14.5 12.8 12 11.5 12 10z" fill="white"/>
+              </svg>
+              <div>
+                <div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:2px;">DOCCO</div>
+                <div style="font-size:13px;color:rgba(255,255,255,0.85);">Sistema de Gestión Clínica</div>
+              </div>
             </div>
-            <div style="margin-top:6px;font-size:13px;color:rgba(255,255,255,0.85);">
-              Tu plataforma de gestión clínica
-            </div>
+          </td>
+        </tr>
+
+        <!-- Subject title -->
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <h1 style="margin:0;font-size:20px;font-weight:700;color:#0f172a;">%s</h1>
           </td>
         </tr>
 
         <!-- Body -->
         <tr>
-          <td style="padding:36px 40px 28px;">
+          <td style="padding:24px 32px 32px;">
             %s
-          </td>
-        </tr>
-
-        <!-- Divider -->
-        <tr>
-          <td style="padding:0 40px;">
-            <div style="border-top:1.5px solid #e0f2fe;"></div>
           </td>
         </tr>
 
         <!-- Footer -->
         <tr>
-          <td style="background:#f8fafc;padding:20px 40px;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#94a3b8;">
-              Este correo fue enviado por <strong style="color:#64748b;">%s</strong> a través de CliniSense.
-            </p>
-            <p style="margin:6px 0 0;font-size:11px;color:#cbd5e1;">
-              Si no esperabas este mensaje, puedes ignorarlo.
-            </p>
+          <td style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;border-radius:0 0 16px 16px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#94a3b8;">Enviado por DOCCO · Sistema de Gestión Clínica</p>
+            %s
           </td>
         </tr>
 
@@ -180,7 +184,7 @@ func buildHTMLEmail(subject, bodyHTML, orgName string) string {
     </td></tr>
   </table>
 </body>
-</html>`, html.EscapeString(subject), bodyHTML, html.EscapeString(orgName))
+</html>`, html.EscapeString(subject), html.EscapeString(subject), bodyHTML, footerOrg)
 }
 
 // htmlParagraph wraps text in a styled paragraph.
@@ -188,48 +192,62 @@ func htmlParagraph(text string) string {
 	return fmt.Sprintf(`<p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.6;">%s</p>`, text)
 }
 
-// htmlCTAButton renders a sky-500 call-to-action button centered.
+// htmlCTAButton renders a prominent gradient call-to-action button centered.
 func htmlCTAButton(label, url string) string {
 	return fmt.Sprintf(`
-<table width="100%%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
-  <tr>
-    <td align="center">
-      <a href="%s"
-         style="display:inline-block;background:#0ea5e9;color:#ffffff;font-size:15px;
-                font-weight:700;text-decoration:none;padding:14px 32px;
-                border-radius:8px;letter-spacing:0.2px;">
-        %s
-      </a>
-    </td>
-  </tr>
-</table>`, html.EscapeString(url), html.EscapeString(label))
+<div style="text-align:center;margin:24px 0;">
+  <a href="%s"
+     style="display:inline-block;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#ffffff;
+            font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;
+            border-radius:10px;letter-spacing:0.3px;
+            box-shadow:0 4px 14px rgba(14,165,233,0.4);">
+    %s
+  </a>
+</div>`, html.EscapeString(url), html.EscapeString(label))
 }
 
-// htmlInfoBox renders a highlighted info block (for credentials, dates, etc.).
+// htmlInfoBox renders a left-bordered info block (for credentials, dates, etc.).
+// Lines containing ":" are split into bold key + value.
 func htmlInfoBox(lines ...string) string {
 	var rows string
-	for _, l := range lines {
-		rows += fmt.Sprintf(`<div style="margin-bottom:6px;font-size:14px;color:#1e293b;">%s</div>`, l)
+	for i, l := range lines {
+		marginBottom := "6px"
+		if i == len(lines)-1 {
+			marginBottom = "0"
+		}
+		// If line contains ":" render the key portion in bold
+		if idx := strings.Index(l, ":"); idx != -1 {
+			key := l[:idx]
+			val := l[idx+1:]
+			rows += fmt.Sprintf(
+				`<p style="margin:0 0 %s;font-size:14px;color:#334155;"><span style="font-weight:600;color:#0f172a;">%s:</span>%s</p>`,
+				marginBottom, key, val,
+			)
+		} else {
+			rows += fmt.Sprintf(
+				`<p style="margin:0 0 %s;font-size:14px;color:#334155;">%s</p>`,
+				marginBottom, l,
+			)
+		}
 	}
 	return fmt.Sprintf(`
-<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;
-            padding:16px 20px;margin:20px 0;">
+<div style="border-left:4px solid #0ea5e9;background:#f0f9ff;border-radius:0 10px 10px 0;
+            padding:16px 20px;margin:16px 0;">
   %s
 </div>`, rows)
 }
 
-// htmlDivider returns a sky-100 horizontal rule.
+// htmlDivider returns a subtle horizontal rule.
 func htmlDivider() string {
-	return `<div style="border-top:1.5px solid #e0f2fe;margin:20px 0;"></div>`
+	return `<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />`
 }
 
-// htmlStatusBadge renders a colored pill for appointment status.
+// htmlStatusBadge renders a colored pill badge for appointment status.
 func htmlStatusBadge(label, bg, color string) string {
-	return fmt.Sprintf(`
-<div style="display:inline-block;background:%s;color:%s;padding:5px 16px;
-            border-radius:20px;font-size:13px;font-weight:700;margin-bottom:20px;">
-  Cita %s
-</div>`, bg, color, html.EscapeString(label))
+	return fmt.Sprintf(
+		`<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:%s;color:%s;font-size:12px;font-weight:600;letter-spacing:0.5px;">%s</span>`,
+		bg, color, html.EscapeString(label),
+	)
 }
 
 // ── normalizePhoneForSMS ──────────────────────────────────────────────────────

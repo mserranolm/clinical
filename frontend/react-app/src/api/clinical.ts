@@ -271,6 +271,16 @@ export const clinicalApi = {
       { method: "POST", token },
     ),
 
+  getOrgUploadUrl: (
+    kind: "logo" | "signature",
+    filename: string,
+    token?: string,
+  ) =>
+    request<{ uploadUrl: string; key: string; imageUrl: string }>(
+      `/platform/uploads/presigned?kind=${kind}&filename=${encodeURIComponent(filename)}`,
+      { method: "GET", token },
+    ),
+
   createConsent: (input: CreateConsentInput, token?: string) =>
     request<{ id: string; status: string; title: string; patientId: string }>(
       endpointCatalog.createConsent,
@@ -664,15 +674,30 @@ export const clinicalApi = {
     }),
 
   getPlatformSettings: (token: string) =>
-    request<{ sendSMS: boolean; sendEmail: boolean }>("/platform/settings", {
+    request<{
+      sendSMS: boolean;
+      sendEmail: boolean;
+      logoUrl?: string;
+      signatureUrl?: string;
+    }>("/platform/settings", {
       token,
     }),
 
   updatePlatformSettings: (
-    data: { sendSMS: boolean; sendEmail: boolean },
+    data: {
+      sendSMS: boolean;
+      sendEmail: boolean;
+      logoUrl?: string;
+      signatureUrl?: string;
+    },
     token: string,
   ) =>
-    request<{ sendSMS: boolean; sendEmail: boolean }>("/platform/settings", {
+    request<{
+      sendSMS: boolean;
+      sendEmail: boolean;
+      logoUrl?: string;
+      signatureUrl?: string;
+    }>("/platform/settings", {
       method: "PUT",
       body: data,
       token,

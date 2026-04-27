@@ -4,8 +4,8 @@ import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
 import {
-    type ToothState,
-    deserializeToothState,
+  type ToothState,
+  deserializeToothState,
 } from "../modules/treatment/components/odontogram-types";
 
 type PatientDetailData = {
@@ -54,13 +54,24 @@ const HISTORY_LABELS: Record<string, string> = {
   diabetes: "Diabetes",
   hypertension: "Hipertensión",
   cholesterol: "Colesterol",
+  cancer: "Cáncer",
+  family_anemia: "Anemia (familiar)",
+  family_hepatitis: "Hepatitis (familiar)",
+  family_diabetes: "Diabetes (familiar)",
+  family_hypertension: "Hipertensión (familiar)",
+  family_cholesterol: "Colesterol (familiar)",
+  family_cancer: "Cáncer (familiar)",
   notes: "Notas médicas",
 };
 
 function formatDateTime(iso: string) {
   const dt = new Date(iso);
   return {
-    date: dt.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    date: dt.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
     time: dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
   };
 }
@@ -70,11 +81,15 @@ export function PatientDetailPage({ token }: { token: string }) {
   const { patientId = "" } = useParams();
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"general" | "historial" | "odontograma" | "citas">("general");
+  const [activeTab, setActiveTab] = useState<
+    "general" | "historial" | "odontograma" | "citas"
+  >("general");
   const [search, setSearch] = useState("");
   const [patient, setPatient] = useState<PatientDetailData | null>(null);
   const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
-  const [toothStates, setToothStates] = useState<Record<number, ToothState>>({});
+  const [toothStates, setToothStates] = useState<Record<number, ToothState>>(
+    {},
+  );
 
   useEffect(() => {
     if (!patientId) {
@@ -85,31 +100,44 @@ export function PatientDetailPage({ token }: { token: string }) {
     async function loadData() {
       setLoading(true);
       try {
-        const [patientRes, appointmentsRes, odontogramRes] = await Promise.allSettled([
-          clinicalApi.getPatient(patientId, token),
-          clinicalApi.listAppointmentsByPatient(patientId, token),
-          clinicalApi.getOdontogramByPatient(patientId, token),
-        ]);
+        const [patientRes, appointmentsRes, odontogramRes] =
+          await Promise.allSettled([
+            clinicalApi.getPatient(patientId, token),
+            clinicalApi.listAppointmentsByPatient(patientId, token),
+            clinicalApi.getOdontogramByPatient(patientId, token),
+          ]);
 
         if (patientRes.status === "fulfilled") {
           setPatient(patientRes.value as PatientDetailData);
         }
 
         if (appointmentsRes.status === "fulfilled") {
-          const items = (appointmentsRes.value.items ?? []) as AppointmentDetail[];
-          items.sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
+          const items = (appointmentsRes.value.items ??
+            []) as AppointmentDetail[];
+          items.sort(
+            (a, b) =>
+              new Date(b.startAt).getTime() - new Date(a.startAt).getTime(),
+          );
           setAppointments(items);
         }
 
-        if (odontogramRes.status === "fulfilled" && Array.isArray(odontogramRes.value.teeth)) {
+        if (
+          odontogramRes.status === "fulfilled" &&
+          Array.isArray(odontogramRes.value.teeth)
+        ) {
           const nextStates: Record<number, ToothState> = {};
-          (odontogramRes.value.teeth as Array<{ toothNumber: number }>).forEach((tooth) => {
-            nextStates[tooth.toothNumber] = deserializeToothState(tooth);
-          });
+          (odontogramRes.value.teeth as Array<{ toothNumber: number }>).forEach(
+            (tooth) => {
+              nextStates[tooth.toothNumber] = deserializeToothState(tooth);
+            },
+          );
           setToothStates(nextStates);
         }
       } catch (error) {
-        notify.error("Error cargando detalle del paciente", error instanceof Error ? error.message : String(error));
+        notify.error(
+          "Error cargando detalle del paciente",
+          error instanceof Error ? error.message : String(error),
+        );
       } finally {
         setLoading(false);
       }
@@ -122,13 +150,17 @@ export function PatientDetailPage({ token }: { token: string }) {
     const q = search.trim().toLowerCase();
     if (!q) return appointments;
     return appointments.filter((appt) => {
-      const haystack = `${appt.treatmentPlan ?? ""} ${appt.evolutionNotes ?? ""} ${STATUS_LABEL[appt.status] ?? appt.status}`.toLowerCase();
+      const haystack =
+        `${appt.treatmentPlan ?? ""} ${appt.evolutionNotes ?? ""} ${STATUS_LABEL[appt.status] ?? appt.status}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [appointments, search]);
 
   const age = patient?.birthDate
-    ? Math.floor((Date.now() - new Date(patient.birthDate).getTime()) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor(
+        (Date.now() - new Date(patient.birthDate).getTime()) /
+          (365.25 * 24 * 3600 * 1000),
+      )
     : null;
 
   if (loading) {
@@ -144,7 +176,12 @@ export function PatientDetailPage({ token }: { token: string }) {
     return (
       <div className="consulta-loading">
         <p>No se encontró el paciente.</p>
-        <button className="action-btn" onClick={() => navigate("/dashboard/pacientes")}>Volver</button>
+        <button
+          className="action-btn"
+          onClick={() => navigate("/dashboard/pacientes")}
+        >
+          Volver
+        </button>
       </div>
     );
   }
@@ -153,7 +190,12 @@ export function PatientDetailPage({ token }: { token: string }) {
     <section className="page-section patient-detail-page">
       <div className="patient-detail-header card elite-card">
         <div className="patient-detail-headline">
-          <button className="consulta-back-btn" onClick={() => navigate("/dashboard/pacientes")}>← Volver a pacientes</button>
+          <button
+            className="consulta-back-btn"
+            onClick={() => navigate("/dashboard/pacientes")}
+          >
+            ← Volver a pacientes
+          </button>
           <h2>Paciente</h2>
         </div>
 
@@ -187,11 +229,43 @@ export function PatientDetailPage({ token }: { token: string }) {
 
       <article className="card elite-card patient-detail-content">
         <div className="patient-detail-tabs">
-          <button type="button" className={`patient-detail-tab-btn ${activeTab === "general" ? "active" : ""}`} onClick={() => setActiveTab("general")}>General</button>
-          <button type="button" className={`patient-detail-tab-btn ${activeTab === "historial" ? "active" : ""}`} onClick={() => setActiveTab("historial")}>Historia médica</button>
-          <button type="button" className={`patient-detail-tab-btn ${activeTab === "odontograma" ? "active" : ""}`} onClick={() => setActiveTab("odontograma")}>Odontograma</button>
-          <button type="button" className={`patient-detail-tab-btn ${activeTab === "citas" ? "active" : ""}`} onClick={() => setActiveTab("citas")}>Citas</button>
-          <button type="button" className="patient-detail-tab-btn" onClick={() => navigate(`/dashboard/pacientes/${patientId}/presupuesto`)}>Presupuestos</button>
+          <button
+            type="button"
+            className={`patient-detail-tab-btn ${activeTab === "general" ? "active" : ""}`}
+            onClick={() => setActiveTab("general")}
+          >
+            General
+          </button>
+          <button
+            type="button"
+            className={`patient-detail-tab-btn ${activeTab === "historial" ? "active" : ""}`}
+            onClick={() => setActiveTab("historial")}
+          >
+            Historia médica
+          </button>
+          <button
+            type="button"
+            className={`patient-detail-tab-btn ${activeTab === "odontograma" ? "active" : ""}`}
+            onClick={() => setActiveTab("odontograma")}
+          >
+            Odontograma
+          </button>
+          <button
+            type="button"
+            className={`patient-detail-tab-btn ${activeTab === "citas" ? "active" : ""}`}
+            onClick={() => setActiveTab("citas")}
+          >
+            Citas
+          </button>
+          <button
+            type="button"
+            className="patient-detail-tab-btn"
+            onClick={() =>
+              navigate(`/dashboard/pacientes/${patientId}/presupuesto`)
+            }
+          >
+            Presupuestos
+          </button>
         </div>
 
         {activeTab === "general" && (
@@ -203,11 +277,15 @@ export function PatientDetailPage({ token }: { token: string }) {
               </div>
               <div className="patient-summary-card">
                 <span>Citas finalizadas</span>
-                <strong>{appointments.filter((a) => a.status === "completed").length}</strong>
+                <strong>
+                  {appointments.filter((a) => a.status === "completed").length}
+                </strong>
               </div>
               <div className="patient-summary-card">
                 <span>Con odontograma</span>
-                <strong>{Object.keys(toothStates).length > 0 ? "Sí" : "No"}</strong>
+                <strong>
+                  {Object.keys(toothStates).length > 0 ? "Sí" : "No"}
+                </strong>
               </div>
             </div>
           </div>
@@ -217,11 +295,16 @@ export function PatientDetailPage({ token }: { token: string }) {
           <div className="patient-detail-panel">
             <h3>Historial médico</h3>
             {(patient.medicalBackgrounds ?? []).length === 0 ? (
-              <p className="text-muted-sm">Sin antecedentes médicos registrados.</p>
+              <p className="text-muted-sm">
+                Sin antecedentes médicos registrados.
+              </p>
             ) : (
               <div className="patient-history-list">
                 {(patient.medicalBackgrounds ?? []).map((item, idx) => (
-                  <div key={`${item.type}-${idx}`} className="patient-history-item">
+                  <div
+                    key={`${item.type}-${idx}`}
+                    className="patient-history-item"
+                  >
                     <span>{HISTORY_LABELS[item.type] ?? item.type}</span>
                     <p>{item.description || "Sí"}</p>
                   </div>
@@ -234,8 +317,14 @@ export function PatientDetailPage({ token }: { token: string }) {
         {activeTab === "odontograma" && (
           <div className="patient-detail-panel">
             <h3>Odontograma</h3>
-            <p className="consulta-hint">Vista de solo lectura del último estado registrado.</p>
-            <OdontogramChart toothStates={toothStates} readOnly patientAge={age} />
+            <p className="consulta-hint">
+              Vista de solo lectura del último estado registrado.
+            </p>
+            <OdontogramChart
+              toothStates={toothStates}
+              readOnly
+              patientAge={age}
+            />
           </div>
         )}
 
@@ -266,14 +355,26 @@ export function PatientDetailPage({ token }: { token: string }) {
                     const dt = formatDateTime(appt.startAt);
                     return (
                       <tr key={appt.id}>
-                        <td>{dt.date} · {dt.time}</td>
-                        <td>{appt.treatmentPlan || appt.evolutionNotes || "Sin detalle"}</td>
                         <td>
-                          <span className={`badge ${STATUS_CLASS[appt.status] ?? "status-unconfirmed"}`}>
+                          {dt.date} · {dt.time}
+                        </td>
+                        <td>
+                          {appt.treatmentPlan ||
+                            appt.evolutionNotes ||
+                            "Sin detalle"}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${STATUS_CLASS[appt.status] ?? "status-unconfirmed"}`}
+                          >
                             {STATUS_LABEL[appt.status] ?? appt.status}
                           </span>
                         </td>
-                        <td>{appt.paymentAmount != null ? `$${appt.paymentAmount.toFixed(2)}` : "—"}</td>
+                        <td>
+                          {appt.paymentAmount != null
+                            ? `$${appt.paymentAmount.toFixed(2)}`
+                            : "—"}
+                        </td>
                       </tr>
                     );
                   })}

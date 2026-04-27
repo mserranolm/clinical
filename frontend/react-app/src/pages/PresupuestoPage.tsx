@@ -3,7 +3,14 @@ import { useParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import type { AuthSession, Budget, BudgetItem } from "../types";
-import { Download, FileSpreadsheet, Plus, Printer, Trash2, X } from "lucide-react";
+import {
+  Download,
+  FileSpreadsheet,
+  Plus,
+  Printer,
+  Trash2,
+  X,
+} from "lucide-react";
 import { generateBudgetPdf } from "../lib/generateBudgetPdf";
 import { Modal } from "../components/Modal";
 
@@ -16,15 +23,19 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft:    { bg: "#f1f5f9", color: "#475569" },
-  sent:     { bg: "#dbeafe", color: "#1e40af" },
+  draft: { bg: "#f1f5f9", color: "#475569" },
+  sent: { bg: "#dbeafe", color: "#1e40af" },
   approved: { bg: "#d1fae5", color: "#065f46" },
-  partial:  { bg: "#fef3c7", color: "#92400e" },
-  paid:     { bg: "#bbf7d0", color: "#065f46" },
+  partial: { bg: "#fef3c7", color: "#92400e" },
+  paid: { bg: "#bbf7d0", color: "#065f46" },
 };
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function fmtMoney(amount: number, currency: string) {
@@ -32,24 +43,42 @@ function fmtMoney(amount: number, currency: string) {
 }
 
 function newItem(): BudgetItem {
-  return { id: "", description: "", tooth: "", quantity: 1, unitPrice: 0, total: 0, status: "pending" };
+  return {
+    id: "",
+    description: "",
+    tooth: "",
+    quantity: 1,
+    unitPrice: 0,
+    total: 0,
+    status: "pending",
+  };
 }
 
-function PriceInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function PriceInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
   const [raw, setRaw] = useState(value ? String(value) : "");
-  useEffect(() => { setRaw(value ? String(value) : ""); }, [value]);
+  useEffect(() => {
+    setRaw(value ? String(value) : "");
+  }, [value]);
   return (
     <input
       type="text"
       inputMode="decimal"
       value={raw}
-      onChange={e => {
+      onChange={(e) => {
         const v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
         setRaw(v);
         const n = parseFloat(v);
         onChange(isNaN(n) ? 0 : n);
       }}
-      onBlur={() => { setRaw(value ? String(value) : ""); }}
+      onBlur={() => {
+        setRaw(value ? String(value) : "");
+      }}
       placeholder="0.00"
       className="budget-item-input"
       style={{ textAlign: "right" }}
@@ -57,7 +86,13 @@ function PriceInput({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
-export function PresupuestoPage({ token, session }: { token: string; session: AuthSession }) {
+export function PresupuestoPage({
+  token,
+  session,
+}: {
+  token: string;
+  session: AuthSession;
+}) {
   const { patientId } = useParams<{ patientId: string }>();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,8 +111,9 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
 
   useEffect(() => {
     if (!patientId) return;
-    clinicalApi.getPatient(patientId, token)
-      .then(p => {
+    clinicalApi
+      .getPatient(patientId, token)
+      .then((p) => {
         setPatientName(`${(p as any).firstName} ${(p as any).lastName}`);
         setPatientDocId((p as any).documentId || "");
       })
@@ -88,8 +124,9 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
   function loadBudgets() {
     if (!patientId) return;
     setLoading(true);
-    clinicalApi.listPatientBudgets(patientId, token)
-      .then(res => setBudgets(res.items || []))
+    clinicalApi
+      .listPatientBudgets(patientId, token)
+      .then((res) => setBudgets(res.items || []))
       .catch(() => notify.error("Error al cargar presupuestos"))
       .finally(() => setLoading(false));
   }
@@ -117,15 +154,19 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
   }
 
   function addItem() {
-    setItems(prev => [...prev, newItem()]);
+    setItems((prev) => [...prev, newItem()]);
   }
 
   function removeItem(index: number) {
-    setItems(prev => prev.filter((_, i) => i !== index));
+    setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateItem(index: number, field: keyof BudgetItem, value: string | number) {
-    setItems(prev => {
+  function updateItem(
+    index: number,
+    field: keyof BudgetItem,
+    value: string | number,
+  ) {
+    setItems((prev) => {
       const next = prev.map((item, i) => {
         if (i !== index) return item;
         const updated = { ...item, [field]: value };
@@ -136,7 +177,10 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
     });
   }
 
-  const totalAmount = items.reduce((s, it) => s + (Number(it.quantity) * Number(it.unitPrice)), 0);
+  const totalAmount = items.reduce(
+    (s, it) => s + Number(it.quantity) * Number(it.unitPrice),
+    0,
+  );
 
   async function save() {
     if (!patientId || !title) {
@@ -146,10 +190,18 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
     setSaving(true);
     try {
       const data = {
-        title, currency, status, notes,
+        title,
+        currency,
+        status,
+        notes,
         doctorId: session.userId,
         validUntil: validUntil ? `${validUntil}T00:00:00Z` : undefined,
-        items: items.map(it => ({ ...it, quantity: Number(it.quantity), unitPrice: Number(it.unitPrice), total: Number(it.quantity) * Number(it.unitPrice) })),
+        items: items.map((it) => ({
+          ...it,
+          quantity: Number(it.quantity),
+          unitPrice: Number(it.unitPrice),
+          total: Number(it.quantity) * Number(it.unitPrice),
+        })),
       };
       if (editBudget) {
         await clinicalApi.updateBudget(editBudget.id, data, token);
@@ -161,7 +213,10 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
       setShowModal(false);
       loadBudgets();
     } catch (err) {
-      notify.error("Error al guardar", err instanceof Error ? err.message : String(err));
+      notify.error(
+        "Error al guardar",
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setSaving(false);
     }
@@ -169,8 +224,12 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
 
   async function deleteBudget(id: string) {
     if (!window.confirm("¿Eliminar este presupuesto?")) return;
-    clinicalApi.deleteBudget(id, token)
-      .then(() => { notify.success("Eliminado"); loadBudgets(); })
+    clinicalApi
+      .deleteBudget(id, token)
+      .then(() => {
+        notify.success("Eliminado");
+        loadBudgets();
+      })
       .catch(() => notify.error("Error al eliminar"));
   }
 
@@ -178,6 +237,39 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
     setPdfLoading(b.id);
     try {
       const profile = await clinicalApi.getUserProfile(token);
+
+      // Cargar logo y firma de la organización
+      let logoBase64: string | undefined;
+      let logoMimeType: string | undefined;
+      let signatureBase64: string | undefined;
+      let signatureMimeType: string | undefined;
+
+      try {
+        const settings = await clinicalApi.getPlatformSettings(token);
+        if (settings?.logoUrl) {
+          const r = await fetch(settings.logoUrl);
+          const blob = await r.blob();
+          logoMimeType = blob.type.includes("png") ? "PNG" : "JPEG";
+          logoBase64 = await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onload = () => res((reader.result as string).split(",")[1]);
+            reader.readAsDataURL(blob);
+          });
+        }
+        if (settings?.signatureUrl) {
+          const r = await fetch(settings.signatureUrl);
+          const blob = await r.blob();
+          signatureMimeType = blob.type.includes("png") ? "PNG" : "JPEG";
+          signatureBase64 = await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onload = () => res((reader.result as string).split(",")[1]);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch {
+        // Si falla la carga de assets, el PDF se genera sin logo/firma
+      }
+
       generateBudgetPdf({
         budget: b,
         patientName,
@@ -185,17 +277,30 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
         doctorName: session.name || "",
         doctorPhone: (profile as any).phone || "",
         doctorEmail: profile.email || "",
+        logoBase64,
+        logoMimeType,
+        signatureBase64,
+        signatureMimeType,
       });
     } catch (err) {
-      notify.error("Error al generar PDF", err instanceof Error ? err.message : String(err));
+      notify.error(
+        "Error al generar PDF",
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setPdfLoading(null);
     }
   }
 
   function printBudget(b: Budget) {
-    const today = new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
-    const rowsHtml = (b.items || []).map((it, i) => `
+    const today = new Date().toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+    const rowsHtml = (b.items || [])
+      .map(
+        (it, i) => `
       <tr>
         <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;">${i + 1}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;">${it.description}</td>
@@ -204,7 +309,9 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
         <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;">${fmtMoney(it.unitPrice, b.currency)}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;">${fmtMoney(it.total, b.currency)}</td>
       </tr>
-    `).join("");
+    `,
+      )
+      .join("");
 
     const html = `<!DOCTYPE html>
 <html lang="es">
@@ -236,7 +343,7 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
     </div>
     <div style="text-align:right;">
       <p style="font-size:11pt;font-weight:700;color:#0f172a;">${b.title}</p>
-      <p style="font-size:9pt;color:${b.status === 'approved' ? '#065f46' : '#64748b'};">${STATUS_LABELS[b.status] || b.status}</p>
+      <p style="font-size:9pt;color:${b.status === "approved" ? "#065f46" : "#64748b"};">${STATUS_LABELS[b.status] || b.status}</p>
     </div>
   </div>
 
@@ -273,7 +380,10 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
 </html>`;
 
     const win = window.open("", "_blank", "width=850,height=950");
-    if (!win) { notify.error("No se pudo abrir la impresión."); return; }
+    if (!win) {
+      notify.error("No se pudo abrir la impresión.");
+      return;
+    }
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -283,20 +393,51 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
   return (
     <section className="page-section">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 24,
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg,#8b5cf6,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <FileSpreadsheet size={20} color="white" strokeWidth={1.5} />
           </div>
           <div>
             <h2 style={{ margin: 0 }}>Presupuestos</h2>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "0.85rem" }}>{patientName || "Paciente"}</p>
+            <p style={{ margin: 0, color: "#64748b", fontSize: "0.85rem" }}>
+              {patientName || "Paciente"}
+            </p>
           </div>
         </div>
         <button
           type="button"
           onClick={openCreate}
-          style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(135deg,#8b5cf6,#7c3aed)", color: "white", border: "none", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
+            color: "white",
+            border: "none",
+            borderRadius: 10,
+            padding: "10px 20px",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: "0.875rem",
+          }}
         >
           <Plus size={16} />
           Nuevo Presupuesto
@@ -304,46 +445,152 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>Cargando...</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
+          Cargando...
+        </div>
       ) : budgets.length === 0 ? (
         <div style={{ textAlign: "center", padding: 60 }}>
-          <FileSpreadsheet size={48} strokeWidth={1} style={{ opacity: 0.2, marginBottom: 16 }} />
-          <p style={{ color: "#64748b" }}>No hay presupuestos. Crea el primero.</p>
+          <FileSpreadsheet
+            size={48}
+            strokeWidth={1}
+            style={{ opacity: 0.2, marginBottom: 16 }}
+          />
+          <p style={{ color: "#64748b" }}>
+            No hay presupuestos. Crea el primero.
+          </p>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
-          {budgets.map(b => {
-            const sc = STATUS_COLORS[b.status] || { bg: "#f1f5f9", color: "#475569" };
+          {budgets.map((b) => {
+            const sc = STATUS_COLORS[b.status] || {
+              bg: "#f1f5f9",
+              color: "#475569",
+            };
             return (
               <article key={b.id} className="card elite-card">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 12,
+                  }}
+                >
                   <div>
                     <h3 style={{ margin: "0 0 4px" }}>{b.title}</h3>
-                    <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 999, fontSize: "0.75rem", fontWeight: 600, background: sc.bg, color: sc.color }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "2px 10px",
+                        borderRadius: 999,
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        background: sc.bg,
+                        color: sc.color,
+                      }}
+                    >
                       {STATUS_LABELS[b.status] || b.status}
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button type="button" onClick={() => handleDownloadPdf(b)} title="Descargar PDF" disabled={pdfLoading === b.id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#475569", opacity: pdfLoading === b.id ? 0.5 : 1 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPdf(b)}
+                      title="Descargar PDF"
+                      disabled={pdfLoading === b.id}
+                      style={{
+                        background: "white",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 8,
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        color: "#475569",
+                        opacity: pdfLoading === b.id ? 0.5 : 1,
+                      }}
+                    >
                       <Download size={14} />
                     </button>
-                    <button type="button" onClick={() => printBudget(b)} title="Imprimir" style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#475569" }}>
+                    <button
+                      type="button"
+                      onClick={() => printBudget(b)}
+                      title="Imprimir"
+                      style={{
+                        background: "white",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 8,
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        color: "#475569",
+                      }}
+                    >
                       <Printer size={14} />
                     </button>
-                    <button type="button" onClick={() => openEdit(b)} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: "#475569" }}>Editar</button>
-                    <button type="button" onClick={() => deleteBudget(b.id)} style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#991b1b" }}>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(b)}
+                      style={{
+                        background: "white",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        cursor: "pointer",
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        color: "#475569",
+                      }}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteBudget(b.id)}
+                      style={{
+                        background: "#fee2e2",
+                        border: "1px solid #fca5a5",
+                        borderRadius: 8,
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        color: "#991b1b",
+                      }}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 20, fontSize: "0.85rem", color: "#64748b", marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 20,
+                    fontSize: "0.85rem",
+                    color: "#64748b",
+                    marginBottom: 12,
+                  }}
+                >
                   <span>Creado: {fmtDate(b.createdAt)}</span>
-                  {b.validUntil && <span>Válido hasta: {fmtDate(b.validUntil)}</span>}
+                  {b.validUntil && (
+                    <span>Válido hasta: {fmtDate(b.validUntil)}</span>
+                  )}
                   <span>Moneda: {b.currency}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>{b.items?.length || 0} ítem(s)</span>
-                  <span style={{ fontWeight: 700, fontSize: "1.1rem", color: "#10b981" }}>{fmtMoney(b.totalAmount, b.currency)}</span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                    {b.items?.length || 0} ítem(s)
+                  </span>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "1.1rem",
+                      color: "#10b981",
+                    }}
+                  >
+                    {fmtMoney(b.totalAmount, b.currency)}
+                  </span>
                 </div>
               </article>
             );
@@ -356,52 +603,183 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
         <Modal onClose={() => setShowModal(false)}>
           {/* Widen modal for budget form */}
           <style>{`.modal-card { max-width: 640px !important; }`}</style>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h3 style={{ margin: 0 }}>{editBudget ? "Editar Presupuesto" : "Nuevo Presupuesto"}</h3>
-            <button type="button" onClick={() => setShowModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 20,
+            }}
+          >
+            <h3 style={{ margin: 0 }}>
+              {editBudget ? "Editar Presupuesto" : "Nuevo Presupuesto"}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              style={{ background: "none", border: "none", cursor: "pointer" }}
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div className="input-group" style={{ gridColumn: "1/-1", margin: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <div
+              className="input-group"
+              style={{ gridColumn: "1/-1", margin: 0 }}
+            >
               <label>Título</label>
-              <input type="text" className="elite-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Presupuesto Implante Dental" />
+              <input
+                type="text"
+                className="elite-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Presupuesto Implante Dental"
+              />
             </div>
             <div className="input-group" style={{ margin: 0 }}>
               <label>Moneda</label>
-              <select value={currency} onChange={e => setCurrency(e.target.value)}>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+              >
                 <option value="USD">USD (Dólares)</option>
                 <option value="VES">VES (Bolívares)</option>
               </select>
             </div>
             <div className="input-group" style={{ margin: 0 }}>
               <label>Estado</label>
-              <select value={status} onChange={e => setStatus(e.target.value)}>
-                {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                {Object.entries(STATUS_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="input-group" style={{ margin: 0 }}>
               <label>Válido hasta</label>
-              <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} />
+              <input
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
+              />
             </div>
           </div>
 
           {/* Items table */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <label style={{ fontWeight: 600, fontSize: "0.875rem" }}>Ítems del presupuesto</label>
-              <button type="button" onClick={addItem} style={{ display: "flex", alignItems: "center", gap: 6, background: "#f0fdf4", color: "#065f46", border: "1px solid #bbf7d0", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <label style={{ fontWeight: 600, fontSize: "0.875rem" }}>
+                Presupuesto
+              </label>
+              <button
+                type="button"
+                onClick={addItem}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "#f0fdf4",
+                  color: "#065f46",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                }}
+              >
                 <Plus size={12} /> Agregar ítem
               </button>
             </div>
-            <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "0.8rem",
+                }}
+              >
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
-                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, color: "#64748b" }}>Descripción</th>
-                    <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, color: "#64748b", width: 70 }}>Diente</th>
-                    <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, color: "#64748b", width: 60 }}>Cant.</th>
-                    <th style={{ padding: "8px 6px", textAlign: "right", fontWeight: 600, color: "#64748b", width: 90 }}>P. Unit.</th>
-                    <th style={{ padding: "8px 6px", textAlign: "right", fontWeight: 600, color: "#64748b", width: 90 }}>Total</th>
+                    <th
+                      style={{
+                        padding: "8px 10px",
+                        textAlign: "left",
+                        fontWeight: 600,
+                        color: "#64748b",
+                      }}
+                    >
+                      Descripción
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 6px",
+                        textAlign: "center",
+                        fontWeight: 600,
+                        color: "#64748b",
+                        width: 70,
+                      }}
+                    >
+                      Diente
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 6px",
+                        textAlign: "center",
+                        fontWeight: 600,
+                        color: "#64748b",
+                        width: 60,
+                      }}
+                    >
+                      Cant.
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 6px",
+                        textAlign: "right",
+                        fontWeight: 600,
+                        color: "#64748b",
+                        width: 90,
+                      }}
+                    >
+                      P. Unit.
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px 6px",
+                        textAlign: "right",
+                        fontWeight: 600,
+                        color: "#64748b",
+                        width: 90,
+                      }}
+                    >
+                      Total
+                    </th>
                     <th style={{ width: 36 }} />
                   </tr>
                 </thead>
@@ -409,30 +787,108 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
                   {items.map((item, i) => (
                     <tr key={i} style={{ borderTop: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "6px 8px" }}>
-                        <input type="text" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} placeholder="Descripción..." className="budget-item-input" />
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) =>
+                            updateItem(i, "description", e.target.value)
+                          }
+                          placeholder="Descripción..."
+                          className="budget-item-input"
+                        />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="text" value={item.tooth || ""} onChange={e => updateItem(i, "tooth", e.target.value)} placeholder="—" className="budget-item-input" style={{ textAlign: "center" }} />
+                        <input
+                          type="text"
+                          value={item.tooth || ""}
+                          onChange={(e) =>
+                            updateItem(i, "tooth", e.target.value)
+                          }
+                          placeholder="—"
+                          className="budget-item-input"
+                          style={{ textAlign: "center" }}
+                        />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <input type="text" inputMode="numeric" value={item.quantity || ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); updateItem(i, "quantity", v === "" ? 0 : parseInt(v, 10)); }} placeholder="1" className="budget-item-input" style={{ textAlign: "center" }} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.quantity || ""}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/[^0-9]/g, "");
+                            updateItem(
+                              i,
+                              "quantity",
+                              v === "" ? 0 : parseInt(v, 10),
+                            );
+                          }}
+                          placeholder="1"
+                          className="budget-item-input"
+                          style={{ textAlign: "center" }}
+                        />
                       </td>
                       <td style={{ padding: "6px 4px" }}>
-                        <PriceInput value={item.unitPrice} onChange={v => updateItem(i, "unitPrice", v)} />
+                        <PriceInput
+                          value={item.unitPrice}
+                          onChange={(v) => updateItem(i, "unitPrice", v)}
+                        />
                       </td>
-                      <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600, color: "#10b981" }}>
-                        {fmtMoney(Number(item.quantity) * Number(item.unitPrice), currency)}
+                      <td
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "right",
+                          fontWeight: 600,
+                          color: "#10b981",
+                        }}
+                      >
+                        {fmtMoney(
+                          Number(item.quantity) * Number(item.unitPrice),
+                          currency,
+                        )}
                       </td>
                       <td style={{ padding: "6px 4px", textAlign: "center" }}>
-                        <button type="button" onClick={() => removeItem(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2 }}>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(i)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            padding: 2,
+                          }}
+                        >
                           <X size={12} />
                         </button>
                       </td>
                     </tr>
                   ))}
-                  <tr style={{ borderTop: "2px solid #e2e8f0", background: "#f0fdf4" }}>
-                    <td colSpan={4} style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: "#065f46" }}>TOTAL</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: "#065f46", fontSize: "1rem" }}>
+                  <tr
+                    style={{
+                      borderTop: "2px solid #e2e8f0",
+                      background: "#f0fdf4",
+                    }}
+                  >
+                    <td
+                      colSpan={4}
+                      style={{
+                        padding: "10px 8px",
+                        textAlign: "right",
+                        fontWeight: 700,
+                        color: "#065f46",
+                      }}
+                    >
+                      TOTAL
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 8px",
+                        textAlign: "right",
+                        fontWeight: 700,
+                        color: "#065f46",
+                        fontSize: "1rem",
+                      }}
+                    >
                       {fmtMoney(totalAmount, currency)}
                     </td>
                     <td />
@@ -444,14 +900,43 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
 
           <div className="input-group">
             <label>Notas</label>
-            <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones adicionales..." style={{ width: "100%", resize: "vertical", padding: 8, borderRadius: 6, border: "1px solid #e2e8f0", fontFamily: "inherit", fontSize: "0.875rem" }} />
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Observaciones adicionales..."
+              style={{
+                width: "100%",
+                resize: "vertical",
+                padding: 8,
+                borderRadius: 6,
+                border: "1px solid #e2e8f0",
+                fontFamily: "inherit",
+                fontSize: "0.875rem",
+              }}
+            />
           </div>
 
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button type="button" className="action-btn action-btn-confirm" onClick={save} disabled={saving}>
-              {saving ? "Guardando..." : editBudget ? "Actualizar" : "Crear Presupuesto"}
+            <button
+              type="button"
+              className="action-btn action-btn-confirm"
+              onClick={save}
+              disabled={saving}
+            >
+              {saving
+                ? "Guardando..."
+                : editBudget
+                  ? "Actualizar"
+                  : "Crear Presupuesto"}
             </button>
-            <button type="button" className="action-btn" onClick={() => setShowModal(false)}>Cancelar</button>
+            <button
+              type="button"
+              className="action-btn"
+              onClick={() => setShowModal(false)}
+            >
+              Cancelar
+            </button>
           </div>
         </Modal>
       )}
@@ -460,13 +945,25 @@ export function PresupuestoPage({ token, session }: { token: string; session: Au
 }
 
 // Also export a list page for the /presupuestos route (shows all, or redirects)
-export function PresupuestosListPage({ token: _token, session: _session }: { token: string; session: AuthSession }) {
+export function PresupuestosListPage({
+  token: _token,
+  session: _session,
+}: {
+  token: string;
+  session: AuthSession;
+}) {
   return (
     <section className="page-section">
       <div style={{ textAlign: "center", padding: 60 }}>
-        <FileSpreadsheet size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 16 }} />
+        <FileSpreadsheet
+          size={48}
+          strokeWidth={1}
+          style={{ opacity: 0.3, marginBottom: 16 }}
+        />
         <h3>Presupuestos de Pacientes</h3>
-        <p style={{ color: "#64748b", marginTop: 8 }}>Para ver o crear presupuestos, accede desde el perfil de un paciente.</p>
+        <p style={{ color: "#64748b", marginTop: 8 }}>
+          Para ver o crear presupuestos, accede desde el perfil de un paciente.
+        </p>
       </div>
     </section>
   );
