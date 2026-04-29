@@ -377,8 +377,8 @@ const RealisticGLTFScene: React.FC<RealisticGLTFSceneProps> = ({
 // Mantiene cada diente como mesh independiente para permitir selección y panel.
 // ─────────────────────────────────────────────────────────────────────────
 
-const ARCH_COEF = 0.15;
-const ARCH_EXP = 1.6;
+const ARCH_COEF = 0.22;
+const ARCH_EXP = 1.7;
 
 function archZ(x: number): number {
   return -ARCH_COEF * Math.pow(Math.abs(x), ARCH_EXP);
@@ -458,12 +458,13 @@ function makeToothGeometry(kind: ToothKind, w: number, h: number, d: number): TH
   return geo;
 }
 
+// Dimensiones reducidas ~22% para dejar la encía dominante (más cerca de la proporción anatómica real)
 const TOOTH_DIMS: Record<ToothKind, { w: number; d: number; crownH: number }> = {
-  "central-incisor": { w: 0.96, d: 0.56, crownH: 1.08 },
-  "lateral-incisor": { w: 0.76, d: 0.48, crownH: 0.94 },
-  canine: { w: 0.86, d: 0.66, crownH: 1.20 },
-  premolar: { w: 0.94, d: 0.86, crownH: 0.86 },
-  molar: { w: 1.24, d: 1.04, crownH: 0.82 },
+  "central-incisor": { w: 0.74, d: 0.44, crownH: 0.84 },
+  "lateral-incisor": { w: 0.60, d: 0.38, crownH: 0.74 },
+  canine: { w: 0.68, d: 0.52, crownH: 0.94 },
+  premolar: { w: 0.74, d: 0.68, crownH: 0.68 },
+  molar: { w: 0.98, d: 0.82, crownH: 0.66 },
 };
 
 interface ProceduralToothProps {
@@ -561,23 +562,209 @@ interface ProceduralGumProps {
   opacity: number;
 }
 
+/**
+ * Construye una "cinta alveolar" volumétrica extruyendo una sección transversal
+ * (perfil 2D radial × vertical) a lo largo del arco dental.
+ *
+ * El perfil tiene la forma del proceso alveolar real:
+ *   - Cervix estrecho cerca del cuello del diente
+ *   - Bulto vestibular (hacia afuera del arco)
+ *   - Inclinación palatina/lingual (hacia adentro del arco)
+ *   - Conexión sobre la línea media (palato superior / piso de boca inferior)
+ */
+function buildAlveolarRibbon(
+  archPoints: THREE.Vector3[],
+  jaw: "upper" | "lower",
+): THREE.BufferGeometry {
+  const isUpper = jaw === "upper";
+
+  // Perfil 2D — radial (x positivo = hacia afuera del arco), vertical (y positivo = hacia raíz)
+  // Construimos una curva CCW redondeada con MUCHOS puntos para que no haya aristas.
+  // Los puntos se generan a partir de keypoints anatómicos y se interpolan con Catmull-Rom.
+  const keypointsUpper = [
+    // gum margin vestibular → bulto → palato → margin palatino, en sentido CCW
+    new THREE.Vector2( 0.55,  0.00),
+    new THREE.Vector2( 0.85,  0.30),
+    new THREE.Vector2( 0.95,  0.85),
+    new THREE.Vector2( 0.92,  1.40),
+    new THREE.Vector2( 0.65,  1.85),
+    new THREE.Vector2( 0.20,  2.00),
+    new THREE.Vector2(-0.30,  1.95),
+    new THREE.Vector2(-0.70,  1.55),
+    new THREE.Vector2(-0.78,  0.95),
+    new THREE.Vector2(-0.62,  0.40),
+    new THREE.Vector2(-0.45,  0.00),
+  ];
+  const keypointsLower = [
+    new THREE.Vector2( 0.55,  0.00),
+    new THREE.Vector2( 0.82, -0.30),
+    new THREE.Vector2( 0.92, -0.85),
+    new THREE.Vector2( 0.88, -1.40),
+    new THREE.Vector2( 0.55, -1.85),
+    new THREE.Vector2( 0.10, -2.00),
+    new THREE.Vector2(-0.35, -1.95),
+    new THREE.Vector2(-0.65, -1.55),
+    new THREE.Vector2(-0.72, -0.95),
+    new THREE.Vector2(-0.58, -0.40),
+    new THREE.Vector2(-0.45,  0.00),
+  ];
+  const keypoints = isUpper ? keypointsUpper : keypointsLower;
+  // Smooth con Catmull-Rom abierto (no cerrado — los extremos están sobre la línea gingival y NO se conectan)
+  const smoothCurve = new THREE.SplineCurve(keypoints);
+  const PROFILE_RES = 32;
+  const profile2D: { x: number; y: number }[] = [];
+  for (let i = 0; i <= PROFILE_RES; i++) {
+    const p = smoothCurve.getPoint(i / PROFILE_RES);
+    profile2D.push({ x: p.x, y: p.y });
+  }
+
+  const N = archPoints.length;
+  const M = profile2D.length;
+  const positions: number[] = [];
+  const indices: number[] = [];
+
+  // Para cada punto del arco: construir frame local (tangent, up, right) y posicionar el perfil
+  for (let i = 0; i < N; i++) {
+    const center = archPoints[i];
+    const next = archPoints[Math.min(i + 1, N - 1)];
+    const prev = archPoints[Math.max(i - 1, 0)];
+    const tangent = new THREE.Vector3().subVectors(next, prev).normalize();
+
+    // Right: perpendicular a la tangente, en el plano XZ (radial hacia afuera del arco).
+    // En esta arcada los puntos van con z = -coef·|x|^exp (curvándose hacia -Z al aumentar |x|),
+    // por lo que (tangent × Y) apunta hacia el lado correcto si la tangente avanza con +X creciente.
+    const up = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(tangent, up).normalize();
+
+    for (const p of profile2D) {
+      const pos = new THREE.Vector3()
+        .copy(center)
+        .addScaledVector(right, p.x)
+        .addScaledVector(up, p.y);
+      positions.push(pos.x, pos.y, pos.z);
+    }
+  }
+
+  // Índices: conectar anillos consecutivos con quads. Perfil ABIERTO (no se conecta j=M-1 con j=0)
+  // porque la línea inferior (margen gingival) queda libre para que los dientes/marginal tube
+  // se vean salir de allí sin un techo plano.
+  for (let i = 0; i < N - 1; i++) {
+    for (let j = 0; j < M - 1; j++) {
+      const a = i * M + j;
+      const b = i * M + j + 1;
+      const c = (i + 1) * M + j + 1;
+      const d = (i + 1) * M + j;
+      indices.push(a, b, c);
+      indices.push(a, c, d);
+    }
+  }
+
+  // Cap los extremos posteriores con un fan triangular (cierra los molares al fondo).
+  const addCap = (ringStart: number, reversed: boolean) => {
+    let cx = 0, cy = 0, cz = 0;
+    for (let j = 0; j < M; j++) {
+      cx += positions[(ringStart + j) * 3];
+      cy += positions[(ringStart + j) * 3 + 1];
+      cz += positions[(ringStart + j) * 3 + 2];
+    }
+    cx /= M; cy /= M; cz /= M;
+    const centerIdx = positions.length / 3;
+    positions.push(cx, cy, cz);
+    // Perfil abierto: M-1 conexiones (no envolvemos)
+    for (let j = 0; j < M - 1; j++) {
+      if (reversed) {
+        indices.push(centerIdx, ringStart + j + 1, ringStart + j);
+      } else {
+        indices.push(centerIdx, ringStart + j, ringStart + j + 1);
+      }
+    }
+  };
+  addCap(0, true);
+  addCap((N - 1) * M, false);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/**
+ * Construye la tapa interior del arco — palato superior (cúpula curva) o piso de boca inferior (plano).
+ * Visualmente cierra el "U" de la arcada y le da el aspecto de una cavidad oral real.
+ */
+function buildArchCap(
+  archPoints: THREE.Vector3[],
+  jaw: "upper" | "lower",
+  baseY: number,
+): THREE.BufferGeometry {
+  const isUpper = jaw === "upper";
+  const sorted = [...archPoints].sort((a, b) => a.x - b.x);
+  const N = sorted.length;
+  if (N < 3) return new THREE.BufferGeometry();
+
+  // Boundary loop: borde interior del arco. Lo extraemos pulling cada punto del arco
+  // levemente hacia el centro de la arcada (z hacia +Z desde la curva original — adentro).
+  // Distancia hacia adentro: aproximadamente el radio del perfil interior (0.5)
+  const inwardOffset = 0.50;
+  const boundary: THREE.Vector3[] = sorted.map((p) => new THREE.Vector3(p.x, baseY, p.z + inwardOffset));
+
+  // Centro: punto en el medio de la arcada, ligeramente arriba/abajo para curvatura del palato
+  const centerX = 0;
+  const centerZ = sorted.reduce((acc, p) => acc + p.z, 0) / N + inwardOffset * 1.3;
+  const apexY = baseY + (isUpper ? 0.55 : -0.10); // palato más alto que piso
+
+  const positions: number[] = [];
+  // Vertex 0: centro (apex)
+  positions.push(centerX, apexY, centerZ);
+  // Vertices 1..N: boundary
+  for (const b of boundary) {
+    positions.push(b.x, b.y, b.z);
+  }
+
+  // Triangle fan desde el centro a cada par consecutivo de boundary
+  const indices: number[] = [];
+  for (let i = 1; i < N; i++) {
+    if (isUpper) {
+      indices.push(0, i, i + 1); // CCW visto desde abajo
+    } else {
+      indices.push(0, i + 1, i); // CCW visto desde arriba
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 const ProceduralGum: React.FC<ProceduralGumProps> = ({ toothPositions, y, jaw, opacity }) => {
   const isUpper = jaw === "upper";
 
-  const { bodyGeo, marginGeo } = useMemo(() => {
+  const { bodyGeo, marginGeo, capGeo } = useMemo(() => {
     if (toothPositions.length === 0) {
-      return { bodyGeo: new THREE.BufferGeometry(), marginGeo: new THREE.BufferGeometry() };
+      return {
+        bodyGeo: new THREE.BufferGeometry(),
+        marginGeo: new THREE.BufferGeometry(),
+        capGeo: new THREE.BufferGeometry(),
+      };
     }
     const sorted = [...toothPositions].sort((a, b) => a.x - b.x);
     const minX = sorted[0].x - 0.5;
     const maxX = sorted[sorted.length - 1].x + 0.5;
     const totalLen = maxX - minX;
 
-    const points: THREE.Vector3[] = [];
-    for (let i = 0; i <= 200; i++) {
-      const tX = minX + (i / 200) * totalLen;
+    // Curva del margen gingival con festoneado entre dientes (papila)
+    const marginPoints: THREE.Vector3[] = [];
+    // Curva base de la cinta — sin festoneado, smooth, para que la masa alveolar quede uniforme
+    const ribbonPoints: THREE.Vector3[] = [];
+
+    for (let i = 0; i <= 80; i++) {
+      const tX = minX + (i / 80) * totalLen;
       const z = archZ(tX);
-      // Festoneado entre dientes (papila)
+
+      // Festoneado para el margen gingival (papila entre dientes)
       let closestDist = 100;
       let closestW = 1.0;
       for (const tp of sorted) {
@@ -590,18 +777,24 @@ const ProceduralGum: React.FC<ProceduralGumProps> = ({ toothPositions, y, jaw, o
       const normDist = Math.min(1, closestDist / (closestW * 0.5));
       const wave = Math.pow(Math.sin(normDist * Math.PI * 0.5), 2.0) * 0.06;
       const waveY = isUpper ? y - wave : y + wave;
-      points.push(new THREE.Vector3(tX, waveY, z));
+
+      marginPoints.push(new THREE.Vector3(tX, waveY, z));
+      // La cinta sigue la curva festoneada — así el borde inferior del cuerpo de encía
+      // ondula entre cada diente (papila interdental) en vez de ser un corte plano horizontal.
+      ribbonPoints.push(new THREE.Vector3(tX, waveY, z));
     }
 
-    const bodyPts = points.map((p) => new THREE.Vector3(p.x, isUpper ? p.y + 0.42 : p.y - 0.42, p.z - 0.05));
-    const bodyCurve = new THREE.CatmullRomCurve3(bodyPts, false, "catmullrom", 0.5);
-    const body = new THREE.TubeGeometry(bodyCurve, 220, 0.50, 18, false);
+    const body = buildAlveolarRibbon(ribbonPoints, jaw);
 
-    const marginCurve = new THREE.CatmullRomCurve3(points, false, "catmullrom", 0.5);
+    const marginCurve = new THREE.CatmullRomCurve3(marginPoints, false, "catmullrom", 0.5);
     const margin = new THREE.TubeGeometry(marginCurve, 220, 0.07, 14, false);
 
-    return { bodyGeo: body, marginGeo: margin };
-  }, [toothPositions, y, isUpper]);
+    // Tapa interior — palato/piso, posicionada un poco hacia la raíz para no chocar con dientes
+    const capBaseY = isUpper ? y + 0.55 : y - 0.55;
+    const cap = buildArchCap(ribbonPoints, jaw, capBaseY);
+
+    return { bodyGeo: body, marginGeo: margin, capGeo: cap };
+  }, [toothPositions, y, isUpper, jaw]);
 
   if (opacity <= 0.001) return null;
   const transparent = opacity < 0.99;
@@ -622,6 +815,7 @@ const ProceduralGum: React.FC<ProceduralGumProps> = ({ toothPositions, y, jaw, o
           transparent={transparent}
           opacity={opacity}
           depthWrite={!transparent}
+          side={THREE.DoubleSide}
         />
       </mesh>
       <mesh geometry={marginGeo} position={[0, 0, 0.05]} castShadow receiveShadow>
@@ -636,7 +830,46 @@ const ProceduralGum: React.FC<ProceduralGumProps> = ({ toothPositions, y, jaw, o
           depthWrite={!transparent}
         />
       </mesh>
+      {/* Tapa interior — palato superior o piso de boca inferior */}
+      <mesh geometry={capGeo} receiveShadow>
+        <meshPhysicalMaterial
+          color={isUpper ? "#c66978" : "#c46776"}
+          roughness={0.7}
+          metalness={0}
+          sheen={0.25}
+          sheenColor="#e8a8b4"
+          transparent={transparent}
+          opacity={opacity}
+          depthWrite={!transparent}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
     </group>
+  );
+};
+
+/** Lengua: ellipsoide aplanado con un toque de relieve, posicionada en el piso de la mandíbula. */
+const ProceduralTongue: React.FC<{ y: number; opacity: number }> = ({ y, opacity }) => {
+  if (opacity <= 0.001) return null;
+  const transparent = opacity < 0.99;
+  return (
+    <mesh position={[0, y - 0.3, -1.2]} scale={[1.6, 0.45, 1.4]} receiveShadow castShadow>
+      <sphereGeometry args={[1, 32, 24]} />
+      <meshPhysicalMaterial
+        color="#c75d6b"
+        roughness={0.55}
+        metalness={0}
+        sheen={0.5}
+        sheenColor="#ff9da8"
+        sheenRoughness={0.4}
+        transmission={0.08}
+        thickness={0.4}
+        ior={1.38}
+        transparent={transparent}
+        opacity={opacity}
+        depthWrite={!transparent}
+      />
+    </mesh>
   );
 };
 
@@ -702,8 +935,11 @@ const ProceduralArch: React.FC<ProceduralArchProps> = ({
     return [...place(left, 1), ...place(right, -1)];
   }, [numbers, isTemporary, ts]);
 
-  const avgCrownH = isTemporary ? 0.90 * 0.86 : 0.90;
-  const gumY = jaw === "upper" ? y + avgCrownH * 0.42 : y - avgCrownH * 0.42;
+  // crownH promedio reducido (después del rescale 22%), avgCrownH ≈ 0.74
+  const avgCrownH = isTemporary ? 0.70 * 0.86 : 0.70;
+  // gum margin EN o LIGERAMENTE POR DEBAJO del cervix → el cuerpo cubre el cuello del diente,
+  // aprox. al 30% de la corona desde el bite plane (antes 42%, dejaba el cervix descubierto).
+  const gumY = jaw === "upper" ? y + avgCrownH * 0.30 : y - avgCrownH * 0.30;
 
   return (
     <group>
@@ -826,6 +1062,8 @@ const ProceduralScene: React.FC<ProceduralSceneProps> = ({
             onToothHover={onToothHover}
           />
         )}
+        {/* Lengua — sólo en la mandíbula inferior, escala con opacidad de tejidos blandos */}
+        <ProceduralTongue y={-0.68} opacity={gumOpacity} />
       </animated.group>
     </>
   );
