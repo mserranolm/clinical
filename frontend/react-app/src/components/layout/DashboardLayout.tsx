@@ -182,7 +182,7 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
             <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
             <Route path="consulta" element={<ConsultaPage token={session.token} doctorId={session.userId} />} />
             <Route path="pacientes" element={<PatientsPage token={session.token} doctorId="" session={session} />} />
-            <Route path="pacientes/:patientId" element={<PatientDetailPage token={session.token} />} />
+            <Route path="pacientes/:patientId" element={<PatientDetailPage token={session.token} doctorId={session.userId} />} />
             <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="calendario" element={<CalendarPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
             <Route path="documentos" element={<DocumentosPage token={session.token} session={session} />} />

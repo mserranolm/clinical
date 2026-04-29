@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { notify } from "../lib/notify";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
 import {
+  EMPTY_SURFACES,
+  EMPTY_TOOTH_STATE,
+  type Surface,
+  type SurfaceCondition,
+  type ToothCondition,
   type ToothState,
   deserializeToothState,
+  serializeToothState,
 } from "../modules/treatment/components/odontogram-types";
 
 type PatientDetailData = {
@@ -76,7 +82,7 @@ function formatDateTime(iso: string) {
   };
 }
 
-export function PatientDetailPage({ token }: { token: string }) {
+export function PatientDetailPage({ token, doctorId }: { token: string; doctorId: string }) {
   const navigate = useNavigate();
   const { patientId = "" } = useParams();
   const [searchParams] = useSearchParams();
@@ -101,6 +107,8 @@ export function PatientDetailPage({ token }: { token: string }) {
   const [toothStates, setToothStates] = useState<Record<number, ToothState>>(
     {},
   );
+  const [odontogramId, setOdontogramId] = useState<string | null>(null);
+  const [savingOdontogram, setSavingOdontogram] = useState(false);
 
   useEffect(() => {
     if (!patientId) {
@@ -132,17 +140,16 @@ export function PatientDetailPage({ token }: { token: string }) {
           setAppointments(items);
         }
 
-        if (
-          odontogramRes.status === "fulfilled" &&
-          Array.isArray(odontogramRes.value.teeth)
-        ) {
-          const nextStates: Record<number, ToothState> = {};
-          (odontogramRes.value.teeth as Array<{ toothNumber: number }>).forEach(
-            (tooth) => {
+        if (odontogramRes.status === "fulfilled") {
+          const odn = odontogramRes.value;
+          if (odn.id) setOdontogramId(odn.id);
+          if (Array.isArray(odn.teeth)) {
+            const nextStates: Record<number, ToothState> = {};
+            (odn.teeth as Array<{ toothNumber: number }>).forEach((tooth) => {
               nextStates[tooth.toothNumber] = deserializeToothState(tooth);
-            },
-          );
-          setToothStates(nextStates);
+            });
+            setToothStates(nextStates);
+          }
         }
       } catch (error) {
         notify.error(
@@ -173,6 +180,89 @@ export function PatientDetailPage({ token }: { token: string }) {
           (365.25 * 24 * 3600 * 1000),
       )
     : null;
+
+  const handleSurfaceChange = useCallback(
+    (toothNum: number, surface: Surface, cond: SurfaceCondition) => {
+      setToothStates((prev) => {
+        const current = prev[toothNum] ?? {
+          ...EMPTY_TOOTH_STATE,
+          surfaces: { ...EMPTY_SURFACES },
+        };
+        return {
+          ...prev,
+          [toothNum]: {
+            ...current,
+            surfaces: { ...current.surfaces, [surface]: cond },
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  const handleToothConditionChange = useCallback(
+    (toothNum: number, cond: ToothCondition) => {
+      setToothStates((prev) => {
+        const current = prev[toothNum] ?? {
+          ...EMPTY_TOOTH_STATE,
+          surfaces: { ...EMPTY_SURFACES },
+        };
+        return {
+          ...prev,
+          [toothNum]: { ...current, condition: cond },
+        };
+      });
+    },
+    [],
+  );
+
+  const handleResetTooth = useCallback((toothNum: number) => {
+    setToothStates((prev) => {
+      const next = { ...prev };
+      delete next[toothNum];
+      return next;
+    });
+  }, []);
+
+  async function saveOdontogram() {
+    if (!patientId) return;
+    setSavingOdontogram(true);
+    try {
+      let currentId = odontogramId?.trim() || null;
+      if (!currentId) {
+        const created = await clinicalApi.createOdontogram(
+          { doctorId, patientId },
+          token,
+        );
+        currentId = created.id?.trim() || null;
+        if (!currentId)
+          throw new Error("El servidor no devolvió un ID de odontograma válido");
+        setOdontogramId(currentId);
+      }
+      await clinicalApi.updateOdontogramTeeth(
+        currentId,
+        toothStates,
+        token,
+        serializeToothState as unknown as (
+          n: number,
+          s: unknown,
+        ) => {
+          toothNumber: number;
+          isPresent: boolean;
+          surfaces: unknown[];
+          generalNotes?: string;
+        },
+      );
+      notify.success("Odontograma guardado");
+    } catch (err) {
+      notify.error(
+        "Error guardando odontograma",
+        err instanceof Error ? err.message : String(err),
+      );
+    } finally {
+      setSavingOdontogram(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -329,13 +419,30 @@ export function PatientDetailPage({ token }: { token: string }) {
           <div className="patient-detail-panel">
             <h3>Odontograma</h3>
             <p className="consulta-hint">
-              Vista de solo lectura del último estado registrado.
+              Haz clic en una superficie del diente para abrir el menú de condiciones.
             </p>
             <OdontogramChart
               toothStates={toothStates}
-              readOnly
+              onSurfaceChange={handleSurfaceChange}
+              onToothConditionChange={handleToothConditionChange}
+              onResetTooth={handleResetTooth}
               patientAge={age}
             />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginTop: 24,
+              }}
+            >
+              <button
+                className="action-btn action-btn-confirm"
+                onClick={saveOdontogram}
+                disabled={savingOdontogram}
+              >
+                {savingOdontogram ? "Guardando..." : "Guardar odontograma"}
+              </button>
+            </div>
           </div>
         )}
 
