@@ -1592,14 +1592,26 @@ p {
   border-radius: 0 3px 3px 0;
 }
 
+.nav-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.18s;
+}
+.nav-item.active .nav-item-dot {
+  background: #0d9488;
+}
+
 .nav-badge {
   font-size: 0.58rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 7px;
-  background: #e0f2fe;
-  color: #0284c7;
+  background: #ccfbf1;
+  color: #0d9488;
   border-radius: 999px;
 }
 
@@ -5218,6 +5230,10 @@ input::placeholder {
 .nav-item.active::before {
   background: #0d9488 !important;
   box-shadow: none !important;
+}
+.nav-item.active .nav-item-dot {
+  background: #0d9488 !important;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
 }
 
 /* ── Botones primarios ───────────────────────────────────── */

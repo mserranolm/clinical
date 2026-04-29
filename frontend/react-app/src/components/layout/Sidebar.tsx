@@ -22,13 +22,31 @@ const ROLE_LABELS: Record<string, string> = {
   patient: "Paciente",
 };
 
-type NavItemDef = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+type NavItemDef = {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  end?: boolean;
+};
 
-export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; userName?: string; role?: string }) {
+export function Sidebar({
+  onLogout,
+  userName,
+  role,
+}: {
+  onLogout: () => void;
+  userName?: string;
+  role?: string;
+}) {
   const { theme } = useTheme();
   const logoVariant = resolveTheme(theme) === "dark" ? "light" : "dark";
   const initials = userName
-    ? userName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+    ? userName
+        .split(" ")
+        .map((w) => w[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
     : "SA";
   const isPlatformAdmin = role === "platform_admin";
   const isAdmin = role === "admin";
@@ -39,20 +57,57 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
   const iconProps = { size: 15, strokeWidth: 1.5 };
 
   const clinicItems: NavItemDef[] = [
-    { to: "/dashboard", label: "Panel Principal", icon: <LayoutDashboard {...iconProps} />, end: true },
+    {
+      to: "/dashboard",
+      label: "Panel Principal",
+      icon: <LayoutDashboard {...iconProps} />,
+      end: true,
+    },
   ];
   const clinicaItems: NavItemDef[] = [
-    { to: "/dashboard/pacientes", label: "Pacientes", icon: <Users {...iconProps} /> },
-    { to: "/dashboard/citas", label: "Agenda Médica", icon: <Calendar {...iconProps} /> },
-    { to: "/dashboard/calendario", label: "Calendario", icon: <CalendarRange {...iconProps} /> },
-    ...(canSeeDocumentos ? [{ to: "/dashboard/documentos", label: "Documentos", icon: <FileText {...iconProps} /> }] : []),
+    {
+      to: "/dashboard/pacientes",
+      label: "Pacientes",
+      icon: <Users {...iconProps} />,
+    },
+    {
+      to: "/dashboard/citas",
+      label: "Agenda Médica",
+      icon: <Calendar {...iconProps} />,
+    },
+    {
+      to: "/dashboard/calendario",
+      label: "Calendario",
+      icon: <CalendarRange {...iconProps} />,
+    },
+    ...(canSeeDocumentos
+      ? [
+          {
+            to: "/dashboard/documentos",
+            label: "Documentos",
+            icon: <FileText {...iconProps} />,
+          },
+        ]
+      : []),
   ];
   const finanzasItems: NavItemDef[] = [
-    { to: "/dashboard/pagos", label: "Pagos", icon: <Receipt {...iconProps} /> },
-    { to: "/dashboard/presupuestos", label: "Presupuestos", icon: <FileSpreadsheet {...iconProps} /> },
+    {
+      to: "/dashboard/pagos",
+      label: "Pagos",
+      icon: <Receipt {...iconProps} />,
+    },
+    {
+      to: "/dashboard/presupuestos",
+      label: "Presupuestos",
+      icon: <FileSpreadsheet {...iconProps} />,
+    },
   ];
   const adminItems: NavItemDef[] = [
-    { to: "/dashboard/usuarios", label: "Usuarios", icon: <Users {...iconProps} /> },
+    {
+      to: "/dashboard/usuarios",
+      label: "Usuarios",
+      icon: <Users {...iconProps} />,
+    },
   ];
 
   if (isPlatformAdmin) {
@@ -65,13 +120,27 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
         <nav className="sidebar-nav">
           <div className="nav-group">
             <span className="nav-group-label">Plataforma</span>
-            <NavLink to="/dashboard" end className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-item-icon"><ShieldCheck {...iconProps} /></span>
+            <NavLink
+              to="/dashboard"
+              end
+              className={({ isActive }) =>
+                `nav-item${isActive ? " active" : ""}`
+              }
+            >
+              <span className="nav-item-icon">
+                <ShieldCheck {...iconProps} />
+              </span>
               <span className="nav-item-label">Consola de Plataforma</span>
+              <span className="nav-item-dot" />
             </NavLink>
           </div>
         </nav>
-        <SidebarFooter initials={initials} userName={userName} role={role} onLogout={onLogout} />
+        <SidebarFooter
+          initials={initials}
+          userName={userName}
+          role={role}
+          onLogout={onLogout}
+        />
       </aside>
     );
   }
@@ -87,9 +156,17 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
         <div className="nav-group">
           <span className="nav-group-label">Principal</span>
           {clinicItems.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `nav-item${isActive ? " active" : ""}`
+              }
+            >
               <span className="nav-item-icon">{item.icon}</span>
               <span className="nav-item-label">{item.label}</span>
+              <span className="nav-item-dot" />
             </NavLink>
           ))}
         </div>
@@ -97,9 +174,16 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
         <div className="nav-group">
           <span className="nav-group-label">Clínica</span>
           {clinicaItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `nav-item${isActive ? " active" : ""}`
+              }
+            >
               <span className="nav-item-icon">{item.icon}</span>
               <span className="nav-item-label">{item.label}</span>
+              <span className="nav-item-dot" />
             </NavLink>
           ))}
         </div>
@@ -108,9 +192,16 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
           <div className="nav-group">
             <span className="nav-group-label">Finanzas</span>
             {finanzasItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `nav-item${isActive ? " active" : ""}`
+                }
+              >
                 <span className="nav-item-icon">{item.icon}</span>
                 <span className="nav-item-label">{item.label}</span>
+                <span className="nav-item-dot" />
               </NavLink>
             ))}
           </div>
@@ -120,22 +211,42 @@ export function Sidebar({ onLogout, userName, role }: { onLogout: () => void; us
           <div className="nav-group">
             <span className="nav-group-label">Administración</span>
             {adminItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `nav-item${isActive ? " active" : ""}`
+                }
+              >
                 <span className="nav-item-icon">{item.icon}</span>
                 <span className="nav-item-label">{item.label}</span>
+                <span className="nav-item-dot" />
               </NavLink>
             ))}
           </div>
         )}
       </nav>
 
-      <SidebarFooter initials={initials} userName={userName} role={role} onLogout={onLogout} />
+      <SidebarFooter
+        initials={initials}
+        userName={userName}
+        role={role}
+        onLogout={onLogout}
+      />
     </aside>
   );
 }
 
-function SidebarFooter({ initials, userName, role, onLogout }: {
-  initials: string; userName?: string; role?: string; onLogout: () => void;
+function SidebarFooter({
+  initials,
+  userName,
+  role,
+  onLogout,
+}: {
+  initials: string;
+  userName?: string;
+  role?: string;
+  onLogout: () => void;
 }) {
   return (
     <div className="sidebar-footer">
