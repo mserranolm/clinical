@@ -1,48 +1,38 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Calendar,
-  FileText,
-  BarChart3,
-  Bell,
-  Brain,
-  Stethoscope,
-  ArrowRight,
-  Check,
-  CheckCircle,
-  Clock,
-} from "lucide-react";
+import { CheckCircle, ArrowRight, Send } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 
 const features = [
   {
-    icon: <Calendar size={20} />,
+    icon: "🗓",
     title: "Agenda inteligente",
-    desc: "Gestión de citas en tiempo real con confirmación automática por email y SMS.",
+    desc: "Gestión de citas en tiempo real con confirmación automática por email.",
   },
   {
-    icon: <Stethoscope size={20} />,
+    icon: "🦷",
     title: "Odontograma digital",
     desc: "Registro interactivo FDI de 32 dientes con historial completo por superficie.",
   },
   {
-    icon: <FileText size={20} />,
+    icon: "📋",
     title: "Consentimientos legales",
     desc: "Plantillas personalizables con firma digital y trazabilidad completa.",
   },
   {
-    icon: <BarChart3 size={20} />,
+    icon: "💰",
     title: "Control financiero",
     desc: "Pagos, presupuestos y reportes de ingresos en un solo lugar.",
   },
   {
-    icon: <Bell size={20} />,
-    title: "Notificaciones automáticas",
-    desc: "Recordatorios 24h antes que reducen el ausentismo un 40%.",
+    icon: "🔔",
+    title: "Notificaciones email",
+    desc: "Recordatorios automáticos 24h antes y confirmación de citas vía link.",
   },
   {
-    icon: <Brain size={20} />,
-    title: "Asistente IA — Docco",
-    desc: "Chat inteligente integrado para dudas clínicas y administrativas 24/7.",
+    icon: "🤖",
+    title: "Asistente IA Docco",
+    desc: "Chat inteligente integrado para resolver dudas clínicas y administrativas.",
   },
 ];
 
@@ -53,24 +43,41 @@ const heroStats = [
 ];
 
 const mockAppointments = [
-  { name: "María González", time: "09:00", status: "confirmed" },
-  { name: "Carlos Ruiz", time: "10:30", status: "scheduled" },
-  { name: "Ana Martínez", time: "11:00", status: "in_progress" },
+  {
+    name: "María González",
+    time: "09:00",
+    status: "confirmed",
+    bg: "#DCFCE7",
+    tc: "#15803D",
+    label: "Confirmada",
+  },
+  {
+    name: "Carlos Ruiz",
+    time: "10:30",
+    status: "scheduled",
+    bg: "#FEF3C7",
+    tc: "#B45309",
+    label: "No confirmada",
+  },
+  {
+    name: "Ana Martínez",
+    time: "11:00",
+    status: "in_progress",
+    bg: "#DBEAFE",
+    tc: "#1D4ED8",
+    label: "En consulta",
+  },
 ];
-
-const statusBadge: Record<
-  string,
-  { label: string; bg: string; color: string }
-> = {
-  confirmed: { label: "Confirmada", bg: "#DCFCE7", color: "#15803D" },
-  in_progress: { label: "En consulta", bg: "#DBEAFE", color: "#1D4ED8" },
-  completed: { label: "Finalizada", bg: "#F1F5F9", color: "#475569" },
-  cancelled: { label: "Cancelada", bg: "#FEE2E2", color: "#DC2626" },
-  scheduled: { label: "No confirmada", bg: "#FEF3C7", color: "#B45309" },
-};
 
 export function Landing() {
   const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
 
   return (
     <div
@@ -87,9 +94,12 @@ export function Landing() {
           position: "sticky",
           top: 0,
           zIndex: 100,
-          background: "rgba(255,255,255,0.92)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #F1F5F9",
+          background: scrolled ? "rgba(255,255,255,0.92)" : "white",
+          backdropFilter: scrolled ? "blur(12px)" : "none",
+          borderBottom: scrolled
+            ? "1px solid #F1F5F9"
+            : "1px solid transparent",
+          transition: "background 0.2s, border-color 0.2s",
         }}
       >
         <div
@@ -175,6 +185,7 @@ export function Landing() {
       >
         {/* Left copy */}
         <div>
+          {/* Badge */}
           <div
             style={{
               display: "inline-flex",
@@ -199,7 +210,7 @@ export function Landing() {
                 display: "inline-block",
               }}
             />
-            Sistema clínico en producción · AWS Serverless
+            Sistema clínico en producción · HIPAA Compliant
           </div>
 
           <h1
@@ -232,53 +243,7 @@ export function Landing() {
             una sola plataforma. Sin papeles, sin errores, sin estrés.
           </p>
 
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "0 0 36px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}
-          >
-            {[
-              "Agenda inteligente sincronizada",
-              "Consentimientos legales digitales",
-              "Odontograma clínico de alta precisión",
-              "Facturación integrada y reportes",
-            ].map((c) => (
-              <li
-                key={c}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  fontSize: 14,
-                  color: "#475569",
-                  fontWeight: 500,
-                }}
-              >
-                <span
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    background: "#F0FDFA",
-                    border: "1px solid #CCFBF1",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Check size={11} strokeWidth={3} color="#0D9488" />
-                </span>
-                {c}
-              </li>
-            ))}
-          </ul>
-
+          {/* CTA buttons */}
           <div
             style={{
               display: "flex",
@@ -359,6 +324,7 @@ export function Landing() {
 
         {/* Right — product UI mockup */}
         <div style={{ position: "relative" }}>
+          {/* Main card — browser mockup */}
           <div
             style={{
               background: "white",
@@ -368,7 +334,7 @@ export function Landing() {
               overflow: "hidden",
             }}
           >
-            {/* Topbar */}
+            {/* Topbar browser chrome */}
             <div
               style={{
                 padding: "14px 20px",
@@ -376,7 +342,6 @@ export function Landing() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                background: "white",
               }}
             >
               <div style={{ display: "flex", gap: 6 }}>
@@ -412,12 +377,11 @@ export function Landing() {
               </div>
             </div>
 
-            {/* KPIs */}
+            {/* KPIs 3 columnas */}
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(3,1fr)",
-                gap: 0,
                 borderBottom: "1px solid #F1F5F9",
               }}
             >
@@ -541,84 +505,72 @@ export function Landing() {
               </div>
             </div>
 
-            {/* Appointments */}
+            {/* 3 citas */}
             <div style={{ padding: "10px 0" }}>
-              {mockAppointments.map((a, i) => {
-                const badge = statusBadge[a.status] || statusBadge.scheduled;
-                return (
+              {mockAppointments.map((a, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 16px",
+                    borderBottom: i < 2 ? "1px solid #F8FAFC" : "none",
+                  }}
+                >
                   <div
-                    key={i}
                     style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      background: "#F0FDFA",
+                      color: "#0D9488",
+                      fontSize: 10,
+                      fontWeight: 700,
                       display: "flex",
                       alignItems: "center",
-                      gap: 10,
-                      padding: "8px 16px",
-                      borderBottom:
-                        i < mockAppointments.length - 1
-                          ? "1px solid #F8FAFC"
-                          : "none",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
+                    {a.name
+                      .split(" ")
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join("")}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: "#F0FDFA",
-                        color: "#0D9488",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {a.name
-                        .split(" ")
-                        .map((w) => w[0])
-                        .slice(0, 2)
-                        .join("")}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: "#0F172A",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {a.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#94A3B8" }}>
-                        {a.time}
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "3px 10px",
-                        borderRadius: 100,
-                        background: badge.bg,
-                        color: badge.color,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 600,
-                        whiteSpace: "nowrap",
+                        color: "#0F172A",
                       }}
                     >
-                      {badge.label}
-                    </span>
+                      {a.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                      {a.time}
+                    </div>
                   </div>
-                );
-              })}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: a.bg,
+                      color: a.tc,
+                      padding: "3px 10px",
+                      borderRadius: 100,
+                    }}
+                  >
+                    {a.label}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Floating badges */}
+          {/* Floating badge top-right */}
           <div
             style={{
               position: "absolute",
@@ -643,10 +595,9 @@ export function Landing() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#15803D",
               }}
             >
-              <CheckCircle size={16} strokeWidth={1.5} />
+              <CheckCircle size={16} color="#15803D" />
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
@@ -658,6 +609,7 @@ export function Landing() {
             </div>
           </div>
 
+          {/* Floating badge bottom-left */}
           <div
             style={{
               position: "absolute",
@@ -682,10 +634,9 @@ export function Landing() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#B45309",
               }}
             >
-              <Clock size={16} strokeWidth={1.5} />
+              <Send size={16} color="#B45309" />
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
@@ -752,21 +703,7 @@ export function Landing() {
                   background: "#FAFBFC",
                 }}
               >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: "#F0FDFA",
-                    color: "#0D9488",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  {f.icon}
-                </div>
+                <div style={{ fontSize: 28, marginBottom: 14 }}>{f.icon}</div>
                 <h3
                   style={{
                     fontSize: 16,
@@ -790,52 +727,6 @@ export function Landing() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── Stats bar ── */}
-      <section
-        style={{ background: "#F8FAFC", borderBottom: "1px solid #F1F5F9" }}
-      >
-        <div
-          style={{
-            maxWidth: 1180,
-            margin: "0 auto",
-            padding: "40px 24px",
-            display: "flex",
-            justifyContent: "center",
-            gap: 80,
-          }}
-        >
-          {[
-            { value: "500+", label: "Clínicas activas" },
-            { value: "50K", label: "Citas al mes" },
-            { value: "99.9%", label: "Uptime garantizado" },
-            { value: "< 2s", label: "Tiempo de respuesta" },
-          ].map((s, i) => (
-            <div key={i} style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 28,
-                  fontWeight: 800,
-                  color: "#0D9488",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {s.value}
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "#94A3B8",
-                  marginTop: 4,
-                  fontWeight: 500,
-                }}
-              >
-                {s.label}
-              </div>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -915,27 +806,14 @@ export function Landing() {
       {/* ── Footer ── */}
       <footer
         style={{
-          background: "#0F172A",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid #F1F5F9",
           padding: "24px",
+          textAlign: "center",
         }}
       >
-        <div
-          style={{
-            maxWidth: 1180,
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <Logo style={{ height: 24, width: "auto" }} variant="light" />
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
-            © 2026 DOCCO · Sistema Clínico Elite · Todos los derechos reservados
-          </span>
-        </div>
+        <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+          © 2026 DOCCO · Sistema Clínico Elite · Todos los derechos reservados
+        </p>
       </footer>
     </div>
   );

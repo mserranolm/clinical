@@ -26,6 +26,7 @@ import {
   Stethoscope,
   Send,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 
 type AppointmentRow = {
@@ -37,6 +38,108 @@ type AppointmentRow = {
   paymentAmount?: number;
   consentSummary?: { total: number; accepted: number };
 };
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+function KpiCard({
+  label,
+  value,
+  trend,
+  bg,
+  iconColor,
+  Icon,
+  onClick,
+  highlight,
+  active,
+}: {
+  label: string;
+  value: string | number;
+  trend?: string;
+  bg: string;
+  iconColor: string;
+  Icon: React.ElementType;
+  onClick?: () => void;
+  highlight?: string;
+  active?: boolean;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "white",
+        borderRadius: 14,
+        padding: "20px 22px",
+        cursor: onClick ? "pointer" : "default",
+        borderTop: highlight ? `3px solid ${highlight}` : "1px solid #F1F5F9",
+        border: active
+          ? `2px solid ${highlight ?? "#0D9488"}`
+          : highlight
+            ? undefined
+            : "1px solid #F1F5F9",
+        boxShadow: active
+          ? `0 0 0 3px ${highlight ? highlight + "22" : "#0D948822"}`
+          : "0 1px 4px rgba(148,163,184,0.08)",
+        transition: "box-shadow 0.15s ease, border 0.15s ease",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Icon bubble */}
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          background: bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 14,
+        }}
+      >
+        <Icon size={18} color={iconColor} strokeWidth={1.8} />
+      </div>
+
+      {/* Value */}
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 800,
+          color: "#0F172A",
+          letterSpacing: "-0.03em",
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+
+      {/* Label */}
+      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>
+        {label}
+      </div>
+
+      {/* Trend badge */}
+      {trend && (
+        <span
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            fontSize: 11,
+            color: "#10B981",
+            background: "#F0FDF4",
+            borderRadius: 100,
+            padding: "3px 8px",
+            fontWeight: 600,
+          }}
+        >
+          {trend}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function DashboardHome({
   user,
@@ -71,6 +174,7 @@ export function DashboardHome({
     totalConsultations: number;
   } | null>(null);
   const [activeView, setActiveView] = useState<"list" | "timeline">("list");
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOrgAdmin(user)) {
@@ -140,15 +244,26 @@ export function DashboardHome({
       ),
     [rows],
   );
-  const inProgressRows = useMemo(
-    () => rows.filter((r) => isInProgress(r.status)),
-    [rows],
-  );
+  // Filas filtradas según KPI seleccionado
+  const filteredRows = useMemo(() => {
+    if (!selectedStatus) return rows;
+    if (selectedStatus === "unconfirmed") {
+      return rows.filter(
+        (r) =>
+          !["confirmed", "completed", "cancelled"].includes(r.status) &&
+          !isInProgress(r.status),
+      );
+    }
+    return rows.filter((r) => r.status === selectedStatus);
+  }, [rows, selectedStatus]);
 
-  const total = rows.length;
-  const confirmed = confirmedRows.length;
-  const unconfirmed = unconfirmedRows.length;
-  const inProgress = inProgressRows.length;
+  // Ingresos cobrados: orgStats si existe, si no calcular de rows
+  const totalRevenue = useMemo(() => {
+    if (orgStats?.totalRevenue != null) return orgStats.totalRevenue;
+    return rows
+      .filter((r) => (r.paymentAmount ?? 0) > 0)
+      .reduce((s, r) => s + (r.paymentAmount ?? 0), 0);
+  }, [orgStats, rows]);
 
   const canSeeRevenue = isOrgAdmin(user) || user.role === "doctor";
   const canSeePending = isOrgAdmin(user);
@@ -234,36 +349,6 @@ export function DashboardHome({
     );
   };
 
-  // Panel derecho: items de atención pendiente
-  const attentionItems = useMemo(() => {
-    const items: Array<{
-      key: string;
-      tipo: "CITA" | "EN CONSULTA";
-      texto: string;
-      subtexto: string;
-    }> = [];
-    for (const row of unconfirmedRows) {
-      items.push({
-        key: row.id,
-        tipo: "CITA",
-        texto: `${patientLabel(row)} · ${rowTime(row)}`,
-        subtexto: "Sin confirmar",
-      });
-    }
-    for (const row of inProgressRows) {
-      items.push({
-        key: row.id,
-        tipo: "EN CONSULTA",
-        texto: patientLabel(row),
-        subtexto: "En curso",
-      });
-    }
-    return items;
-  }, [unconfirmedRows, inProgressRows]);
-
-  // Últimos 3 pacientes para "Vistos recientemente"
-  const recentPatients = useMemo(() => rows.slice(0, 3), [rows]);
-
   const avatarInitials = (name: string) =>
     name
       .split(" ")
@@ -271,6 +356,11 @@ export function DashboardHome({
       .map((n) => n[0] ?? "")
       .join("")
       .toUpperCase() || "?";
+
+  // Toggle de filtro por estado
+  function toggleStatus(status: string) {
+    setSelectedStatus((prev) => (prev === status ? null : status));
+  }
 
   return (
     <section className="page-section">
@@ -324,814 +414,476 @@ export function DashboardHome({
         </Modal>
       )}
 
-      {/* ── Stats bar ── */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid #F1F5F9",
-          borderRadius: 12,
-          padding: "12px 24px",
-          display: "flex",
-          alignItems: "center",
-          gap: 0,
-          overflowX: "auto",
-          marginBottom: 20,
-          boxShadow: "0 1px 4px rgba(148,163,184,0.08)",
-        }}
-      >
-        {/* HOY */}
-        <div style={{ padding: "0 20px 0 0", flexShrink: 0 }}>
-          <div
-            style={{
-              fontSize: "0.63rem",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              color: "#94A3B8",
-              textTransform: "uppercase",
-              marginBottom: 2,
-            }}
-          >
-            HOY
-          </div>
-          <div
-            style={{
-              fontSize: "1.4rem",
-              fontWeight: 800,
-              color: "#0F172A",
-              lineHeight: 1,
-            }}
-          >
-            {total}
-          </div>
-          <div style={{ fontSize: "0.7rem", color: "#94A3B8", marginTop: 1 }}>
-            citas
-          </div>
-        </div>
-
-        <div
-          style={{ width: 1, height: 36, background: "#F1F5F9", flexShrink: 0 }}
-        />
-
-        {/* CONFIRMADOS */}
-        <div style={{ padding: "0 20px", flexShrink: 0 }}>
-          <div
-            style={{
-              fontSize: "0.63rem",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              color: "#94A3B8",
-              textTransform: "uppercase",
-              marginBottom: 2,
-            }}
-          >
-            CONFIRMADOS
-          </div>
-          <div
-            style={{
-              fontSize: "1.4rem",
-              fontWeight: 800,
-              color: "#0F172A",
-              lineHeight: 1,
-            }}
-          >
-            {confirmed}
-          </div>
-          <div style={{ fontSize: "0.7rem", color: "#94A3B8", marginTop: 1 }}>
-            pac.
-          </div>
-        </div>
-
-        <div
-          style={{ width: 1, height: 36, background: "#F1F5F9", flexShrink: 0 }}
-        />
-
-        {/* SIN CONFIRMAR */}
-        <div style={{ padding: "0 20px", flexShrink: 0 }}>
-          <div
-            style={{
-              fontSize: "0.63rem",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              color: "#94A3B8",
-              textTransform: "uppercase",
-              marginBottom: 2,
-            }}
-          >
-            SIN CONFIRMAR
-          </div>
-          <div
-            style={{
-              fontSize: "1.4rem",
-              fontWeight: 800,
-              color: "#0F172A",
-              lineHeight: 1,
-            }}
-          >
-            {unconfirmed}
-          </div>
-          <div style={{ fontSize: "0.7rem", color: "#94A3B8", marginTop: 1 }}>
-            pend.
-          </div>
-        </div>
-
-        <div
-          style={{ width: 1, height: 36, background: "#F1F5F9", flexShrink: 0 }}
-        />
-
-        {/* EN CONSULTA */}
-        <div style={{ padding: "0 20px", flexShrink: 0 }}>
-          <div
-            style={{
-              fontSize: "0.63rem",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              color: "#94A3B8",
-              textTransform: "uppercase",
-              marginBottom: 2,
-            }}
-          >
-            EN CONSULTA
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div
-              style={{
-                fontSize: "1.4rem",
-                fontWeight: 800,
-                color: "#10B981",
-                lineHeight: 1,
-              }}
-            >
-              {inProgress}
-            </div>
-            {inProgress > 0 && (
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#10B981",
-                  boxShadow: "0 0 0 3px rgba(16,185,129,0.25)",
-                  animation: "pulse 2s infinite",
-                  flexShrink: 0,
-                }}
-              />
-            )}
-          </div>
-          <div style={{ fontSize: "0.7rem", color: "#94A3B8", marginTop: 1 }}>
-            ahora
-          </div>
-        </div>
-
-        {canSeeRevenue && orgStats && (
-          <>
-            <div
-              style={{
-                width: 1,
-                height: 36,
-                background: "#F1F5F9",
-                flexShrink: 0,
-              }}
-            />
-            <div style={{ padding: "0 20px", flexShrink: 0 }}>
-              <div
-                style={{
-                  fontSize: "0.63rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  color: "#94A3B8",
-                  textTransform: "uppercase",
-                  marginBottom: 2,
-                }}
-              >
-                COBRADO HOY
-              </div>
-              <div
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: 800,
-                  color: "#10B981",
-                  lineHeight: 1,
-                }}
-              >
-                $
-                {orgStats.totalRevenue.toLocaleString("es-ES", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-              <div
-                style={{ fontSize: "0.7rem", color: "#94A3B8", marginTop: 1 }}
-              >
-                USD
-              </div>
-            </div>
-          </>
-        )}
-
-        {canSeePending && orgStats && (
-          <>
-            <div
-              style={{
-                width: 1,
-                height: 36,
-                background: "#F1F5F9",
-                flexShrink: 0,
-              }}
-            />
-            <div
-              style={{ padding: "0 20px", flexShrink: 0, cursor: "pointer" }}
-              onClick={() => navigate("/dashboard/pagos")}
-            >
-              <div
-                style={{
-                  fontSize: "0.63rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  color: "#94A3B8",
-                  textTransform: "uppercase",
-                  marginBottom: 2,
-                }}
-              >
-                PENDIENTES
-              </div>
-              <div
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: 800,
-                  color: "#F59E0B",
-                  lineHeight: 1,
-                }}
-              >
-                $
-                {orgStats.pendingRevenue.toLocaleString("es-ES", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-              <div
-                style={{ fontSize: "0.7rem", color: "#94A3B8", marginTop: 1 }}
-              >
-                por cobrar
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ── Layout de 2 columnas ── */}
+      {/* ── KPI Grid 4 columnas ── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 300px",
-          gap: 20,
-          alignItems: "start",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 16,
+          marginBottom: 20,
         }}
       >
-        {/* ── Columna izquierda: Agenda ── */}
-        <article className="agenda-card" style={{ margin: 0 }}>
-          {/* Header */}
-          <div className="agenda-header">
-            <div className="agenda-header-left">
-              <div className="agenda-header-icon">
-                <CalendarCheck size={18} strokeWidth={1.5} />
-              </div>
-              <div>
-                <h3 className="agenda-title">Agenda · Hoy</h3>
-                <p className="agenda-subtitle">
-                  {rows.length > 0
-                    ? `${rows.length} cita${rows.length !== 1 ? "s" : ""} · vista compacta`
-                    : "Sin citas para esta fecha"}
-                </p>
-              </div>
-            </div>
+        <KpiCard
+          label="Citas del día"
+          value={rows.length}
+          trend="En vivo"
+          bg="#DBEAFE"
+          iconColor="#1D4ED8"
+          Icon={CalendarCheck}
+          highlight="#3B82F6"
+          active={selectedStatus === null}
+          onClick={() => setSelectedStatus(null)}
+        />
+        <KpiCard
+          label="Confirmados"
+          value={confirmedRows.length}
+          trend={`+${confirmedRows.length}`}
+          bg="#DCFCE7"
+          iconColor="#15803D"
+          Icon={CheckCircle}
+          highlight="#22C55E"
+          active={selectedStatus === "confirmed"}
+          onClick={() => toggleStatus("confirmed")}
+        />
+        <KpiCard
+          label="Sin confirmar"
+          value={unconfirmedRows.length}
+          bg="#FEF3C7"
+          iconColor="#B45309"
+          Icon={Clock}
+          highlight="#F59E0B"
+          active={selectedStatus === "unconfirmed"}
+          onClick={() => toggleStatus("unconfirmed")}
+        />
+        {canSeeRevenue && (
+          <KpiCard
+            label="Ingresos cobrados"
+            value={`$${totalRevenue.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+            bg="#F0FDFA"
+            iconColor="#0D9488"
+            Icon={TrendingUp}
+            highlight="#0D9488"
+          />
+        )}
+        {/* Si no puede ver revenue, ocupar el slot con un placeholder vacío para mantener el grid */}
+        {!canSeeRevenue && <div />}
+      </div>
+
+      {/* ── KPIs plataforma/org admin ── */}
+      {canSeePending && orgStats && (
+        <div
+          style={{
+            background: "#ffffff",
+            border: "1px solid #F1F5F9",
+            borderRadius: 12,
+            padding: "12px 24px",
+            display: "flex",
+            alignItems: "center",
+            gap: 24,
+            marginBottom: 20,
+            boxShadow: "0 1px 4px rgba(148,163,184,0.08)",
+            cursor: "pointer",
+          }}
+          onClick={() => navigate("/dashboard/pagos")}
+        >
+          <div>
             <div
-              className="agenda-header-right"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flexWrap: "wrap",
+                fontSize: "0.63rem",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                color: "#94A3B8",
+                textTransform: "uppercase",
+                marginBottom: 2,
               }}
             >
-              {/* Toggle Vista */}
-              <div className="agenda-view-switch">
-                <button
-                  type="button"
-                  className={`agenda-view-btn${activeView === "list" ? " is-active" : ""}`}
-                  onClick={() => setActiveView("list")}
-                  title="Vista lista"
-                >
-                  <List size={12} strokeWidth={2} />
-                  Lista
-                </button>
-                <button
-                  type="button"
-                  className={`agenda-view-btn${activeView === "timeline" ? " is-active" : ""}`}
-                  onClick={() => setActiveView("timeline")}
-                  title="Vista timeline"
-                >
-                  <Clock size={12} strokeWidth={2} />
-                  Timeline
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="agenda-btn"
-                onClick={onRefresh}
-                title="Actualizar citas"
-                disabled={loading}
-                style={{ display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <RefreshCw size={13} strokeWidth={1.5} />
-                <span>Actualizar</span>
-              </button>
-
-              {onAutoRefreshChange && (
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: "0.875rem",
-                    color: "#64748b",
-                  }}
-                >
-                  <span>Auto:</span>
-                  <select
-                    value={autoRefreshSeconds}
-                    onChange={(e) =>
-                      onAutoRefreshChange(Number(e.target.value))
-                    }
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid #e2e8f0",
-                      fontSize: "0.8rem",
-                      minWidth: 100,
-                    }}
-                  >
-                    {AUTO_REFRESH_OPTS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              <DatePicker value={date} onChange={onDateChange} />
+              PENDIENTES POR COBRAR
+            </div>
+            <div
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 800,
+                color: "#F59E0B",
+                lineHeight: 1,
+              }}
+            >
+              $
+              {orgStats.pendingRevenue.toLocaleString("es-ES", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}
             </div>
           </div>
-
-          {error ? (
-            <div className="auth-error" style={{ margin: "0 0 16px" }}>
-              {error}
-            </div>
-          ) : null}
-
-          {/* Tabla */}
-          <div className="agenda-table-wrap">
-            {rows.length === 0 && !loading ? (
-              <div className="agenda-empty">
-                <div className="agenda-empty-icon">
-                  <CalendarCheck size={32} strokeWidth={1} />
-                </div>
-                <strong>Sin citas para esta fecha</strong>
-                <p>Selecciona otro día o crea una nueva cita.</p>
-              </div>
-            ) : (
-              <table className="agenda-table">
-                <thead>
-                  <tr>
-                    <th>HORA</th>
-                    <th>PACIENTE</th>
-                    <th>ESTADO</th>
-                    <th>$</th>
-                    <th style={{ textAlign: "right" }}>ACCIONES</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="agenda-row">
-                      {/* HORA */}
-                      <td style={{ width: 90 }}>
-                        <div className="agenda-time">
-                          <Clock size={12} strokeWidth={1.5} />
-                          {rowTime(row)}
-                        </div>
-                      </td>
-
-                      {/* PACIENTE */}
-                      <td>
-                        <div className="agenda-patient">
-                          <div
-                            className="agenda-patient-avatar"
-                            style={{
-                              background:
-                                "linear-gradient(135deg,#CCFBF1,#99F6E4)",
-                              color: "#0D9488",
-                            }}
-                          >
-                            {avatarInitials(patientLabel(row))}
-                          </div>
-                          <div>
-                            <strong className="agenda-patient-name">
-                              {patientLabel(row)}
-                            </strong>
-                            <span className="agenda-patient-ref">
-                              #{row.id.split("-")[0]}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* ESTADO */}
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <span className={`badge ${statusClass(row.status)}`}>
-                            {statusLabel(row.status)}
-                          </span>
-                          {consentBadge(row)}
-                        </div>
-                      </td>
-
-                      {/* $ */}
-                      <td>
-                        {row.paymentAmount != null && row.paymentAmount > 0 ? (
-                          <span
-                            style={{
-                              fontSize: "0.82rem",
-                              fontWeight: 700,
-                              color: "#10B981",
-                            }}
-                          >
-                            $
-                            {row.paymentAmount.toLocaleString("es-ES", {
-                              minimumFractionDigits: 0,
-                            })}
-                          </span>
-                        ) : (
-                          <span
-                            style={{ color: "#CBD5E1", fontSize: "0.82rem" }}
-                          >
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      {/* ACCIONES */}
-                      <td>
-                        <div
-                          className="agenda-actions"
-                          style={{ justifyContent: "flex-end" }}
-                        >
-                          {/* Editar — solo icono */}
-                          {canWriteAppointments(user) &&
-                            !isCompleted(row.status) &&
-                            row.status !== "cancelled" && (
-                              <button
-                                type="button"
-                                className="agenda-btn"
-                                onClick={() => openEdit(row)}
-                                title="Editar cita"
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  padding: 0,
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <Pencil size={13} strokeWidth={1.5} />
-                              </button>
-                            )}
-
-                          {/* Reenviar — solo icono */}
-                          {!isCompleted(row.status) &&
-                            row.status !== "cancelled" && (
-                              <button
-                                type="button"
-                                className="agenda-btn"
-                                onClick={() => onResend(row.id)}
-                                title="Reenviar confirmación"
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  padding: 0,
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <Send size={13} strokeWidth={1.5} />
-                              </button>
-                            )}
-
-                          {/* Confirmar */}
-                          {canWriteAppointments(user) &&
-                            !isConfirmed(row.status) &&
-                            !isCompleted(row.status) &&
-                            row.status !== "cancelled" &&
-                            !isInProgress(row.status) && (
-                              <button
-                                type="button"
-                                className="agenda-btn agenda-btn-confirm"
-                                onClick={() => onConfirm(row.id)}
-                                title="Confirmar cita"
-                              >
-                                <CheckCircle size={13} strokeWidth={1.5} />
-                                <span>Confirmar</span>
-                              </button>
-                            )}
-
-                          {/* Atender — prominente */}
-                          {canManageTreatments(user) &&
-                            !isCompleted(row.status) &&
-                            row.status !== "cancelled" && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  isConfirmed(row.status) ||
-                                  isInProgress(row.status)
-                                    ? goToTreatment(row)
-                                    : notify.error(
-                                        "Cita no confirmada",
-                                        "Confirma la cita antes de atender al paciente.",
-                                      )
-                                }
-                                title={
-                                  isConfirmed(row.status) ||
-                                  isInProgress(row.status)
-                                    ? "Atender paciente"
-                                    : "Confirma primero"
-                                }
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  padding: "7px 14px",
-                                  borderRadius: 8,
-                                  border: "none",
-                                  background:
-                                    isConfirmed(row.status) ||
-                                    isInProgress(row.status)
-                                      ? "#0F172A"
-                                      : "#94A3B8",
-                                  color: "#ffffff",
-                                  fontSize: "0.78rem",
-                                  fontWeight: 700,
-                                  cursor:
-                                    isConfirmed(row.status) ||
-                                    isInProgress(row.status)
-                                      ? "pointer"
-                                      : "not-allowed",
-                                  opacity:
-                                    isConfirmed(row.status) ||
-                                    isInProgress(row.status)
-                                      ? 1
-                                      : 0.55,
-                                  transition: "all 0.15s ease",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <Stethoscope size={13} strokeWidth={1.5} />
-                                Atender
-                              </button>
-                            )}
-
-                          {/* Finalizada badge */}
-                          {isCompleted(row.status) && (
-                            <span className="agenda-done-badge">
-                              <CheckCircle size={12} strokeWidth={1.5} />{" "}
-                              Finalizada
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </article>
-
-        {/* ── Columna derecha: Panel atención + Recientes ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Panel "Requiere atención" */}
           <div
             style={{
-              background: "#ffffff",
-              border: "1px solid #F1F5F9",
-              borderRadius: 12,
-              boxShadow: "0 1px 4px rgba(148,163,184,0.08)",
-              overflow: "hidden",
+              fontSize: "0.78rem",
+              color: "#94A3B8",
+              marginLeft: "auto",
             }}
           >
-            {/* Header panel */}
-            <div
-              style={{
-                padding: "14px 16px",
-                borderBottom: "1px solid #F8FAFC",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: "#1E293B",
-                }}
-              >
-                Requiere atención
-              </span>
-              {attentionItems.length > 0 && (
-                <span
-                  style={{
-                    minWidth: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    background: "#EF4444",
-                    color: "#fff",
-                    fontSize: "0.68rem",
-                    fontWeight: 800,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "0 6px",
-                  }}
-                >
-                  {attentionItems.length}
-                </span>
-              )}
-            </div>
-
-            {/* Lista de items */}
-            {attentionItems.length === 0 ? (
-              <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: "0.78rem", color: "#94A3B8" }}>
-                  Sin items pendientes
-                </div>
-              </div>
-            ) : (
-              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {attentionItems.map((item) => (
-                  <li
-                    key={item.key}
-                    style={{
-                      padding: "10px 16px",
-                      borderBottom: "1px solid #F8FAFC",
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
-                    }}
-                  >
-                    {/* Badge tipo */}
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "2px 7px",
-                        borderRadius: 6,
-                        fontSize: "0.6rem",
-                        fontWeight: 800,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        flexShrink: 0,
-                        marginTop: 2,
-                        ...(item.tipo === "EN CONSULTA"
-                          ? { background: "#D1FAE5", color: "#059669" }
-                          : { background: "#F1F5F9", color: "#475569" }),
-                      }}
-                    >
-                      {item.tipo}
-                    </span>
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: "0.78rem",
-                          fontWeight: 600,
-                          color: "#1E293B",
-                          lineHeight: 1.3,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.texto}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.7rem",
-                          color: "#94A3B8",
-                          marginTop: 2,
-                        }}
-                      >
-                        {item.subtexto}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Panel "Vistos recientemente" */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #F1F5F9",
-              borderRadius: 12,
-              boxShadow: "0 1px 4px rgba(148,163,184,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "14px 16px",
-                borderBottom: "1px solid #F8FAFC",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: "#1E293B",
-                }}
-              >
-                Vistos recientemente
-              </span>
-            </div>
-            {recentPatients.length === 0 ? (
-              <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: "0.78rem", color: "#94A3B8" }}>
-                  Sin pacientes hoy
-                </div>
-              </div>
-            ) : (
-              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {recentPatients.map((row, idx) => (
-                  <li
-                    key={row.id}
-                    style={{
-                      padding: "10px 16px",
-                      borderBottom:
-                        idx < recentPatients.length - 1
-                          ? "1px solid #F8FAFC"
-                          : "none",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 10,
-                        background: "linear-gradient(135deg,#CCFBF1,#99F6E4)",
-                        color: "#0D9488",
-                        fontSize: "0.72rem",
-                        fontWeight: 800,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {avatarInitials(patientLabel(row))}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: "0.78rem",
-                          fontWeight: 600,
-                          color: "#1E293B",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {patientLabel(row)}
-                      </div>
-                      <div style={{ fontSize: "0.68rem", color: "#94A3B8" }}>
-                        {idx === 0 ? "ahora" : "antes"}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+            Ver pagos →
           </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Agenda card (columna única) ── */}
+      <article className="agenda-card" style={{ margin: 0 }}>
+        {/* Header */}
+        <div className="agenda-header">
+          <div className="agenda-header-left">
+            <div className="agenda-header-icon">
+              <CalendarCheck size={18} strokeWidth={1.5} />
+            </div>
+            <div>
+              <h3 className="agenda-title">Citas de la jornada</h3>
+              <p className="agenda-subtitle">
+                {selectedStatus ? "Filtrado · " : ""}
+                {filteredRows.length} cita
+                {filteredRows.length !== 1 ? "s" : ""}{" "}
+                {selectedStatus ? "en este estado" : "programadas"}
+              </p>
+            </div>
+          </div>
+          <div
+            className="agenda-header-right"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Botón "Ver todas" cuando hay filtro activo */}
+            {selectedStatus && (
+              <button
+                type="button"
+                onClick={() => setSelectedStatus(null)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #CCFBF1",
+                  background: "#F0FDFA",
+                  color: "#0D9488",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Ver todas ×
+              </button>
+            )}
+
+            {/* Toggle Vista */}
+            <div className="agenda-view-switch">
+              <button
+                type="button"
+                className={`agenda-view-btn${activeView === "list" ? " is-active" : ""}`}
+                onClick={() => setActiveView("list")}
+                title="Vista lista"
+              >
+                <List size={12} strokeWidth={2} />
+                Lista
+              </button>
+              <button
+                type="button"
+                className={`agenda-view-btn${activeView === "timeline" ? " is-active" : ""}`}
+                onClick={() => setActiveView("timeline")}
+                title="Vista timeline"
+              >
+                <Clock size={12} strokeWidth={2} />
+                Timeline
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="agenda-btn"
+              onClick={onRefresh}
+              title="Actualizar citas"
+              disabled={loading}
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <RefreshCw size={13} strokeWidth={1.5} />
+              <span>Actualizar</span>
+            </button>
+
+            {onAutoRefreshChange && (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: "0.875rem",
+                  color: "#64748b",
+                }}
+              >
+                <span>Auto:</span>
+                <select
+                  value={autoRefreshSeconds}
+                  onChange={(e) => onAutoRefreshChange(Number(e.target.value))}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    fontSize: "0.8rem",
+                    minWidth: 100,
+                  }}
+                >
+                  {AUTO_REFRESH_OPTS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <DatePicker value={date} onChange={onDateChange} />
+          </div>
+        </div>
+
+        {error ? (
+          <div className="auth-error" style={{ margin: "0 0 16px" }}>
+            {error}
+          </div>
+        ) : null}
+
+        {/* Tabla */}
+        <div className="agenda-table-wrap">
+          {filteredRows.length === 0 && !loading ? (
+            <div className="agenda-empty">
+              <div className="agenda-empty-icon">
+                <CalendarCheck size={32} strokeWidth={1} />
+              </div>
+              <strong>
+                {selectedStatus
+                  ? "Sin citas con este estado"
+                  : "Sin citas para esta fecha"}
+              </strong>
+              <p>
+                {selectedStatus
+                  ? "Prueba con otro filtro o ve todas las citas."
+                  : "Selecciona otro día o crea una nueva cita."}
+              </p>
+            </div>
+          ) : (
+            <table className="agenda-table">
+              <thead>
+                <tr>
+                  <th>HORA</th>
+                  <th>PACIENTE</th>
+                  <th>ESTADO</th>
+                  <th>$</th>
+                  <th style={{ textAlign: "right" }}>ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr key={row.id} className="agenda-row">
+                    {/* HORA */}
+                    <td style={{ width: 90 }}>
+                      <div className="agenda-time">
+                        <Clock size={12} strokeWidth={1.5} />
+                        {rowTime(row)}
+                      </div>
+                    </td>
+
+                    {/* PACIENTE */}
+                    <td>
+                      <div className="agenda-patient">
+                        <div
+                          className="agenda-patient-avatar"
+                          style={{
+                            background:
+                              "linear-gradient(135deg,#CCFBF1,#99F6E4)",
+                            color: "#0D9488",
+                          }}
+                        >
+                          {avatarInitials(patientLabel(row))}
+                        </div>
+                        <div>
+                          <strong className="agenda-patient-name">
+                            {patientLabel(row)}
+                          </strong>
+                          <span className="agenda-patient-ref">
+                            #{row.id.split("-")[0]}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* ESTADO */}
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span className={`badge ${statusClass(row.status)}`}>
+                          {statusLabel(row.status)}
+                        </span>
+                        {consentBadge(row)}
+                      </div>
+                    </td>
+
+                    {/* $ */}
+                    <td>
+                      {row.paymentAmount != null && row.paymentAmount > 0 ? (
+                        <span
+                          style={{
+                            fontSize: "0.82rem",
+                            fontWeight: 700,
+                            color: "#10B981",
+                          }}
+                        >
+                          $
+                          {row.paymentAmount.toLocaleString("es-ES", {
+                            minimumFractionDigits: 0,
+                          })}
+                        </span>
+                      ) : (
+                        <span style={{ color: "#CBD5E1", fontSize: "0.82rem" }}>
+                          —
+                        </span>
+                      )}
+                    </td>
+
+                    {/* ACCIONES */}
+                    <td>
+                      <div
+                        className="agenda-actions"
+                        style={{ justifyContent: "flex-end" }}
+                      >
+                        {/* Editar — solo icono */}
+                        {canWriteAppointments(user) &&
+                          !isCompleted(row.status) &&
+                          row.status !== "cancelled" && (
+                            <button
+                              type="button"
+                              className="agenda-btn"
+                              onClick={() => openEdit(row)}
+                              title="Editar cita"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                padding: 0,
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Pencil size={13} strokeWidth={1.5} />
+                            </button>
+                          )}
+
+                        {/* Reenviar — solo icono */}
+                        {!isCompleted(row.status) &&
+                          row.status !== "cancelled" && (
+                            <button
+                              type="button"
+                              className="agenda-btn"
+                              onClick={() => onResend(row.id)}
+                              title="Reenviar confirmación"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                padding: 0,
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Send size={13} strokeWidth={1.5} />
+                            </button>
+                          )}
+
+                        {/* Confirmar */}
+                        {canWriteAppointments(user) &&
+                          !isConfirmed(row.status) &&
+                          !isCompleted(row.status) &&
+                          row.status !== "cancelled" &&
+                          !isInProgress(row.status) && (
+                            <button
+                              type="button"
+                              className="agenda-btn agenda-btn-confirm"
+                              onClick={() => onConfirm(row.id)}
+                              title="Confirmar cita"
+                            >
+                              <CheckCircle size={13} strokeWidth={1.5} />
+                              <span>Confirmar</span>
+                            </button>
+                          )}
+
+                        {/* Atender — prominente */}
+                        {canManageTreatments(user) &&
+                          !isCompleted(row.status) &&
+                          row.status !== "cancelled" && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                isConfirmed(row.status) ||
+                                isInProgress(row.status)
+                                  ? goToTreatment(row)
+                                  : notify.error(
+                                      "Cita no confirmada",
+                                      "Confirma la cita antes de atender al paciente.",
+                                    )
+                              }
+                              title={
+                                isConfirmed(row.status) ||
+                                isInProgress(row.status)
+                                  ? "Atender paciente"
+                                  : "Confirma primero"
+                              }
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "7px 14px",
+                                borderRadius: 8,
+                                border: "none",
+                                background:
+                                  isConfirmed(row.status) ||
+                                  isInProgress(row.status)
+                                    ? "#0F172A"
+                                    : "#94A3B8",
+                                color: "#ffffff",
+                                fontSize: "0.78rem",
+                                fontWeight: 700,
+                                cursor:
+                                  isConfirmed(row.status) ||
+                                  isInProgress(row.status)
+                                    ? "pointer"
+                                    : "not-allowed",
+                                opacity:
+                                  isConfirmed(row.status) ||
+                                  isInProgress(row.status)
+                                    ? 1
+                                    : 0.55,
+                                transition: "all 0.15s ease",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              <Stethoscope size={13} strokeWidth={1.5} />
+                              Atender
+                            </button>
+                          )}
+
+                        {/* Finalizada badge */}
+                        {isCompleted(row.status) && (
+                          <span className="agenda-done-badge">
+                            <CheckCircle size={12} strokeWidth={1.5} />{" "}
+                            Finalizada
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </article>
     </section>
   );
 }
