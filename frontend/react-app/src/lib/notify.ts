@@ -1,15 +1,19 @@
 import { sileo } from "sileo";
 
+// Toasts unificados — colores neutros que funcionan tanto en light como dark mode.
+// El fill `#0f172a` (slate-900) es el fondo oscuro del toast en ambos modos.
+// El badge se hace transparente para que NO aparezca el bloque de color que sileo
+// dibuja por defecto detrás del check.
 const successStyles = {
   title: "text-white! font-semibold!",
-  description: "text-emerald-400!",
-  badge: "bg-emerald-500/20! text-emerald-400!",
+  description: "text-slate-300!",
+  badge: "bg-transparent! text-emerald-400!",
 };
 
 const errorStyles = {
-  title: "text-red-400! font-semibold!",
-  description: "text-white!",
-  badge: "bg-red-500/20! text-red-400!",
+  title: "text-white! font-semibold!",
+  description: "text-slate-300!",
+  badge: "bg-transparent! text-red-400!",
 };
 
 const fill = "#0f172a";

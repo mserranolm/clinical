@@ -5117,9 +5117,21 @@ button.ghost:hover {
 
 /* ─── Refinamientos generales del sistema de diseño ────────── */
 
-/* Fondo más sutil con profundidad */
+/* Fondo más sutil con profundidad.
+ * IMPORTANTE: usamos `forwards` con un keyframe sin transform en el "to" porque
+ * un transform residual (aunque sea translateY(0)) crea un containing block que
+ * rompe `position: fixed` de los modales descendientes — los descentra dentro
+ * del page-section en vez de centrarlos contra el viewport. */
 .page-section {
-  animation: revealUp 0.3s ease both;
+  animation: revealUpFade 0.3s ease both;
+}
+@keyframes revealUpFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Mejorar jerarquía tipográfica en cards */
@@ -5582,7 +5594,9 @@ td {
   color: #2dd4bf !important;
 }
 [data-theme="dark"] .topbar-date {
-  color: #475569;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 [data-theme="dark"] .live-dot {
   background: #2dd4bf;
@@ -5690,8 +5704,21 @@ td {
 [data-theme="dark"] .patient-row-clickable:hover td {
   background: transparent !important;
 }
+
+/* Fila activa (paciente seleccionado): en light tiene un verde clarito que en
+   dark deja invisible el texto. La sustituimos por un tinte teal translúcido
+   con borde izquierdo accent. */
+html[data-theme="dark"] .patient-row-active {
+  background: rgba(45, 212, 191, 0.08) !important;
+  border-left: 3px solid var(--accent);
+}
+html[data-theme="dark"] .patient-row-active td {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
 [data-theme="dark"] .mono {
-  color: #64748b;
+  color: #94a3b8;
 }
 
 /* ── Inputs & selects ────────────────────────────────────── */
@@ -7361,11 +7388,11 @@ td {
   color: #f1f5f9;
 }
 [data-theme="dark"] .agenda-subtitle {
-  color: #475569;
+  color: var(--text-muted);
 }
 [data-theme="dark"] .agenda-table th {
-  background: #263348;
-  color: #475569;
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 [data-theme="dark"] .agenda-row {
   border-bottom-color: rgba(148, 163, 184, 0.06);
@@ -7404,21 +7431,73 @@ td {
   background: rgba(148, 163, 184, 0.14);
   color: #cbd5e1;
 }
-[data-theme="dark"] .agenda-view-switch {
-  border-color: rgba(148, 163, 184, 0.26);
-  background: linear-gradient(180deg, #334155 0%, #1f2937 100%);
-  box-shadow: inset 0 1px 1px rgba(148, 163, 184, 0.18);
+html[data-theme="dark"] .agenda-view-switch {
+  border-color: var(--border) !important;
+  background: var(--bg) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
 }
-[data-theme="dark"] .agenda-view-btn {
-  color: #94a3b8;
+html[data-theme="dark"] .agenda-view-btn {
+  color: var(--text-secondary) !important;
+  background: #2a2a30 !important;
+  border: 1px solid rgba(241, 245, 249, 0.06) !important;
+  font-weight: 600 !important;
+  margin: 0 2px;
+  box-shadow: none !important;
+  transform: none !important;
 }
-[data-theme="dark"] .agenda-view-btn:hover {
-  color: #cbd5e1;
+html[data-theme="dark"] .agenda-view-btn:hover {
+  color: var(--text-primary) !important;
+  background: #3a3a42 !important;
+  border-color: rgba(241, 245, 249, 0.12) !important;
 }
-[data-theme="dark"] .agenda-view-btn.is-active {
-  background: #2dd4bf;
-  color: #0f172a;
-  box-shadow: 0 3px 12px rgba(45, 212, 191, 0.35);
+html[data-theme="dark"] .agenda-view-btn.is-active {
+  background: linear-gradient(180deg, #5eead4 0%, #14b8a6 100%) !important;
+  color: #042f2e !important;
+  font-weight: 800 !important;
+  border-color: rgba(94, 234, 212, 0.9) !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    0 0 0 2px rgba(45, 212, 191, 0.35),
+    0 6px 20px rgba(45, 212, 191, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* ── Sileo toasts: aplanar decoraciones verdes/teal accesorias ── */
+[data-sileo-toast]::before,
+[data-sileo-toast]::after {
+  background: transparent !important;
+  background-image: none !important;
+  filter: none !important;
+}
+[data-sileo-toast] [data-sileo-stack-tail],
+[data-sileo-toast] [class*="tail"],
+[data-sileo-toast] [class*="ribbon"],
+[data-sileo-toast] [class*="accent"] {
+  background: transparent !important;
+  background-image: none !important;
+  display: none !important;
+}
+
+/* ── gcal view switch (Calendario / Lista en agenda) ── */
+html[data-theme="dark"] .gcal-view-switch {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+}
+html[data-theme="dark"] .gcal-view-btn {
+  background: #2a2a30 !important;
+  color: var(--text-secondary) !important;
+}
+html[data-theme="dark"] .gcal-view-btn:hover:not(.gcal-view-btn--active) {
+  background: #3a3a42 !important;
+  color: var(--text-primary) !important;
+}
+html[data-theme="dark"] .gcal-view-btn--active {
+  background: linear-gradient(180deg, #5eead4 0%, #14b8a6 100%) !important;
+  color: #042f2e !important;
+  font-weight: 800 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 1px rgba(45, 212, 191, 0.5) !important;
 }
 [data-theme="dark"] .agenda-filter-check {
   color: #94a3b8;
@@ -8445,4 +8524,550 @@ td {
   .odn-3d-sliders {
     grid-template-columns: 1fr;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Dark Mode — Audit fixes (chips, detalle modal, historial, formularios)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Pathology chips (Antecedentes patológicos / familiares) ── */
+[data-theme="dark"] .pathology-chip {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .pathology-chip:hover {
+  background: var(--surface-2);
+  border-color: var(--text-muted);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .pathology-chip.active {
+  background: rgba(45, 212, 191, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 14px rgba(45, 212, 191, 0.18);
+}
+
+/* ── Antecedentes form ── */
+[data-theme="dark"] .antecedentes-col-title {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .pathology-detail-input,
+[data-theme="dark"] .historia-detail-input {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .pathology-detail-input::placeholder,
+[data-theme="dark"] .historia-detail-input::placeholder {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .pathology-detail-input:focus,
+[data-theme="dark"] .historia-detail-input:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+[data-theme="dark"] .historia-other label,
+[data-theme="dark"] .input-group label {
+  color: var(--text-secondary);
+}
+
+/* ── Modal "Detalle de Consulta" ── */
+[data-theme="dark"] .detalle-seccion {
+  border-top-color: var(--border);
+}
+[data-theme="dark"] .detalle-seccion:last-of-type {
+  border-bottom-color: var(--border);
+}
+[data-theme="dark"] .detalle-seccion-titulo {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .detalle-campo-label {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .detalle-campo span:not(.detalle-campo-label) {
+  color: var(--text-primary);
+}
+html[data-theme="dark"] .detalle-texto {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+html[data-theme="dark"] .detalle-paciente-row {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+html[data-theme="dark"] .detalle-paciente-row strong,
+html[data-theme="dark"] .detalle-paciente-row span {
+  color: var(--text-primary) !important;
+}
+
+/* ── Pago section ── */
+[data-theme="dark"] .pago-section {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+/* ── Otros formularios genéricos sin override previo ── */
+[data-theme="dark"] .evolucion-textarea,
+[data-theme="dark"] .elite-input,
+[data-theme="dark"] .card-form input,
+[data-theme="dark"] .card-form textarea,
+[data-theme="dark"] .card-form select {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .evolucion-textarea::placeholder,
+[data-theme="dark"] .elite-input::placeholder,
+[data-theme="dark"] .card-form input::placeholder,
+[data-theme="dark"] .card-form textarea::placeholder {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .evolucion-textarea:focus,
+[data-theme="dark"] .elite-input:focus,
+[data-theme="dark"] .card-form input:focus,
+[data-theme="dark"] .card-form textarea:focus,
+[data-theme="dark"] .card-form select:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* ── Status pills (citas) — variantes claras pasaban a chillón en dark ── */
+[data-theme="dark"] .status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+[data-theme="dark"] .status-confirmed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+[data-theme="dark"] .status-unconfirmed {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fde047;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+[data-theme="dark"] .status-in-progress {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+[data-theme="dark"] .status-completed {
+  background: rgba(45, 212, 191, 0.15);
+  color: var(--accent);
+  border-color: rgba(45, 212, 191, 0.3);
+}
+
+/* ── Landing page ghost button (queda blanco en dark sin override) ── */
+[data-theme="dark"] .lp-btn-ghost:hover {
+  background: rgba(241, 245, 249, 0.08);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ConsultaPage — Dark Mode
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Header / volver ── */
+[data-theme="dark"] .consulta-back-btn {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .consulta-back-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* La consulta-patient-card ya usa gradient dark + texto blanco — ok en ambos modos */
+
+/* ── Tabs (Consulta — son botones grandes individuales, no segmented) ── */
+[data-theme="dark"] .consulta-tab {
+  background: rgba(51, 65, 85, 0.55);
+  border-color: rgba(241, 245, 249, 0.08);
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .consulta-tab:hover {
+  background: rgba(71, 85, 105, 0.7);
+  border-color: rgba(241, 245, 249, 0.16);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .consulta-tab.active {
+  background: linear-gradient(180deg, #5eead4 0%, #14b8a6 100%);
+  border-color: rgba(94, 234, 212, 0.9);
+  color: #042f2e;
+  font-weight: 800;
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 2px rgba(45, 212, 191, 0.35),
+    0 6px 20px rgba(45, 212, 191, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* ── Section ── */
+[data-theme="dark"] .consulta-section-header {
+  border-bottom-color: var(--border);
+}
+[data-theme="dark"] .consulta-section-header h3 {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .consulta-section {
+  background: var(--surface);
+}
+
+/* ── Historia: checkboxes ── */
+[data-theme="dark"] .historia-check-field:hover {
+  background: rgba(241, 245, 249, 0.04);
+}
+[data-theme="dark"] .historia-check-label {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .historia-check-label input[type="checkbox"] {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+[data-theme="dark"] .historia-check-label input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+[data-theme="dark"] .historia-check-label input[type="checkbox"]:checked::after {
+  color: #0f172a;
+}
+[data-theme="dark"] .historia-check-label input[type="checkbox"]:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+[data-theme="dark"] .historia-subtitle {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .historia-textarea {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .historia-textarea:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+[data-theme="dark"] .historia-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── Action buttons (action-btn variants) ── */
+[data-theme="dark"] .action-btn {
+  background: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .action-btn:hover:not(:disabled) {
+  background: var(--surface-2) !important;
+  border-color: var(--accent) !important;
+}
+[data-theme="dark"] .action-btn-confirm {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+[data-theme="dark"] .action-btn-confirm:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.25) !important;
+  border-color: rgba(34, 197, 94, 0.5) !important;
+}
+[data-theme="dark"] .action-btn-treat {
+  background: var(--accent) !important;
+  color: #0f172a !important;
+}
+[data-theme="dark"] .action-btn-treat:hover:not(:disabled) {
+  background: var(--accent-hover) !important;
+}
+[data-theme="dark"] .action-btn-delete {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+[data-theme="dark"] .action-btn-delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.25) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Botón finalizar consulta — gradiente verde, queda igual en ambos modos */
+
+/* ── Imágenes en consulta (thumbs) ── */
+[data-theme="dark"] .image-thumb {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+[data-theme="dark"] .image-thumb-link:hover .image-thumb {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(45, 212, 191, 0.2);
+}
+
+/* ── Odontogram legend (la leyenda de colores en el tab Odontograma) ── */
+[data-theme="dark"] .odn-legend-grid {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+[data-theme="dark"] .odn-legend-item {
+  color: var(--text-secondary);
+}
+
+/* ── Cards genéricas (card, elite-card) — fondo y borde ── */
+[data-theme="dark"] .card,
+[data-theme="dark"] .elite-card {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Modal genérico (modal-card) ── */
+[data-theme="dark"] .modal-card {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+[data-theme="dark"] .modal-header h3 {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .modal-header p {
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PatientDetailPage — Dark Mode
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Tabs (segmented control tipo pill) ──
+   Estrategia: cada tab es un pill con fill PROPIO. Los inactivos son slate-800
+   gris (claramente no teal). El activo es teal brillante con glow + lift.
+   Usamos html[data-theme] para max specificity y !important donde haga falta. */
+html[data-theme="dark"] .patient-detail-tabs {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+html[data-theme="dark"] .patient-detail-tab-btn {
+  color: var(--text-secondary) !important;
+  background: #2a2a30 !important; /* gris neutro casi sin tinte azul */
+  border: 1px solid rgba(241, 245, 249, 0.06) !important;
+  font-weight: 600 !important;
+  margin: 0 2px;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-theme="dark"] .patient-detail-tab-btn:hover {
+  color: var(--text-primary) !important;
+  background: #3a3a42 !important;
+  border-color: rgba(241, 245, 249, 0.12) !important;
+}
+html[data-theme="dark"] .patient-detail-tab-btn.active {
+  background: linear-gradient(180deg, #5eead4 0%, #14b8a6 100%) !important;
+  color: #042f2e !important;
+  font-weight: 800 !important;
+  border-color: rgba(94, 234, 212, 0.9) !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    0 0 0 2px rgba(45, 212, 191, 0.35),
+    0 6px 20px rgba(45, 212, 191, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* ── Stat cards (Total de citas / Citas finalizadas / Con odontograma) ── */
+[data-theme="dark"] .patient-summary-card {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+[data-theme="dark"] .patient-summary-card span {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .patient-summary-card strong {
+  color: var(--text-primary);
+}
+
+/* ── History items (cards de historial médico) ── */
+[data-theme="dark"] .patient-history-item {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+[data-theme="dark"] .patient-history-item span {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .patient-history-item p {
+  color: var(--text-primary);
+}
+
+/* ── Patient detail header (Nombre / Apellido / Email / Tel / Cédula / Edad) ── */
+[data-theme="dark"] .patient-detail-header {
+  border-color: var(--border);
+}
+[data-theme="dark"] .patient-detail-headline h2 {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .patient-detail-grid label {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .patient-detail-grid strong {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .patient-detail-content {
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Odontograma 2D — Dark Mode
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── View switch (Vista 2D / Vista 3D) — mismo patrón ── */
+html[data-theme="dark"] .odn-view-switch {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+html[data-theme="dark"] .odn-view-btn {
+  color: var(--text-secondary) !important;
+  background: #2a2a30 !important;
+  border: 1px solid rgba(241, 245, 249, 0.06) !important;
+  font-weight: 600 !important;
+  margin: 0 2px;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-theme="dark"] .odn-view-btn:hover {
+  color: var(--text-primary) !important;
+  background: #3a3a42 !important;
+  border-color: rgba(241, 245, 249, 0.12) !important;
+}
+html[data-theme="dark"] .odn-view-btn.active {
+  background: linear-gradient(180deg, #5eead4 0%, #14b8a6 100%) !important;
+  color: #042f2e !important;
+  font-weight: 800 !important;
+  border-color: rgba(94, 234, 212, 0.9) !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    0 0 0 2px rgba(45, 212, 191, 0.35),
+    0 6px 20px rgba(45, 212, 191, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* ── Toggle "Ocultar dientes temporales" ── */
+[data-theme="dark"] .odn-toggle-check {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+[data-theme="dark"] .odn-toggle-check span {
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .odn-profile-hint {
+  color: var(--text-muted);
+}
+
+/* ── Mouth shell (contenedor del chart con gradiente rosado claro) ── */
+[data-theme="dark"] .odn-mouth-shell {
+  background:
+    radial-gradient(140% 70% at 50% 0%, rgba(248, 113, 113, 0.12), transparent 60%),
+    radial-gradient(140% 70% at 50% 100%, rgba(251, 113, 133, 0.10), transparent 58%),
+    var(--surface);
+  border-color: var(--border);
+  box-shadow:
+    inset 0 1px 0 rgba(241, 245, 249, 0.05),
+    0 12px 30px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .odn-jaw::before {
+  border-color: var(--border);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .odn-jaw--upper {
+  background: linear-gradient(
+    180deg,
+    rgba(241, 245, 249, 0.04),
+    rgba(241, 245, 249, 0.02)
+  );
+}
+[data-theme="dark"] .odn-jaw--lower {
+  background: linear-gradient(
+    0deg,
+    rgba(241, 245, 249, 0.04),
+    rgba(241, 245, 249, 0.02)
+  );
+}
+
+/* ── Labels (SUPERIOR / INFERIOR / Q1-Q4) ── */
+[data-theme="dark"] .odn-arch-label {
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .odn-arch-label--temp {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .odn-quadrant-label {
+  color: var(--text-muted);
+}
+
+/* ── Dividers entre cuadrantes ── */
+[data-theme="dark"] .odn-v-divider {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(241, 245, 249, 0.2) 22%,
+    rgba(241, 245, 249, 0.2) 78%,
+    transparent
+  );
+}
+[data-theme="dark"] .odn-h-divider {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(241, 245, 249, 0.2) 20%,
+    rgba(241, 245, 249, 0.2) 80%,
+    transparent
+  );
+}
+
+/* ── Sección de dientes temporales (TEMPORALES) ── */
+[data-theme="dark"] .odn-temp-section {
+  background: rgba(241, 245, 249, 0.03);
+  border-color: var(--border-strong);
+}
+
+/* ── Tooth (los SVG) ── */
+[data-theme="dark"] .odn-tooth-num {
+  color: var(--text-muted);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+/* Los dientes en sí mismos tienen fill blanco — los dejamos así porque representan el esmalte
+   y el contraste con el fondo dark es bueno. Sólo bajamos un poco la luminosidad del filter. */
+[data-theme="dark"] .odn-tooth-svg {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4)) brightness(0.95);
+}
+
+/* ── 3D shell (cuando se cambia a vista 3D) ── */
+[data-theme="dark"] .odn-3d-shell {
+  background:
+    radial-gradient(140% 90% at 50% 100%, rgba(45, 212, 191, 0.08), transparent 62%),
+    radial-gradient(90% 70% at 50% 45%, rgba(15, 23, 42, 0.5), transparent 70%),
+    linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+  border-color: var(--border);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.3),
+    0 16px 34px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .odn-3d-shell::before {
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.5),
+    rgba(15, 23, 42, 0.15) 52%,
+    transparent 100%
+  );
+}
+[data-theme="dark"] .odn-3d-shell::after {
+  background: linear-gradient(
+    0deg,
+    rgba(15, 23, 42, 0.6),
+    rgba(15, 23, 42, 0.2) 52%,
+    transparent 100%
+  );
 }

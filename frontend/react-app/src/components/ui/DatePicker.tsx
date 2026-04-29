@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DayPicker, type Matcher } from "react-day-picker";
 import { createPortal } from "react-dom";
+import { useThemeTokens } from "../../lib/use-is-dark";
 
 interface DatePickerProps {
   value: string; // "YYYY-MM-DD"
@@ -28,6 +29,7 @@ export function DatePicker({
   minDate,
   maxDate,
 }: DatePickerProps) {
+  const t = useThemeTokens();
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -112,15 +114,15 @@ export function DatePicker({
         onClick={() => setOpen((o) => !o)}
         className="datepicker-trigger"
       >
-        <CalendarDays size={15} strokeWidth={1.5} style={{ color: "#0d9488", flexShrink: 0 }} />
-        <span style={{ flex: 1, textAlign: "left", color: displayValue ? "#0f172a" : "#94a3b8" }}>
+        <CalendarDays size={15} strokeWidth={1.5} style={{ color: "var(--accent)", flexShrink: 0 }} />
+        <span style={{ flex: 1, textAlign: "left", color: displayValue ? t.text : t.textMuted }}>
           {displayValue || placeholder}
         </span>
         <ChevronRight
           size={14}
           strokeWidth={1.5}
           style={{
-            color: "#94a3b8",
+            color: t.textMuted,
             transform: open ? "rotate(90deg)" : "none",
             transition: "transform 0.2s ease",
             flexShrink: 0,

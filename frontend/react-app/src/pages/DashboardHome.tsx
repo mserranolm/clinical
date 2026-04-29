@@ -17,6 +17,7 @@ import {
 } from "../lib/constants";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
+import { useThemeTokens } from "../lib/use-is-dark";
 import {
   CheckCircle,
   Clock,
@@ -61,29 +62,32 @@ function KpiCard({
   highlight?: string;
   active?: boolean;
 }) {
+  const t = useThemeTokens();
   return (
     <div
       onClick={onClick}
       style={{
-        background: "white",
+        background: t.surface,
         borderRadius: 14,
         padding: "20px 22px",
         cursor: onClick ? "pointer" : "default",
-        borderTop: highlight ? `3px solid ${highlight}` : "1px solid #F1F5F9",
+        borderTop: highlight ? `3px solid ${highlight}` : `1px solid ${t.borderFaint}`,
         border: active
           ? `2px solid ${highlight ?? "#0D9488"}`
           : highlight
             ? undefined
-            : "1px solid #F1F5F9",
+            : `1px solid ${t.borderFaint}`,
         boxShadow: active
           ? `0 0 0 3px ${highlight ? highlight + "22" : "#0D948822"}`
-          : "0 1px 4px rgba(148,163,184,0.08)",
+          : t.isDark
+            ? "0 1px 4px rgba(0,0,0,0.3)"
+            : "0 1px 4px rgba(148,163,184,0.08)",
         transition: "box-shadow 0.15s ease, border 0.15s ease",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      {/* Icon bubble */}
+      {/* Icon bubble — bg pastel light siempre OK porque contrasta con icon color */}
       <div
         style={{
           width: 40,
@@ -99,12 +103,12 @@ function KpiCard({
         <Icon size={18} color={iconColor} strokeWidth={1.8} />
       </div>
 
-      {/* Value */}
+      {/* Value — color del texto principal según tema */}
       <div
         style={{
           fontSize: 28,
           fontWeight: 800,
-          color: "#0F172A",
+          color: t.text,
           letterSpacing: "-0.03em",
           lineHeight: 1,
         }}
@@ -112,12 +116,12 @@ function KpiCard({
         {value}
       </div>
 
-      {/* Label */}
-      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>
+      {/* Label — siempre muted */}
+      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>
         {label}
       </div>
 
-      {/* Trend badge */}
+      {/* Trend badge — usa successBg/Border/Text del token system */}
       {trend && (
         <span
           style={{
@@ -125,8 +129,8 @@ function KpiCard({
             top: 16,
             right: 16,
             fontSize: 11,
-            color: "#10B981",
-            background: "#F0FDF4",
+            color: t.successText,
+            background: t.successBg,
             borderRadius: 100,
             padding: "3px 8px",
             fontWeight: 600,
@@ -135,6 +139,65 @@ function KpiCard({
           {trend}
         </span>
       )}
+    </div>
+  );
+}
+
+function PendientesCard({ amount, onClick }: { amount: number; onClick: () => void }) {
+  const t = useThemeTokens();
+  return (
+    <div
+      style={{
+        background: t.surface,
+        border: `1px solid ${t.borderFaint}`,
+        borderRadius: 12,
+        padding: "12px 24px",
+        display: "flex",
+        alignItems: "center",
+        gap: 24,
+        marginBottom: 20,
+        boxShadow: t.isDark ? "0 1px 4px rgba(0,0,0,0.3)" : "0 1px 4px rgba(148,163,184,0.08)",
+        cursor: "pointer",
+      }}
+      onClick={onClick}
+    >
+      <div>
+        <div
+          style={{
+            fontSize: "0.63rem",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            color: t.textMuted,
+            textTransform: "uppercase",
+            marginBottom: 2,
+          }}
+        >
+          PENDIENTES POR COBRAR
+        </div>
+        <div
+          style={{
+            fontSize: "1.25rem",
+            fontWeight: 800,
+            color: "#F59E0B",
+            lineHeight: 1,
+          }}
+        >
+          $
+          {amount.toLocaleString("es-ES", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          })}
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: "0.78rem",
+          color: t.textMuted,
+          marginLeft: "auto",
+        }}
+      >
+        Ver pagos →
+      </div>
     </div>
   );
 }
@@ -470,61 +533,7 @@ export function DashboardHome({
       </div>
 
       {/* ── KPIs plataforma/org admin ── */}
-      {canSeePending && orgStats && (
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #F1F5F9",
-            borderRadius: 12,
-            padding: "12px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 24,
-            marginBottom: 20,
-            boxShadow: "0 1px 4px rgba(148,163,184,0.08)",
-            cursor: "pointer",
-          }}
-          onClick={() => navigate("/dashboard/pagos")}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: "0.63rem",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                color: "#94A3B8",
-                textTransform: "uppercase",
-                marginBottom: 2,
-              }}
-            >
-              PENDIENTES POR COBRAR
-            </div>
-            <div
-              style={{
-                fontSize: "1.25rem",
-                fontWeight: 800,
-                color: "#F59E0B",
-                lineHeight: 1,
-              }}
-            >
-              $
-              {orgStats.pendingRevenue.toLocaleString("es-ES", {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-              })}
-            </div>
-          </div>
-          <div
-            style={{
-              fontSize: "0.78rem",
-              color: "#94A3B8",
-              marginLeft: "auto",
-            }}
-          >
-            Ver pagos →
-          </div>
-        </div>
-      )}
+      {canSeePending && orgStats && <PendientesCard onClick={() => navigate("/dashboard/pagos")} amount={orgStats.pendingRevenue} />}
 
       {/* ── Agenda card (columna única) ── */}
       <article className="agenda-card" style={{ margin: 0 }}>
