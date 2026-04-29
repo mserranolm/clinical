@@ -8094,3 +8094,355 @@ td {
     font-size: 0.82rem;
   }
 }
+
+/* ── Odontograma 3D realista ─────────────────────────────────── */
+.odn-3d-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 16px;
+}
+
+.odn-3d-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.odn-3d-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.odn-3d-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.odn-3d-preset-btn {
+  padding: 7px 14px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.odn-3d-preset-btn:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+}
+.odn-3d-preset-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.odn-3d-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.odn-3d-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.odn-3d-slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.odn-3d-slider-value {
+  color: #2563eb;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+}
+
+.odn-3d-slider input[type="range"] {
+  width: 100%;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.odn-3d-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 380px;
+  color: #64748b;
+  font-style: italic;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.odn-3d-shell {
+  position: relative;
+  width: 100%;
+  height: 460px;
+  background: linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.odn-3d-tooltip {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+.odn-3d-tooltip strong {
+  background: #2563eb;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+.odn-3d-tooltip-cond {
+  color: #fbbf24;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.odn-3d-glb-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  background: rgba(254, 249, 195, 0.95);
+  border: 1px solid #fbbf24;
+  color: #78350f;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  border-radius: 8px;
+  text-align: center;
+  pointer-events: none;
+}
+.odn-3d-glb-hint code {
+  background: rgba(120, 53, 15, 0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+}
+
+/* ── Side panel ─────────────────────────────────────────── */
+.odn-3d-side-panel {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  max-height: 580px;
+  overflow-y: auto;
+}
+
+.odn-3d-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.odn-3d-panel-fdi {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #2563eb;
+  line-height: 1;
+}
+
+.odn-3d-panel-name {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.odn-3d-panel-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.odn-3d-panel-close:hover {
+  color: #ef4444;
+}
+
+.odn-3d-panel-banner {
+  padding: 8px 16px;
+  background: #fef3c7;
+  color: #78350f;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.odn-3d-panel-section {
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.odn-3d-panel-section h4 {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+}
+
+.odn-3d-panel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.odn-3d-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.odn-3d-chip:hover:not(:disabled) {
+  background: #f1f5f9;
+  transform: translateY(-1px);
+}
+.odn-3d-chip.active {
+  background: #1e293b;
+  color: #fff;
+  border-color: #1e293b;
+}
+.odn-3d-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.odn-3d-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.odn-3d-surface-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.odn-3d-surface-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.odn-3d-surface-key {
+  background: #1e293b;
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.odn-3d-surface-select {
+  flex: 1;
+  max-width: 180px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+.odn-3d-surface-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.odn-3d-panel-footer {
+  padding: 14px 18px;
+}
+
+.odn-3d-reset-btn {
+  width: 100%;
+  padding: 9px 14px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.odn-3d-reset-btn:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+@media (max-width: 980px) {
+  .odn-3d-layout {
+    grid-template-columns: 1fr;
+  }
+  .odn-3d-side-panel {
+    max-height: none;
+  }
+  .odn-3d-sliders {
+    grid-template-columns: 1fr;
+  }
+}
