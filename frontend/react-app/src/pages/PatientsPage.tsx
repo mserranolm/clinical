@@ -1,8 +1,9 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { Modal } from "../components/Modal";
+import { PageHeader, StatusBadge, EmptyState } from "../components/ui/shared";
 import { DatePicker } from "../components/ui/DatePicker";
 import { PhoneInput } from "../components/ui/PhoneInput";
 import { notify } from "../lib/notify";
@@ -41,13 +42,6 @@ const statusLabel: Record<string, string> = {
   in_progress: "En consulta",
   completed: "Finalizada",
   cancelled: "Cancelada",
-};
-const statusClass: Record<string, string> = {
-  scheduled: "status-unconfirmed",
-  confirmed: "status-confirmed",
-  in_progress: "status-in-progress",
-  completed: "status-completed",
-  cancelled: "status-cancelled",
 };
 
 function fmtDate(iso: string) {
@@ -137,7 +131,7 @@ function exportPDF(
     .antecedentes { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 12px; margin-bottom: 20px; font-size: 11px; color: #92400e; }
     .consulta-block { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; page-break-inside: avoid; }
     .consulta-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
-    .consulta-num { font-weight: 700; color: #0ea5e9; font-size: 11px; }
+    .consulta-num { font-weight: 700; color: #0D9488; font-size: 11px; }
     .consulta-fecha { font-weight: 600; font-size: 12px; flex: 1; }
     .consulta-estado { font-size: 10px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 999px; padding: 2px 8px; }
     .campo { margin-bottom: 8px; }
@@ -456,59 +450,67 @@ export function PatientsPage({
   return (
     <section className="page-section">
       {/* Header de página */}
-      <div className="patients-page-header">
-        <div className="patients-header-left">
-          <h2 className="patients-title">Pacientes</h2>
-          <span className="patients-count">
-            {loading
-              ? "Cargando..."
-              : `${rows.length} resultado${rows.length !== 1 ? "s" : ""}`}
-          </span>
-        </div>
-        <div className="patients-header-right">
-          <div className="patients-search-bar">
-            <span className="search-icon">🔍</span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onSearch()}
-              placeholder="Nombre, apellido, cédula, email o teléfono..."
-            />
-            {query && (
+      <PageHeader
+        icon={<Users size={18} />}
+        title="Pacientes"
+        subtitle="Gestión del expediente médico"
+        action={
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="patients-search-bar">
+              <span className="search-icon">🔍</span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && onSearch()}
+                placeholder="Nombre, apellido, cédula, email o teléfono..."
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  onClick={() => setQuery("")}
+                >
+                  ✕
+                </button>
+              )}
               <button
                 type="button"
-                className="search-clear"
-                onClick={() => setQuery("")}
+                onClick={onSearch}
+                disabled={searching}
+                className="search-remote-btn"
               >
-                ✕
+                {searching ? (
+                  <span
+                    className="auth-spinner"
+                    style={{ borderTopColor: "white" }}
+                  />
+                ) : (
+                  "Buscar"
+                )}
+              </button>
+            </div>
+            {canWritePatients(session) && (
+              <button
+                className="btn-new-patient"
+                onClick={() => setShowModal(true)}
+                style={{
+                  background: "#0D9488",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                + Nuevo Paciente
               </button>
             )}
-            <button
-              type="button"
-              onClick={onSearch}
-              disabled={searching}
-              className="search-remote-btn"
-            >
-              {searching ? (
-                <span
-                  className="auth-spinner"
-                  style={{ borderTopColor: "white" }}
-                />
-              ) : (
-                "Buscar"
-              )}
-            </button>
           </div>
-          {canWritePatients(session) && (
-            <button
-              className="btn-new-patient"
-              onClick={() => setShowModal(true)}
-            >
-              + Nuevo Paciente
-            </button>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       {/* Layout principal: tabla + drawer */}
       <div
@@ -580,7 +582,7 @@ export function PatientsPage({
                         {row.phone || <span className="text-muted-sm">—</span>}
                       </td>
                       <td>
-                        <span className="badge status-confirmed">Activo</span>
+                        <StatusBadge status="confirmed" />
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: "flex", gap: 8 }}>
@@ -632,20 +634,20 @@ export function PatientsPage({
                   ))}
                 {!loading && rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="empty-state">
-                      <div className="empty-state-content">
-                        <span className="empty-icon">👥</span>
-                        <strong>
-                          {query
+                    <td colSpan={6}>
+                      <EmptyState
+                        icon={<Users size={24} />}
+                        title={
+                          query
                             ? `Sin resultados para "${query}"`
-                            : "Sin pacientes registrados"}
-                        </strong>
-                        <p>
-                          {query
+                            : "Sin pacientes registrados"
+                        }
+                        description={
+                          query
                             ? "Intenta con otro dato de búsqueda."
-                            : 'Usa el botón "Nuevo Paciente" para agregar el primer expediente.'}
-                        </p>
-                      </div>
+                            : 'Usa el botón "Nuevo Paciente" para agregar el primer expediente.'
+                        }
+                      />
                     </td>
                   </tr>
                 )}
@@ -758,12 +760,7 @@ export function PatientsPage({
                           <span className="historial-fecha">{fechaLabel}</span>
                           <span className="historial-hora"> · {horaLabel}</span>
                         </div>
-                        <span
-                          className={`badge ${statusClass[cita.status] ?? "status-unconfirmed"}`}
-                          style={{ fontSize: "0.65rem" }}
-                        >
-                          {statusLabel[cita.status] ?? cita.status}
-                        </span>
+                        <StatusBadge status={cita.status} />
                       </div>
 
                       {cita.evolutionNotes && (
@@ -911,11 +908,7 @@ export function PatientsPage({
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`badge ${statusClass[detailCita.status] ?? "status-unconfirmed"}`}
-                    >
-                      {statusLabel[detailCita.status] ?? detailCita.status}
-                    </span>
+                    <StatusBadge status={detailCita.status} />
                   </div>
 
                   {/* ── Historial Médico ── */}
@@ -1181,7 +1174,7 @@ export function PatientsPage({
                   fontSize: "0.75rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  color: "#0369a1",
+                  color: "#0D9488",
                   borderBottom: "1px solid #e2e8f0",
                   paddingBottom: 6,
                   marginBottom: 12,
@@ -1255,7 +1248,7 @@ export function PatientsPage({
                   fontSize: "0.75rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  color: "#0369a1",
+                  color: "#0D9488",
                   borderBottom: "1px solid #e2e8f0",
                   paddingBottom: 6,
                   marginBottom: 12,
@@ -1356,7 +1349,7 @@ export function PatientsPage({
                   fontSize: "0.75rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  color: "#0369a1",
+                  color: "#0D9488",
                   borderBottom: "1px solid #e2e8f0",
                   paddingBottom: 6,
                   marginBottom: 12,
@@ -1456,7 +1449,7 @@ export function PatientsPage({
                   fontSize: "0.75rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  color: "#0369a1",
+                  color: "#0D9488",
                   borderBottom: "1px solid #e2e8f0",
                   paddingBottom: 6,
                   marginBottom: 12,
@@ -1589,7 +1582,7 @@ export function PatientsPage({
                   fontSize: "0.75rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  color: "#0369a1",
+                  color: "#0D9488",
                   borderBottom: "1px solid #e2e8f0",
                   paddingBottom: 6,
                   marginBottom: 12,

@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  BarChart3,
+  Building2,
+  CheckCircle,
+  DollarSign,
+  Shield,
+  Users,
+} from "lucide-react";
 import { clinicalApi } from "../../api/clinical";
 import { PhoneInput } from "../../components/ui/PhoneInput";
 import { notify } from "../../lib/notify";
 import type { AuthSession } from "../../types";
+import { PageHeader } from "@/components/ui/shared";
 
 type OrgLimits = {
   maxDoctors: number;
@@ -107,22 +116,22 @@ const AUTO_REFRESH_OPTIONS = [
 ] as const;
 
 const inp: React.CSSProperties = {
-  padding: "0.5rem 0.75rem",
-  border: "1px solid #d1d5db",
-  borderRadius: 6,
+  padding: "8px 12px",
+  border: "1px solid #E2E8F0",
+  borderRadius: 8,
   width: "100%",
-  fontSize: "0.875rem",
+  fontSize: 13,
   boxSizing: "border-box",
 };
 const lbl: React.CSSProperties = {
   display: "block",
-  fontSize: "0.75rem",
+  fontSize: 12,
   fontWeight: 600,
-  color: "#374151",
+  color: "#64748B",
   marginBottom: 4,
 };
 const sec: React.CSSProperties = {
-  borderTop: "1px solid #e5e7eb",
+  borderTop: "1px solid #F1F5F9",
   paddingTop: "1rem",
   marginBottom: "1rem",
 };
@@ -136,13 +145,13 @@ function StatCard({
   value: number;
   label: string;
   color: string;
-  icon: string;
+  icon: React.ReactNode;
 }) {
   return (
     <div
       style={{
         background: "#fff",
-        border: "1px solid #e5e7eb",
+        border: "1px solid #F1F5F9",
         borderRadius: 12,
         padding: "1.25rem 1.5rem",
         display: "flex",
@@ -160,7 +169,7 @@ function StatCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1.5rem",
+          color: "#0D9488",
           flexShrink: 0,
         }}
       >
@@ -170,7 +179,7 @@ function StatCard({
         <div style={{ fontSize: "1.75rem", fontWeight: 800, lineHeight: 1 }}>
           {value}
         </div>
-        <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: 2 }}>
+        <div style={{ fontSize: "0.8rem", color: "#64748B", marginTop: 2 }}>
           {label}
         </div>
       </div>
@@ -430,7 +439,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
   }
 
   const btnPrimary: React.CSSProperties = {
-    background: "#2563eb",
+    background: "#0D9488",
     color: "#fff",
     border: "none",
     borderRadius: 6,
@@ -460,9 +469,9 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
     fontWeight: 600,
   };
   const btnEdit: React.CSSProperties = {
-    background: "#eff6ff",
-    color: "#1d4ed8",
-    border: "1px solid #bfdbfe",
+    background: "#F0FDFA",
+    color: "#0F766E",
+    border: "1px solid #CCFBF1",
     borderRadius: 6,
     padding: "0.4rem 0.75rem",
     cursor: "pointer",
@@ -472,98 +481,67 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
 
   return (
     <div style={{ padding: "2rem", maxWidth: 1100, margin: "0 auto" }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: "1.5rem",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 800,
-              marginBottom: "0.25rem",
-            }}
-          >
-            Consola de Plataforma
-          </h1>
-          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
-            {session.name || session.email} ·{" "}
-            <span
-              style={{
-                background: "#fef3c7",
-                color: "#92400e",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.7rem",
-                fontWeight: 700,
-              }}
-            >
-              SUPER ADMIN
-            </span>
-          </p>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-            style={{
-              ...btnCancel,
-              display: "flex",
-              alignItems: "center",
-              gap: "0.35rem",
-            }}
-            title="Actualizar datos"
-          >
-            {refreshing ? "⟳ Actualizando..." : "↻ Actualizar"}
-          </button>
-          <label
+      <PageHeader
+        icon={<Shield size={18} />}
+        title="Consola de Plataforma"
+        subtitle="Administración global del sistema"
+        action={
+          <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "0.5rem",
-              fontSize: "0.875rem",
-              color: "#374151",
+              gap: "0.75rem",
+              flexWrap: "wrap",
             }}
           >
-            <span style={{ whiteSpace: "nowrap" }}>Auto:</span>
-            <select
-              value={autoRefreshSeconds}
-              onChange={(e) => setAutoRefreshSeconds(Number(e.target.value))}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
               style={{
-                ...inp,
-                width: "auto",
-                minWidth: 100,
-                padding: "0.4rem 0.6rem",
-                fontSize: "0.8rem",
+                ...btnCancel,
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+              }}
+              title="Actualizar datos"
+            >
+              {refreshing ? "⟳ Actualizando..." : "↻ Actualizar"}
+            </button>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                fontSize: "0.875rem",
+                color: "#64748B",
               }}
             >
-              {AUTO_REFRESH_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button onClick={openCreate} style={btnPrimary}>
-            + Nueva organización
-          </button>
-        </div>
-      </div>
+              <span style={{ whiteSpace: "nowrap" }}>Auto:</span>
+              <select
+                value={autoRefreshSeconds}
+                onChange={(e) => setAutoRefreshSeconds(Number(e.target.value))}
+                style={{
+                  ...inp,
+                  width: "auto",
+                  minWidth: 100,
+                  padding: "0.4rem 0.6rem",
+                  fontSize: "0.8rem",
+                }}
+              >
+                {AUTO_REFRESH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button onClick={openCreate} style={btnPrimary}>
+              + Nueva organización
+            </button>
+          </div>
+        }
+      />
 
       {/* Tab navigation */}
       <div
@@ -589,14 +567,14 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                 background: "none",
                 border: "none",
                 borderBottom: active
-                  ? "2px solid #6366f1"
+                  ? "2px solid #0D9488"
                   : "2px solid transparent",
                 marginBottom: -2,
                 padding: "0.5rem 1rem",
                 cursor: "pointer",
                 fontSize: "0.875rem",
                 fontWeight: active ? 700 : 500,
-                color: active ? "#6366f1" : "#6b7280",
+                color: active ? "#0D9488" : "#6b7280",
               }}
             >
               {labels[view]}
@@ -632,38 +610,38 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                 <StatCard
                   value={stats.totalOrgs}
                   label="Organizaciones"
-                  color="#ede9fe"
-                  icon="🏥"
+                  color="#F0FDFA"
+                  icon={<Building2 size={18} />}
                 />
                 <StatCard
                   value={stats.activeOrgs}
                   label="Activas"
-                  color="#d1fae5"
-                  icon="✅"
+                  color="#DCFCE7"
+                  icon={<CheckCircle size={18} />}
                 />
                 <StatCard
                   value={stats.totalDoctors}
                   label="Doctores"
-                  color="#dbeafe"
-                  icon="🩺"
+                  color="#DBEAFE"
+                  icon={<Users size={18} />}
                 />
                 <StatCard
                   value={stats.totalAssistants}
                   label="Asistentes"
-                  color="#f0fdf4"
-                  icon="�‍⚕️"
+                  color="#F0FDFA"
+                  icon={<Users size={18} />}
                 />
                 <StatCard
                   value={stats.totalPatients}
                   label="Pacientes"
-                  color="#fce7f3"
-                  icon="🧑"
+                  color="#FCE7F3"
+                  icon={<Users size={18} />}
                 />
                 <StatCard
                   value={stats.totalConsultations ?? 0}
                   label="Consultas finalizadas"
-                  color="#fef9c3"
-                  icon="📋"
+                  color="#FEF9C3"
+                  icon={<BarChart3 size={18} />}
                 />
                 <div
                   style={{
@@ -683,15 +661,15 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                       width: 48,
                       height: 48,
                       borderRadius: 12,
-                      background: "#d1fae5",
+                      background: "#F0FDFA",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "1.5rem",
+                      color: "#0D9488",
                       flexShrink: 0,
                     }}
                   >
-                    💰
+                    <DollarSign size={18} />
                   </div>
                   <div>
                     <div
@@ -744,8 +722,8 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
               >
                 <h3 style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>
                   {editingOrg
-                    ? `✏️ Editar: ${editingOrg.name}`
-                    : "🏥 Nueva organización"}
+                    ? `Editar: ${editingOrg.name}`
+                    : "Nueva organización"}
                 </h3>
                 <button
                   onClick={() => setShowForm(false)}
@@ -1005,8 +983,8 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                   <div
                     style={{
                       ...sec,
-                      background: "#eff6ff",
-                      border: "1px solid #bfdbfe",
+                      background: "#F0FDFA",
+                      border: "1px solid #CCFBF1",
                       borderRadius: 8,
                       padding: "1rem",
                       marginBottom: "1rem",
@@ -1016,13 +994,13 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                       style={{
                         fontWeight: 700,
                         fontSize: "0.8rem",
-                        color: "#1d4ed8",
+                        color: "#0F766E",
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                         marginBottom: "0.75rem",
                       }}
                     >
-                      👤 Admin de la organización
+                      Admin de la organización
                     </p>
                     <div
                       style={{
@@ -1064,7 +1042,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                     <p
                       style={{
                         fontSize: "0.75rem",
-                        color: "#3b82f6",
+                        color: "#0D9488",
                         marginTop: "0.5rem",
                       }}
                     >
@@ -1137,7 +1115,11 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                 border: "1px dashed #d1d5db",
               }}
             >
-              <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏥</p>
+              <Building2
+                size={32}
+                color="#94A3B8"
+                style={{ marginBottom: "0.5rem" }}
+              />
               <p>No hay organizaciones aún. Crea la primera.</p>
             </div>
           ) : (
@@ -1287,18 +1269,18 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                     >
                       <div
                         style={{
-                          background: "#f0f9ff",
-                          border: "1px solid #bae6fd",
+                          background: "#F0FDFA",
+                          border: "1px solid #CCFBF1",
                           borderRadius: 8,
                           padding: "0.4rem 0.6rem",
                           fontSize: "0.75rem",
                           textAlign: "center",
                         }}
                       >
-                        <div style={{ fontWeight: 700, color: "#0369a1" }}>
+                        <div style={{ fontWeight: 700, color: "#0D9488" }}>
                           {org.limits?.maxDoctors ?? 5}
                         </div>
-                        <div style={{ color: "#6b7280" }}>Dr.</div>
+                        <div style={{ color: "#64748B" }}>Dr.</div>
                       </div>
                       <div
                         style={{
@@ -1331,13 +1313,13 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                         <div style={{ color: "#6b7280" }}>Pac.</div>
                       </div>
                       <button onClick={() => openEdit(org)} style={btnEdit}>
-                        ✏️ Editar
+                        Editar
                       </button>
                       <button
                         onClick={() => handleDelete(org)}
                         style={btnDanger}
                       >
-                        🗑️ Eliminar
+                        Eliminar
                       </button>
                     </div>
                   </div>
@@ -1459,7 +1441,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                         borderRadius: 12,
                         border: "none",
                         background: platformSettings.sendEmail
-                          ? "#6366f1"
+                          ? "#0D9488"
                           : "#d1d5db",
                         cursor: "pointer",
                         position: "relative",
@@ -1536,7 +1518,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                         borderRadius: 12,
                         border: "none",
                         background: platformSettings.sendSMS
-                          ? "#6366f1"
+                          ? "#0D9488"
                           : "#d1d5db",
                         cursor: "pointer",
                         position: "relative",
@@ -1685,7 +1667,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                         padding: "7px 14px",
                         background: uploadingSignature
                           ? "#e5e7eb"
-                          : "linear-gradient(135deg, #6366f1, #4f46e5)",
+                          : "linear-gradient(135deg, #0D9488, #0F766E)",
                         color: uploadingSignature ? "#6b7280" : "white",
                         borderRadius: 8,
                         fontSize: "0.8125rem",
@@ -1715,7 +1697,7 @@ export function AdminConsoleHome({ session }: { session: AuthSession }) {
                 onClick={savePlatformSettings}
                 disabled={settingsSaving}
                 style={{
-                  background: "#6366f1",
+                  background: "#0D9488",
                   color: "#fff",
                   border: "none",
                   borderRadius: 8,

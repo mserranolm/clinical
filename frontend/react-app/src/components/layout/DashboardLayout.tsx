@@ -20,7 +20,10 @@ import { PatientDetailPage } from "../../pages/PatientDetailPage";
 import { PatientsPage } from "../../pages/PatientsPage";
 import { PaymentsPage } from "../../pages/PaymentsPage";
 import { PlansPage } from "../../pages/PlansPage";
-import { PresupuestoPage, PresupuestosListPage } from "../../pages/PresupuestoPage";
+import {
+  PresupuestoPage,
+  PresupuestosListPage,
+} from "../../pages/PresupuestoPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
 import { UsersAdminPage } from "../../pages/UsersAdminPage";
 
@@ -34,13 +37,23 @@ type DashboardAppointmentRow = {
   consentSummary?: { total: number; accepted: number };
 };
 
-export function DashboardLayout({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
+export function DashboardLayout({
+  session,
+  onLogout,
+}: {
+  session: AuthSession;
+  onLogout: () => void;
+}) {
   const location = useLocation();
   const isPlatformAdmin = session.role === "platform_admin";
   const scopedDoctorId = session.role === "doctor" ? session.userId : "";
 
-  const [appointmentsDate, setAppointmentsDate] = useState(new Date().toISOString().slice(0, 10));
-  const [appointmentRows, setAppointmentRows] = useState<DashboardAppointmentRow[]>([]);
+  const [appointmentsDate, setAppointmentsDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [appointmentRows, setAppointmentRows] = useState<
+    DashboardAppointmentRow[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -48,24 +61,31 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cierra el drawer al navegar
-  useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
 
-  const platformMenu = [
-    { to: "/dashboard", label: "Consola de Plataforma" },
-  ];
+  const platformMenu = [{ to: "/dashboard", label: "Consola de Plataforma" }];
 
   const clinicMenu = [
     { to: "/dashboard", label: "Panel Principal" },
-    { to: "/dashboard/nuevo-tratamiento", label: "Nuevo Tratamiento" },
     { to: "/dashboard/pacientes", label: "Pacientes" },
     { to: "/dashboard/citas", label: "Agenda Médica" },
+    { to: "/dashboard/calendario", label: "Calendario" },
+    { to: "/dashboard/documentos", label: "Documentos" },
+    { to: "/dashboard/pagos", label: "Pagos" },
+    { to: "/dashboard/presupuestos", label: "Presupuestos" },
+    { to: "/dashboard/usuarios", label: "Usuarios" },
+    { to: "/dashboard/consulta", label: "Consulta" },
+    { to: "/dashboard/nuevo-tratamiento", label: "Nuevo Tratamiento" },
     { to: "/dashboard/odontograma", label: "Odontograma" },
     { to: "/dashboard/planes", label: "Tratamientos" },
     { to: "/dashboard/testing", label: "Service Tester" },
   ];
 
   const menu = isPlatformAdmin ? platformMenu : clinicMenu;
-  const currentLabel = menu.find(m => m.to === location.pathname)?.label || "Dashboard";
+  const currentLabel =
+    menu.find((m) => m.to === location.pathname)?.label || "Dashboard";
 
   useEffect(() => {
     if (!isPlatformAdmin && location.pathname === "/dashboard") {
@@ -87,8 +107,15 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    if (!isPlatformAdmin && location.pathname === "/dashboard" && autoRefreshSeconds > 0) {
-      intervalRef.current = setInterval(() => loadDashboardData(), autoRefreshSeconds * 1000);
+    if (
+      !isPlatformAdmin &&
+      location.pathname === "/dashboard" &&
+      autoRefreshSeconds > 0
+    ) {
+      intervalRef.current = setInterval(
+        () => loadDashboardData(),
+        autoRefreshSeconds * 1000,
+      );
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -100,22 +127,31 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     setError("");
     try {
       const [appointmentsRes, patientsRes] = await Promise.all([
-        clinicalApi.listAppointments(scopedDoctorId, appointmentsDate, session.token),
-        clinicalApi.listPatients("", session.token)
+        clinicalApi.listAppointments(
+          scopedDoctorId,
+          appointmentsDate,
+          session.token,
+        ),
+        clinicalApi.listPatients("", session.token),
       ]);
 
       const patientById = new Map(
-        (patientsRes.items || []).map((patient) => [patient.id, `${patient.firstName} ${patient.lastName}`.trim()])
+        (patientsRes.items || []).map((patient) => [
+          patient.id,
+          `${patient.firstName} ${patient.lastName}`.trim(),
+        ]),
       );
 
-      const normalizedRows: DashboardAppointmentRow[] = (appointmentsRes.items || []).map((appointment) => ({
+      const normalizedRows: DashboardAppointmentRow[] = (
+        appointmentsRes.items || []
+      ).map((appointment) => ({
         id: appointment.id,
         patientId: appointment.patientId,
         patientName: patientById.get(appointment.patientId),
         startAt: appointment.startAt,
         status: appointment.status,
         paymentAmount: appointment.paymentAmount,
-        consentSummary: appointment.consentSummary
+        consentSummary: appointment.consentSummary,
       }));
 
       setAppointmentRows(normalizedRows);
@@ -144,10 +180,14 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
   const hamburger = (
     <button
       className="hamburger-btn"
-      onClick={() => setDrawerOpen(o => !o)}
+      onClick={() => setDrawerOpen((o) => !o)}
       aria-label="Abrir menú"
     >
-      {drawerOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+      {drawerOpen ? (
+        <X size={20} strokeWidth={2} />
+      ) : (
+        <Menu size={20} strokeWidth={2} />
+      )}
     </button>
   );
 
@@ -155,9 +195,16 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
     return (
       <main className="admin-layout">
         {drawerSidebar}
-        <div className="sidebar-desktop"><Sidebar {...sidebarProps} /></div>
+        <div className="sidebar-desktop">
+          <Sidebar {...sidebarProps} />
+        </div>
         <section className="content-area">
-          <Topbar session={session} onLogout={onLogout} title="Consola de Plataforma" hamburger={hamburger} />
+          <Topbar
+            session={session}
+            onLogout={onLogout}
+            title="Consola de Plataforma"
+            hamburger={hamburger}
+          />
           <div className="page-content">
             <Routes>
               <Route index element={<AdminConsoleHome session={session} />} />
@@ -173,26 +220,138 @@ export function DashboardLayout({ session, onLogout }: { session: AuthSession; o
   return (
     <main className="admin-layout">
       {drawerSidebar}
-      <div className="sidebar-desktop"><Sidebar {...sidebarProps} /></div>
+      <div className="sidebar-desktop">
+        <Sidebar {...sidebarProps} />
+      </div>
       <section className="content-area">
-        <Topbar session={session} onLogout={onLogout} title={currentLabel} hamburger={hamburger} />
+        <Topbar
+          session={session}
+          onLogout={onLogout}
+          title={currentLabel}
+          hamburger={hamburger}
+        />
         <div className="page-content">
           <Routes>
-            <Route index element={<DashboardHome user={session} rows={appointmentRows} loading={loading} error={error} date={appointmentsDate} onDateChange={setAppointmentsDate} onRefresh={loadDashboardData} autoRefreshSeconds={autoRefreshSeconds} onAutoRefreshChange={setAutoRefreshSeconds} />} />
-            <Route path="nuevo-tratamiento" element={<TreatmentWizard token={session.token} doctorId={session.userId} />} />
-            <Route path="consulta" element={<ConsultaPage token={session.token} doctorId={session.userId} />} />
-            <Route path="pacientes" element={<PatientsPage token={session.token} doctorId="" session={session} />} />
-            <Route path="pacientes/:patientId" element={<PatientDetailPage token={session.token} doctorId={session.userId} />} />
-            <Route path="citas" element={<AppointmentsPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
-            <Route path="calendario" element={<CalendarPage token={session.token} doctorId={scopedDoctorId} session={session} />} />
-            <Route path="documentos" element={<DocumentosPage token={session.token} session={session} />} />
-            <Route path="pagos" element={<PaymentsPage token={session.token} session={session} />} />
-            <Route path="presupuestos" element={<PresupuestosListPage token={session.token} session={session} />} />
-            <Route path="pacientes/:patientId/presupuesto" element={<PresupuestoPage token={session.token} session={session} />} />
-            <Route path="odontograma" element={<OdontogramPage token={session.token} doctorId={scopedDoctorId} />} />
-            <Route path="planes" element={<PlansPage token={session.token} doctorId={scopedDoctorId} />} />
-            <Route path="usuarios" element={<UsersAdminPage session={session} />} />
-            <Route path="testing" element={<ServiceTester session={session} onSessionChange={() => onLogout()} />} />
+            <Route
+              index
+              element={
+                <DashboardHome
+                  user={session}
+                  rows={appointmentRows}
+                  loading={loading}
+                  error={error}
+                  date={appointmentsDate}
+                  onDateChange={setAppointmentsDate}
+                  onRefresh={loadDashboardData}
+                  autoRefreshSeconds={autoRefreshSeconds}
+                  onAutoRefreshChange={setAutoRefreshSeconds}
+                />
+              }
+            />
+            <Route
+              path="nuevo-tratamiento"
+              element={
+                <TreatmentWizard
+                  token={session.token}
+                  doctorId={session.userId}
+                />
+              }
+            />
+            <Route
+              path="consulta"
+              element={
+                <ConsultaPage token={session.token} doctorId={session.userId} />
+              }
+            />
+            <Route
+              path="pacientes"
+              element={
+                <PatientsPage
+                  token={session.token}
+                  doctorId=""
+                  session={session}
+                />
+              }
+            />
+            <Route
+              path="pacientes/:patientId"
+              element={
+                <PatientDetailPage
+                  token={session.token}
+                  doctorId={session.userId}
+                />
+              }
+            />
+            <Route
+              path="citas"
+              element={
+                <AppointmentsPage
+                  token={session.token}
+                  doctorId={scopedDoctorId}
+                  session={session}
+                />
+              }
+            />
+            <Route
+              path="calendario"
+              element={
+                <CalendarPage
+                  token={session.token}
+                  doctorId={scopedDoctorId}
+                  session={session}
+                />
+              }
+            />
+            <Route
+              path="documentos"
+              element={
+                <DocumentosPage token={session.token} session={session} />
+              }
+            />
+            <Route
+              path="pagos"
+              element={<PaymentsPage token={session.token} session={session} />}
+            />
+            <Route
+              path="presupuestos"
+              element={
+                <PresupuestosListPage token={session.token} session={session} />
+              }
+            />
+            <Route
+              path="pacientes/:patientId/presupuesto"
+              element={
+                <PresupuestoPage token={session.token} session={session} />
+              }
+            />
+            <Route
+              path="odontograma"
+              element={
+                <OdontogramPage
+                  token={session.token}
+                  doctorId={scopedDoctorId}
+                />
+              }
+            />
+            <Route
+              path="planes"
+              element={
+                <PlansPage token={session.token} doctorId={scopedDoctorId} />
+              }
+            />
+            <Route
+              path="usuarios"
+              element={<UsersAdminPage session={session} />}
+            />
+            <Route
+              path="testing"
+              element={
+                <ServiceTester
+                  session={session}
+                  onSessionChange={() => onLogout()}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

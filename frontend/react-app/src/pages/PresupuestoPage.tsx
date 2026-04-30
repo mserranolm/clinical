@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { generateBudgetPdf } from "../lib/generateBudgetPdf";
 import { Modal } from "../components/Modal";
+import { PageHeader, StatusBadge, EmptyState } from "@/components/ui/shared";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Borrador",
@@ -20,14 +21,6 @@ const STATUS_LABELS: Record<string, string> = {
   approved: "Aprobado",
   partial: "Abonado",
   paid: "Pagado",
-};
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft: { bg: "#f1f5f9", color: "#475569" },
-  sent: { bg: "#dbeafe", color: "#1e40af" },
-  approved: { bg: "#d1fae5", color: "#065f46" },
-  partial: { bg: "#fef3c7", color: "#92400e" },
-  paid: { bg: "#bbf7d0", color: "#065f46" },
 };
 
 function fmtDate(iso: string) {
@@ -320,8 +313,8 @@ export function PresupuestoPage({
 <title>Presupuesto — ${b.title}</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 11pt; color: #1e293b; padding: 30px 40px; }
-  .header { border-bottom: 2px solid #3b82f6; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; }
-  .header h1 { font-size: 13pt; color: #3b82f6; margin-bottom: 4px; }
+  .header { border-bottom: 2px solid #0D9488; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; }
+  .header h1 { font-size: 13pt; color: #0D9488; margin-bottom: 4px; }
   .header p { font-size: 9pt; color: #64748b; margin: 2px 0; }
   .doc-title { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 20px; color: #0f172a; }
   .info-row { display: flex; gap: 20px; margin-bottom: 16px; }
@@ -373,7 +366,7 @@ export function PresupuestoPage({
     </tbody>
   </table>
 
-  ${b.notes ? `<div style="margin-top:20px;padding:12px;background:#f8fafc;border-radius:6px;border-left:3px solid #3b82f6;font-size:10pt;color:#475569;">${b.notes}</div>` : ""}
+  ${b.notes ? `<div style="margin-top:20px;padding:12px;background:#f8fafc;border-radius:6px;border-left:3px solid #0D9488;font-size:10pt;color:#475569;">${b.notes}</div>` : ""}
 
   <div class="footer">DOCCO — Presupuesto generado el ${today}</div>
 </body>
@@ -392,80 +385,47 @@ export function PresupuestoPage({
 
   return (
     <section className="page-section">
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 24,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
+      <PageHeader
+        icon={<FileSpreadsheet size={18} />}
+        title="Presupuestos"
+        subtitle="Presupuestos y planes financieros"
+        action={
+          <button
+            type="button"
+            onClick={openCreate}
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              gap: 8,
+              background: "#0D9488",
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 20px",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.875rem",
             }}
           >
-            <FileSpreadsheet size={20} color="white" strokeWidth={1.5} />
-          </div>
-          <div>
-            <h2 style={{ margin: 0 }}>Presupuestos</h2>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "0.85rem" }}>
-              {patientName || "Paciente"}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            padding: "10px 20px",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "0.875rem",
-          }}
-        >
-          <Plus size={16} />
-          Nuevo Presupuesto
-        </button>
-      </div>
+            <Plus size={16} />
+            Nuevo Presupuesto
+          </button>
+        }
+      />
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
           Cargando...
         </div>
       ) : budgets.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <FileSpreadsheet
-            size={48}
-            strokeWidth={1}
-            style={{ opacity: 0.2, marginBottom: 16 }}
-          />
-          <p style={{ color: "#64748b" }}>
-            No hay presupuestos. Crea el primero.
-          </p>
-        </div>
+        <EmptyState
+          icon={<FileSpreadsheet size={24} />}
+          title="Sin presupuestos"
+          description="Crea el primer presupuesto para este paciente."
+        />
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
           {budgets.map((b) => {
-            const sc = STATUS_COLORS[b.status] || {
-              bg: "#f1f5f9",
-              color: "#475569",
-            };
             return (
               <article key={b.id} className="card elite-card">
                 <div
@@ -478,19 +438,7 @@ export function PresupuestoPage({
                 >
                   <div>
                     <h3 style={{ margin: "0 0 4px" }}>{b.title}</h3>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "2px 10px",
-                        borderRadius: 999,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        background: sc.bg,
-                        color: sc.color,
-                      }}
-                    >
-                      {STATUS_LABELS[b.status] || b.status}
-                    </span>
+                    <StatusBadge status={b.status} />
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button

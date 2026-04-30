@@ -4,8 +4,15 @@ import { notify } from "../lib/notify";
 import type { AuthSession } from "../types";
 import { FileText, Printer } from "lucide-react";
 import { canManageTreatments } from "../lib/rbac";
+import { PageHeader } from "../components/ui/shared";
 
-export function DocumentosPage({ token, session }: { token: string; session: AuthSession }) {
+export function DocumentosPage({
+  token,
+  session,
+}: {
+  token: string;
+  session: AuthSession;
+}) {
   const [doctorName, setDoctorName] = useState(session.name || "");
   const [specialty, setSpecialty] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -13,29 +20,42 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
   const [procedureName, setProcedureName] = useState("");
   const [patientName, setPatientName] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
-  const [patients, setPatients] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [patients, setPatients] = useState<
+    Array<{ id: string; firstName: string; lastName: string }>
+  >([]);
   const [showPatientList, setShowPatientList] = useState(false);
   const [content, setContent] = useState("");
   const [complications, setComplications] = useState("");
   const [benefits, setBenefits] = useState("");
   const [consentText, setConsentText] = useState(
-    "Yo, el/la paciente arriba identificado/a, declaro que he sido informado/a de manera clara y comprensible sobre el procedimiento a realizarme, sus riesgos, beneficios y alternativas. Doy mi consentimiento libre y voluntario para la realización del mismo."
+    "Yo, el/la paciente arriba identificado/a, declaro que he sido informado/a de manera clara y comprensible sobre el procedimiento a realizarme, sus riesgos, beneficios y alternativas. Doy mi consentimiento libre y voluntario para la realización del mismo.",
   );
 
   const canEdit = canManageTreatments(session);
 
   useEffect(() => {
-    clinicalApi.listPatients("", token).then(res => {
-      setPatients(res.items || []);
-    }).catch(() => {});
+    clinicalApi
+      .listPatients("", token)
+      .then((res) => {
+        setPatients(res.items || []);
+      })
+      .catch(() => {});
   }, [token]);
 
   const filteredPatients = patientSearch
-    ? patients.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(patientSearch.toLowerCase()))
+    ? patients.filter((p) =>
+        `${p.firstName} ${p.lastName}`
+          .toLowerCase()
+          .includes(patientSearch.toLowerCase()),
+      )
     : [];
 
   function printDocument() {
-    const today = new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
+    const today = new Date().toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -91,23 +111,35 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
     </div>
   </div>
 
-  ${content ? `
+  ${
+    content
+      ? `
   <div class="section">
     <div class="section-label">Descripción del procedimiento</div>
     <div class="content-box">${content}</div>
-  </div>` : ""}
+  </div>`
+      : ""
+  }
 
-  ${complications ? `
+  ${
+    complications
+      ? `
   <div class="section">
     <div class="section-label">Posibles complicaciones y riesgos</div>
     <div class="content-box">${complications}</div>
-  </div>` : ""}
+  </div>`
+      : ""
+  }
 
-  ${benefits ? `
+  ${
+    benefits
+      ? `
   <div class="section">
     <div class="section-label">Beneficios esperados</div>
     <div class="content-box">${benefits}</div>
-  </div>` : ""}
+  </div>`
+      : ""
+  }
 
   <div class="section">
     <div class="section-label">Declaración de consentimiento</div>
@@ -132,7 +164,12 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
 </html>`;
 
     const win = window.open("", "_blank", "width=850,height=950");
-    if (!win) { notify.error("No se pudo abrir la ventana de impresión. Permite ventanas emergentes."); return; }
+    if (!win) {
+      notify.error(
+        "No se pudo abrir la ventana de impresión. Permite ventanas emergentes.",
+      );
+      return;
+    }
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -143,9 +180,15 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
     return (
       <section className="page-section">
         <div style={{ textAlign: "center", padding: 60 }}>
-          <FileText size={48} strokeWidth={1} style={{ opacity: 0.2, marginBottom: 16 }} />
+          <FileText
+            size={48}
+            strokeWidth={1}
+            style={{ opacity: 0.2, marginBottom: 16 }}
+          />
           <h3>Acceso restringido</h3>
-          <p style={{ color: "#64748b" }}>Solo doctores y administradores pueden acceder a esta sección.</p>
+          <p style={{ color: "#64748b" }}>
+            Solo doctores y administradores pueden acceder a esta sección.
+          </p>
         </div>
       </section>
     );
@@ -154,54 +197,111 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
   return (
     <section className="page-section">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg,#3b82f6,#1d4ed8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <FileText size={20} color="white" strokeWidth={1.5} />
-          </div>
-          <div>
-            <h2 style={{ margin: 0 }}>Editor de Documentos</h2>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "0.85rem" }}>Consentimiento informado médico</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={printDocument}
-          style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(135deg,#3b82f6,#2563eb)", color: "white", border: "none", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
-        >
-          <Printer size={16} />
-          Vista Previa / Imprimir
-        </button>
-      </div>
+      <PageHeader
+        icon={<FileText size={18} />}
+        title="Documentos"
+        subtitle="Consentimientos y archivos clínicos"
+        action={
+          <button
+            type="button"
+            onClick={printDocument}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#0D9488",
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 20px",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+            }}
+          >
+            <Printer size={16} />
+            Vista Previa / Imprimir
+          </button>
+        }
+      />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         {/* Doctor Info */}
         <article className="card elite-card">
-          <h4 style={{ marginBottom: 16, color: "#0369a1", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Información del Profesional</h4>
+          <h4
+            style={{
+              marginBottom: 16,
+              color: "#0F766E",
+              fontSize: "0.875rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Información del Profesional
+          </h4>
           <div className="input-group">
             <label>Nombre del doctor</label>
-            <input type="text" className="elite-input" value={doctorName} onChange={e => setDoctorName(e.target.value)} placeholder="Dr. Juan Pérez" />
+            <input
+              type="text"
+              className="elite-input"
+              value={doctorName}
+              onChange={(e) => setDoctorName(e.target.value)}
+              placeholder="Dr. Juan Pérez"
+            />
           </div>
           <div className="input-group">
             <label>Especialidad</label>
-            <input type="text" className="elite-input" value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="Odontología General" />
+            <input
+              type="text"
+              className="elite-input"
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
+              placeholder="Odontología General"
+            />
           </div>
           <div className="input-group">
             <label>Número de licencia / MPPS</label>
-            <input type="text" className="elite-input" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="MP 12345" />
+            <input
+              type="text"
+              className="elite-input"
+              value={licenseNumber}
+              onChange={(e) => setLicenseNumber(e.target.value)}
+              placeholder="MP 12345"
+            />
           </div>
         </article>
 
         {/* Document & Patient Info */}
         <article className="card elite-card">
-          <h4 style={{ marginBottom: 16, color: "#0369a1", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Datos del Documento</h4>
+          <h4
+            style={{
+              marginBottom: 16,
+              color: "#0F766E",
+              fontSize: "0.875rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Datos del Documento
+          </h4>
           <div className="input-group">
             <label>Título del documento</label>
-            <input type="text" className="elite-input" value={docTitle} onChange={e => setDocTitle(e.target.value)} />
+            <input
+              type="text"
+              className="elite-input"
+              value={docTitle}
+              onChange={(e) => setDocTitle(e.target.value)}
+            />
           </div>
           <div className="input-group">
             <label>Nombre del procedimiento</label>
-            <input type="text" className="elite-input" value={procedureName} onChange={e => setProcedureName(e.target.value)} placeholder="Extracción dental, implante, etc." />
+            <input
+              type="text"
+              className="elite-input"
+              value={procedureName}
+              onChange={(e) => setProcedureName(e.target.value)}
+              placeholder="Extracción dental, implante, etc."
+            />
           </div>
           <div className="input-group" style={{ position: "relative" }}>
             <label>Paciente</label>
@@ -209,18 +309,54 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
               type="text"
               className="elite-input"
               value={patientName || patientSearch}
-              onChange={e => { setPatientSearch(e.target.value); setPatientName(""); setShowPatientList(true); }}
+              onChange={(e) => {
+                setPatientSearch(e.target.value);
+                setPatientName("");
+                setShowPatientList(true);
+              }}
               placeholder="Buscar paciente..."
               onFocus={() => setShowPatientList(true)}
             />
             {showPatientList && filteredPatients.length > 0 && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #e2e8f0", borderRadius: 8, zIndex: 10, maxHeight: 180, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-                {filteredPatients.slice(0, 8).map(p => (
-                  <button key={p.id} type="button"
-                    style={{ width: "100%", padding: "8px 12px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.875rem" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
-                    onClick={() => { setPatientName(`${p.firstName} ${p.lastName}`); setPatientSearch(""); setShowPatientList(false); }}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  background: "white",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  zIndex: 10,
+                  maxHeight: 180,
+                  overflowY: "auto",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}
+              >
+                {filteredPatients.slice(0, 8).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      textAlign: "left",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f1f5f9")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "none")
+                    }
+                    onClick={() => {
+                      setPatientName(`${p.firstName} ${p.lastName}`);
+                      setPatientSearch("");
+                      setShowPatientList(false);
+                    }}
                   >
                     {p.firstName} {p.lastName}
                   </button>
@@ -233,60 +369,172 @@ export function DocumentosPage({ token, session }: { token: string; session: Aut
 
       {/* Content sections */}
       <article className="card elite-card" style={{ marginTop: 20 }}>
-        <h4 style={{ marginBottom: 16, color: "#0369a1", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Descripción del Procedimiento</h4>
+        <h4
+          style={{
+            marginBottom: 16,
+            color: "#0F766E",
+            fontSize: "0.875rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Descripción del Procedimiento
+        </h4>
         <textarea
           rows={5}
           value={content}
-          onChange={e => setContent(e.target.value)}
+          onChange={(e) => setContent(e.target.value)}
           placeholder="Describa detalladamente el procedimiento que se realizará..."
-          style={{ width: "100%", resize: "vertical", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.6 }}
+          style={{
+            width: "100%",
+            resize: "vertical",
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            fontFamily: "inherit",
+            fontSize: "0.875rem",
+            lineHeight: 1.6,
+          }}
         />
       </article>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 20,
+          marginTop: 20,
+        }}
+      >
         <article className="card elite-card">
-          <h4 style={{ marginBottom: 16, color: "#dc2626", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Posibles Complicaciones y Riesgos</h4>
+          <h4
+            style={{
+              marginBottom: 16,
+              color: "#dc2626",
+              fontSize: "0.875rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Posibles Complicaciones y Riesgos
+          </h4>
           <textarea
             rows={6}
             value={complications}
-            onChange={e => setComplications(e.target.value)}
+            onChange={(e) => setComplications(e.target.value)}
             placeholder="Detalle los posibles riesgos y complicaciones del procedimiento..."
-            style={{ width: "100%", resize: "vertical", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.6 }}
+            style={{
+              width: "100%",
+              resize: "vertical",
+              padding: 12,
+              borderRadius: 8,
+              border: "1px solid #e2e8f0",
+              fontFamily: "inherit",
+              fontSize: "0.875rem",
+              lineHeight: 1.6,
+            }}
           />
         </article>
         <article className="card elite-card">
-          <h4 style={{ marginBottom: 16, color: "#059669", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Beneficios Esperados</h4>
+          <h4
+            style={{
+              marginBottom: 16,
+              color: "#059669",
+              fontSize: "0.875rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Beneficios Esperados
+          </h4>
           <textarea
             rows={6}
             value={benefits}
-            onChange={e => setBenefits(e.target.value)}
+            onChange={(e) => setBenefits(e.target.value)}
             placeholder="Describa los beneficios que se esperan del procedimiento..."
-            style={{ width: "100%", resize: "vertical", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.6 }}
+            style={{
+              width: "100%",
+              resize: "vertical",
+              padding: 12,
+              borderRadius: 8,
+              border: "1px solid #e2e8f0",
+              fontFamily: "inherit",
+              fontSize: "0.875rem",
+              lineHeight: 1.6,
+            }}
           />
         </article>
       </div>
 
       <article className="card elite-card" style={{ marginTop: 20 }}>
-        <h4 style={{ marginBottom: 16, color: "#0369a1", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Texto de Consentimiento</h4>
+        <h4
+          style={{
+            marginBottom: 16,
+            color: "#0F766E",
+            fontSize: "0.875rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Texto de Consentimiento
+        </h4>
         <textarea
           rows={5}
           value={consentText}
-          onChange={e => setConsentText(e.target.value)}
-          style={{ width: "100%", resize: "vertical", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.6 }}
+          onChange={(e) => setConsentText(e.target.value)}
+          style={{
+            width: "100%",
+            resize: "vertical",
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            fontFamily: "inherit",
+            fontSize: "0.875rem",
+            lineHeight: 1.6,
+          }}
         />
         <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
           <button
             type="button"
             onClick={printDocument}
-            style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(135deg,#3b82f6,#2563eb)", color: "white", border: "none", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#0D9488",
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 20px",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+            }}
           >
             <Printer size={16} />
             Vista Previa / Imprimir
           </button>
           <button
             type="button"
-            onClick={() => notify.success("Próximamente", "El envío como PDF estará disponible en una actualización futura.")}
-            style={{ display: "flex", alignItems: "center", gap: 8, background: "white", color: "#334155", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
+            onClick={() =>
+              notify.success(
+                "Próximamente",
+                "El envío como PDF estará disponible en una actualización futura.",
+              )
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "white",
+              color: "#334155",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              padding: "10px 20px",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+            }}
           >
             Enviar como PDF (próximamente)
           </button>

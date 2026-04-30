@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
+import { EmptyState, PageHeader, StatusBadge } from "../components/ui/shared";
 import { notify } from "../lib/notify";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
 import {
@@ -43,14 +44,6 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelada",
 };
 
-const STATUS_CLASS: Record<string, string> = {
-  scheduled: "status-unconfirmed",
-  confirmed: "status-confirmed",
-  in_progress: "status-in-progress",
-  completed: "status-completed",
-  cancelled: "status-cancelled",
-};
-
 const HISTORY_LABELS: Record<string, string> = {
   medication: "Medicamentos",
   allergy_med: "Alergia a medicamentos",
@@ -82,7 +75,13 @@ function formatDateTime(iso: string) {
   };
 }
 
-export function PatientDetailPage({ token, doctorId }: { token: string; doctorId: string }) {
+export function PatientDetailPage({
+  token,
+  doctorId,
+}: {
+  token: string;
+  doctorId: string;
+}) {
   const navigate = useNavigate();
   const { patientId = "" } = useParams();
   const [searchParams] = useSearchParams();
@@ -236,7 +235,9 @@ export function PatientDetailPage({ token, doctorId }: { token: string; doctorId
         );
         currentId = created.id?.trim() || null;
         if (!currentId)
-          throw new Error("El servidor no devolvió un ID de odontograma válido");
+          throw new Error(
+            "El servidor no devolvió un ID de odontograma válido",
+          );
         setOdontogramId(currentId);
       }
       await clinicalApi.updateOdontogramTeeth(
@@ -287,19 +288,50 @@ export function PatientDetailPage({ token, doctorId }: { token: string; doctorId
     );
   }
 
+  const initials =
+    `${patient.firstName[0] ?? ""}${patient.lastName[0] ?? ""}`.toUpperCase();
+
   return (
     <section className="page-section patient-detail-page">
-      <div className="patient-detail-header card elite-card">
-        <div className="patient-detail-headline">
+      <PageHeader
+        icon={
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: "#CCFBF1",
+              color: "#0D9488",
+              fontWeight: 700,
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {initials}
+          </div>
+        }
+        title={`${patient.firstName} ${patient.lastName}`}
+        subtitle={
+          patient.documentId
+            ? `Cédula: ${patient.documentId}${age !== null ? ` · ${age} años` : ""}`
+            : age !== null
+              ? `${age} años`
+              : undefined
+        }
+        action={
           <button
             className="consulta-back-btn"
             onClick={() => navigate("/dashboard/pacientes")}
+            style={{ fontSize: 13 }}
           >
             ← Volver a pacientes
           </button>
-          <h2>Paciente</h2>
-        </div>
+        }
+      />
 
+      <div className="patient-detail-header card elite-card">
         <div className="patient-detail-grid">
           <div>
             <label>Nombre</label>
@@ -329,41 +361,72 @@ export function PatientDetailPage({ token, doctorId }: { token: string; doctorId
       </div>
 
       <article className="card elite-card patient-detail-content">
-        <div className="patient-detail-tabs">
+        <div
+          className="patient-detail-tabs"
+          style={{
+            display: "flex",
+            gap: 4,
+            padding: "12px 16px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          {(
+            [
+              { key: "general", label: "General" },
+              { key: "historial", label: "Historia médica" },
+              { key: "odontograma", label: "Odontograma" },
+              { key: "citas", label: "Citas" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              style={
+                activeTab === key
+                  ? {
+                      padding: "6px 16px",
+                      borderRadius: 8,
+                      background: "#0D9488",
+                      color: "white",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: "inherit",
+                    }
+                  : {
+                      padding: "6px 16px",
+                      borderRadius: 8,
+                      background: "transparent",
+                      color: "#64748B",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      fontFamily: "inherit",
+                    }
+              }
+            >
+              {label}
+            </button>
+          ))}
           <button
             type="button"
-            className={`patient-detail-tab-btn ${activeTab === "general" ? "active" : ""}`}
-            onClick={() => setActiveTab("general")}
-          >
-            General
-          </button>
-          <button
-            type="button"
-            className={`patient-detail-tab-btn ${activeTab === "historial" ? "active" : ""}`}
-            onClick={() => setActiveTab("historial")}
-          >
-            Historia médica
-          </button>
-          <button
-            type="button"
-            className={`patient-detail-tab-btn ${activeTab === "odontograma" ? "active" : ""}`}
-            onClick={() => setActiveTab("odontograma")}
-          >
-            Odontograma
-          </button>
-          <button
-            type="button"
-            className={`patient-detail-tab-btn ${activeTab === "citas" ? "active" : ""}`}
-            onClick={() => setActiveTab("citas")}
-          >
-            Citas
-          </button>
-          <button
-            type="button"
-            className="patient-detail-tab-btn"
             onClick={() =>
               navigate(`/dashboard/pacientes/${patientId}/presupuesto`)
             }
+            style={{
+              padding: "6px 16px",
+              borderRadius: 8,
+              background: "transparent",
+              color: "#64748B",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: "inherit",
+            }}
           >
             Presupuestos
           </button>
@@ -419,7 +482,8 @@ export function PatientDetailPage({ token, doctorId }: { token: string; doctorId
           <div className="patient-detail-panel">
             <h3>Odontograma</h3>
             <p className="consulta-hint">
-              Haz clic en una superficie del diente para abrir el menú de condiciones.
+              Haz clic en una superficie del diente para abrir el menú de
+              condiciones.
             </p>
             <OdontogramChart
               toothStates={toothStates}
@@ -482,11 +546,7 @@ export function PatientDetailPage({ token, doctorId }: { token: string; doctorId
                             "Sin detalle"}
                         </td>
                         <td>
-                          <span
-                            className={`badge ${STATUS_CLASS[appt.status] ?? "status-unconfirmed"}`}
-                          >
-                            {STATUS_LABEL[appt.status] ?? appt.status}
-                          </span>
+                          <StatusBadge status={appt.status} />
                         </td>
                         <td>
                           {appt.paymentAmount != null
@@ -498,11 +558,11 @@ export function PatientDetailPage({ token, doctorId }: { token: string; doctorId
                   })}
                   {filteredAppointments.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="empty-state">
-                        <div className="empty-state-content">
-                          <strong>0 resultados.</strong>
-                          <p>No hay registros creados hasta ahora.</p>
-                        </div>
+                      <td colSpan={4}>
+                        <EmptyState
+                          title="Sin consultas registradas"
+                          description="No hay registros creados hasta ahora."
+                        />
                       </td>
                     </tr>
                   )}
