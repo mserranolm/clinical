@@ -363,6 +363,10 @@ func (s *AppointmentService) UpdateAppointment(ctx context.Context, id string, i
 	if in.Status != "" {
 		appt.Status = in.Status
 	}
+	if in.Status == "in_progress" && appt.ConsultationStartedAt == nil {
+		now := time.Now().UTC()
+		appt.ConsultationStartedAt = &now
+	}
 	if in.TreatmentPlan != "" {
 		appt.TreatmentPlan = in.TreatmentPlan
 	}

@@ -12,6 +12,7 @@ import (
 
 	"clinical-backend/internal/config"
 	"clinical-backend/internal/domain"
+	"clinical-backend/internal/service"
 	"clinical-backend/internal/store"
 
 	"github.com/google/uuid"
@@ -20,6 +21,45 @@ import (
 const (
 	baseURL = "http://localhost:3000"
 )
+
+func TestConsultationStartedAtSetOnInProgress(t *testing.T) {
+	repos := store.NewInMemoryRepositories()
+	svc := service.NewAppointmentService(repos.Appointments, nil)
+
+	ctx := context.Background()
+	created, err := svc.Create(ctx, service.CreateAppointmentInput{
+		DoctorID:  "doc-1",
+		PatientID: "pat-1",
+		StartAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+		EndAt:     time.Now().Add(2 * time.Hour).Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	updated, err := svc.UpdateAppointment(ctx, created.ID, service.UpdateAppointmentInput{
+		Status: "in_progress",
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.ConsultationStartedAt == nil {
+		t.Fatal("expected ConsultationStartedAt to be set, got nil")
+	}
+
+	// Segunda llamada: idempotente (no sobreescribir)
+	first := *updated.ConsultationStartedAt
+	time.Sleep(10 * time.Millisecond)
+	updated2, err := svc.UpdateAppointment(ctx, created.ID, service.UpdateAppointmentInput{
+		Status: "in_progress",
+	})
+	if err != nil {
+		t.Fatalf("update2: %v", err)
+	}
+	if !updated2.ConsultationStartedAt.Equal(first) {
+		t.Fatal("ConsultationStartedAt should not change on repeated in_progress update")
+	}
+}
 
 // TestSetup verifica que el entorno esté configurado correctamente
 func TestSetup(t *testing.T) {
