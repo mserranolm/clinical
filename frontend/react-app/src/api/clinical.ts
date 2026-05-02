@@ -787,4 +787,25 @@ export const clinicalApi = {
       body: { message, conversationHistory: history.slice(-10) },
       token,
     }),
+
+  // Public appointment management (called from email link — no auth token)
+  getPublicAppointmentInfo: (token: string) =>
+    request<{
+      patientName: string;
+      doctorName: string;
+      startAt: string;
+      status: string;
+    }>(`/public/appointments/${encodeURIComponent(token)}/info`),
+
+  cancelPublicAppointment: (token: string) =>
+    request<{ status: string; startAt: string }>(
+      `/public/appointments/${encodeURIComponent(token)}/cancel`,
+      { method: "POST" },
+    ),
+
+  requestReschedulePublic: (token: string) =>
+    request<{ status: string }>(
+      `/public/appointments/${encodeURIComponent(token)}/reschedule-request`,
+      { method: "POST" },
+    ),
 };
