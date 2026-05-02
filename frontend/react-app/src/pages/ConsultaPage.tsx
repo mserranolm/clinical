@@ -227,6 +227,14 @@ function serializeSoap(parts: SoapParts): string {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type SessionProcedure = {
+  pieza: string;
+  procedimiento: string;
+  cara: string;
+  material: string;
+  costo: number;
+};
+
 type ConsultaPageProps = { token: string; doctorId: string };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -272,6 +280,12 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
     "tarjeta" | "efectivo" | "transferencia" | "mixto"
   >("efectivo");
   const [elapsed, setElapsed] = useState(0);
+  const [procedures, setProcedures] = useState<SessionProcedure[]>([]);
+  const [showProcedureModal, setShowProcedureModal] = useState(false);
+  const [newProc, setNewProc] = useState<Partial<SessionProcedure>>({});
+  const [nextApptDate, setNextApptDate] = useState("");
+  const [nextApptTime, setNextApptTime] = useState("");
+  const [schedulingNext, setSchedulingNext] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isClosed = appointmentStatus === "completed";
@@ -598,6 +612,55 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function addProcedure() {
+    if (!newProc.procedimiento) return;
+    setProcedures((prev) => [
+      ...prev,
+      {
+        pieza: newProc.pieza ?? "—",
+        procedimiento: newProc.procedimiento!,
+        cara: newProc.cara ?? "—",
+        material: newProc.material ?? "—",
+        costo: newProc.costo ?? 0,
+      },
+    ]);
+    setNewProc({});
+    setShowProcedureModal(false);
+  }
+
+  function applyDateChip(chip: string) {
+    const d = new Date();
+    if (chip === "Mañana") d.setDate(d.getDate() + 1);
+    else if (chip === "+1 sem") d.setDate(d.getDate() + 7);
+    else if (chip === "+2 sem") d.setDate(d.getDate() + 14);
+    else if (chip === "+1 mes") d.setMonth(d.getMonth() + 1);
+    setNextApptDate(d.toISOString().split("T")[0]);
+  }
+
+  async function handleScheduleNext() {
+    if (!nextApptDate || !nextApptTime) {
+      notify.error("Selecciona fecha y hora");
+      return;
+    }
+    setSchedulingNext(true);
+    try {
+      const startAt = new Date(
+        `${nextApptDate}T${nextApptTime}:00`,
+      ).toISOString();
+      await clinicalApi.createAppointment(
+        { doctorId, patientId, startAt, durationMinutes: 30 },
+        token,
+      );
+      notify.success("Cita agendada");
+      setNextApptDate("");
+      setNextApptTime("");
+    } catch {
+      notify.error("Error al agendar la cita");
+    } finally {
+      setSchedulingNext(false);
     }
   }
 
@@ -1833,6 +1896,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     Procedimientos sesión
                   </span>
                   <button
+                    onClick={() => setShowProcedureModal(true)}
                     style={{
                       fontSize: 12,
                       color: teal,
@@ -1881,13 +1945,32 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr style={{ color: "#64748B" }}>
-                      <td style={{ padding: "6px 8px" }}>—</td>
-                      <td style={{ padding: "6px 8px" }}>Anestesia local</td>
-                      <td style={{ padding: "6px 8px" }}>—</td>
-                      <td style={{ padding: "6px 8px" }}>Lidocaína 2%</td>
-                      <td style={{ padding: "6px 8px" }}>$0</td>
-                    </tr>
+                    {procedures.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          style={{
+                            padding: "10px 8px",
+                            color: "#94A3B8",
+                            fontSize: 12,
+                          }}
+                        >
+                          Sin procedimientos registrados
+                        </td>
+                      </tr>
+                    ) : (
+                      procedures.map((p, i) => (
+                        <tr key={i} style={{ color: "#64748B" }}>
+                          <td style={{ padding: "6px 8px" }}>{p.pieza}</td>
+                          <td style={{ padding: "6px 8px" }}>
+                            {p.procedimiento}
+                          </td>
+                          <td style={{ padding: "6px 8px" }}>{p.cara}</td>
+                          <td style={{ padding: "6px 8px" }}>{p.material}</td>
+                          <td style={{ padding: "6px 8px" }}>${p.costo}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2188,6 +2271,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                   {["Mañana", "+1 sem", "+2 sem", "+1 mes"].map((chip) => (
                     <button
                       key={chip}
+                      onClick={() => applyDateChip(chip)}
                       style={{
                         padding: "4px 8px",
                         background: "#F8FAFC",
@@ -2205,6 +2289,8 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
 
                 <input
                   type="date"
+                  value={nextApptDate}
+                  onChange={(e) => setNextApptDate(e.target.value)}
                   style={{
                     width: "100%",
                     border: "1px solid #E2E8F0",
@@ -2218,6 +2304,8 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                 />
                 <input
                   type="time"
+                  value={nextApptTime}
+                  onChange={(e) => setNextApptTime(e.target.value)}
                   style={{
                     width: "100%",
                     border: "1px solid #E2E8F0",
@@ -2231,6 +2319,8 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                 />
 
                 <button
+                  onClick={handleScheduleNext}
+                  disabled={schedulingNext}
                   style={{
                     width: "100%",
                     background: "#F8FAFC",
@@ -2240,10 +2330,11 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
                     fontSize: 12,
                     fontWeight: 600,
                     color: "#475569",
-                    cursor: "pointer",
+                    cursor: schedulingNext ? "not-allowed" : "pointer",
+                    opacity: schedulingNext ? 0.7 : 1,
                   }}
                 >
-                  + Agendar
+                  {schedulingNext ? "Agendando..." : "+ Agendar"}
                 </button>
               </div>
 
@@ -2330,6 +2421,262 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
           </div>
         )}
       </div>
+
+      {/* ── MODAL: Añadir procedimiento ──────────────────────────────────── */}
+      {showProcedureModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setShowProcedureModal(false);
+            setNewProc({});
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              padding: 24,
+              width: 400,
+              maxWidth: "90vw",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#0F172A",
+              }}
+            >
+              Añadir procedimiento
+            </h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    marginBottom: 4,
+                  }}
+                >
+                  Pieza dental
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: 21"
+                  value={newProc.pieza ?? ""}
+                  onChange={(e) =>
+                    setNewProc((p) => ({ ...p, pieza: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                    color: "#0F172A",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    marginBottom: 4,
+                  }}
+                >
+                  Procedimiento <span style={{ color: "#DC2626" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Obturación compuesta"
+                  value={newProc.procedimiento ?? ""}
+                  onChange={(e) =>
+                    setNewProc((p) => ({
+                      ...p,
+                      procedimiento: e.target.value,
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                    color: "#0F172A",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    marginBottom: 4,
+                  }}
+                >
+                  Cara
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Oclusal"
+                  value={newProc.cara ?? ""}
+                  onChange={(e) =>
+                    setNewProc((p) => ({ ...p, cara: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                    color: "#0F172A",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    marginBottom: 4,
+                  }}
+                >
+                  Material
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Resina fotopolimerizable"
+                  value={newProc.material ?? ""}
+                  onChange={(e) =>
+                    setNewProc((p) => ({ ...p, material: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                    color: "#0F172A",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    marginBottom: 4,
+                  }}
+                >
+                  Costo ($)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0"
+                  value={newProc.costo ?? ""}
+                  onChange={(e) =>
+                    setNewProc((p) => ({
+                      ...p,
+                      costo: Number(e.target.value),
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                    color: "#0F172A",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginTop: 20,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowProcedureModal(false);
+                  setNewProc({});
+                }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid #E2E8F0",
+                  background: "#fff",
+                  color: "#475569",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={addProcedure}
+                disabled={!newProc.procedimiento}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: !newProc.procedimiento ? "#94A3B8" : "#0D9488",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: !newProc.procedimiento ? "not-allowed" : "pointer",
+                }}
+              >
+                Añadir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
