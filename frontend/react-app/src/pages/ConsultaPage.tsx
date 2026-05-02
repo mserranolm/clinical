@@ -253,7 +253,8 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   >("evolucion");
   const [appointmentStatus, setAppointmentStatus] =
     useState<string>("scheduled");
-  const [appointmentDate, setAppointmentDate] = useState<string>("");
+  const [consultationStartedAt, setConsultationStartedAt] =
+    useState<string>("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
@@ -278,8 +279,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isInProgress && appointmentDate) {
-      const start = new Date(appointmentDate).getTime();
+    if (isInProgress) {
+      const start = consultationStartedAt
+        ? new Date(consultationStartedAt).getTime()
+        : Date.now();
       const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
       tick();
       timerRef.current = setInterval(tick, 1000);
@@ -287,7 +290,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isInProgress, appointmentDate]);
+  }, [isInProgress, consultationStartedAt]);
 
   useEffect(() => {
     if (!patientId) {
@@ -326,7 +329,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
           paymentMethod?: string;
         };
         setAppointmentStatus(appt.status ?? "scheduled");
-        setAppointmentDate(appt.startAt ?? "");
+        setConsultationStartedAt((appt as any).consultationStartedAt ?? "");
         if (appt.evolutionNotes) setEvolutionNotes(appt.evolutionNotes);
         if (appt.treatmentPlan) setTreatmentPlan(appt.treatmentPlan);
         if (appt.paymentAmount) setPaymentAmount(appt.paymentAmount);
