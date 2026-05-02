@@ -847,9 +847,6 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 }
 
 func (r *Router) SendRescheduleRequest(ctx context.Context, toEmail, patientName string, startAt time.Time) error {
-	if !r.allowed(ctx, "email") {
-		return fmt.Errorf("email notifications disabled")
-	}
 	dateStr := startAt.Format("02/01/2006")
 	timeStr := startAt.Format("15:04")
 	subject := "CliniSense — Solicitud de reprogramación de cita"
