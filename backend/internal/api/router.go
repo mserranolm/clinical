@@ -96,6 +96,15 @@ func isPublicEndpoint(method, path string) bool {
 	if method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/confirm") {
 		return true
 	}
+	if method == "GET" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/info") {
+		return true
+	}
+	if method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/cancel") {
+		return true
+	}
+	if method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/reschedule-request") {
+		return true
+	}
 	return false
 }
 
@@ -507,6 +516,19 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 		case method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/confirm"):
 			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/appointments/"), "/confirm")
 			resp, err = r.publicConfirmAppointment(ctx, token)
+
+		case method == "GET" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/info"):
+			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/appointments/"), "/info")
+			resp, err = r.publicGetAppointmentInfo(ctx, token)
+
+		case method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/cancel"):
+			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/appointments/"), "/cancel")
+			resp, err = r.publicCancelAppointment(ctx, token)
+
+		case method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/reschedule-request"):
+			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/appointments/"), "/reschedule-request")
+			resp, err = r.publicRescheduleRequest(ctx, token)
+
 		// Public consent accept endpoint (no API key required — called from email link)
 		case method == "POST" && strings.HasPrefix(path, "/public/consents/") && strings.HasSuffix(path, "/accept"):
 			token := strings.TrimSuffix(strings.TrimPrefix(path, "/public/consents/"), "/accept")
@@ -1173,6 +1195,32 @@ func (r *Router) publicConfirmAppointment(ctx context.Context, token string) (ev
 		"appointmentId": appt.ID,
 		"startAt":       appt.StartAt,
 	})
+}
+
+func (r *Router) publicGetAppointmentInfo(ctx context.Context, token string) (events.APIGatewayV2HTTPResponse, error) {
+	info, err := r.appointments.GetInfoByToken(ctx, token)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, info)
+}
+
+func (r *Router) publicCancelAppointment(ctx context.Context, token string) (events.APIGatewayV2HTTPResponse, error) {
+	appt, err := r.appointments.CancelByToken(ctx, token)
+	if err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{
+		"status":  "cancelled",
+		"startAt": appt.StartAt,
+	})
+}
+
+func (r *Router) publicRescheduleRequest(ctx context.Context, token string) (events.APIGatewayV2HTTPResponse, error) {
+	if err := r.appointments.RequestRescheduleByToken(ctx, token); err != nil {
+		return response(400, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]string{"status": "request_sent"})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
