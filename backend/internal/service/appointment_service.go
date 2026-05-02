@@ -492,8 +492,14 @@ func (s *AppointmentService) CancelByToken(ctx context.Context, token string) (d
 		return domain.Appointment{}, err
 	}
 	if s.notifier != nil {
+		loc := time.Local
+		if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+			if l, lerr := time.LoadLocation(tz); lerr == nil {
+				loc = l
+			}
+		}
 		if email, name := s.patientEmail(ctx, updated.PatientID); email != "" {
-			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "cancelled", updated.StartAt.UTC(), updated.EndAt.UTC())
+			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "cancelled", updated.StartAt.In(loc), updated.EndAt.In(loc))
 		}
 	}
 	return updated, nil
