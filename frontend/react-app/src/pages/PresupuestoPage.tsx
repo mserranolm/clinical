@@ -101,6 +101,8 @@ export function PresupuestoPage({
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("");
   const [patientDocId, setPatientDocId] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => {
     if (!patientId) return;
@@ -110,6 +112,10 @@ export function PresupuestoPage({
         setPatientName(`${(p as any).firstName} ${(p as any).lastName}`);
         setPatientDocId((p as any).documentId || "");
       })
+      .catch(() => {});
+    clinicalApi
+      .getPlatformSettings(token)
+      .then((s) => setLogoUrl(s.logoUrl ?? ""))
       .catch(() => {});
     loadBudgets();
   }, [patientId, token]);
@@ -224,6 +230,40 @@ export function PresupuestoPage({
         loadBudgets();
       })
       .catch(() => notify.error("Error al eliminar"));
+  }
+
+  async function handleLogoUpload(file: File) {
+    if (file.size > 2 * 1024 * 1024) {
+      notify.error("El logo no puede superar 2 MB");
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const [{ uploadUrl, imageUrl }, currentSettings] = await Promise.all([
+        clinicalApi.getOrgUploadUrl("logo", file.name, token),
+        clinicalApi.getPlatformSettings(token),
+      ]);
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      await clinicalApi.updatePlatformSettings(
+        {
+          sendSMS: currentSettings.sendSMS ?? true,
+          sendEmail: currentSettings.sendEmail ?? true,
+          signatureUrl: currentSettings.signatureUrl,
+          logoUrl: imageUrl,
+        },
+        token,
+      );
+      setLogoUrl(imageUrl);
+      notify.success("Logo actualizado");
+    } catch {
+      notify.error("Error al subir el logo");
+    } finally {
+      setLogoUploading(false);
+    }
   }
 
   async function handleDownloadPdf(b: Budget) {
@@ -412,6 +452,85 @@ export function PresupuestoPage({
           </button>
         }
       />
+
+      {(session.role === "admin" || session.role === "doctor") && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            padding: "12px 16px",
+            marginBottom: "16px",
+            background: "#f8fafc",
+            borderRadius: "10px",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              style={{
+                height: "48px",
+                width: "auto",
+                objectFit: "contain",
+                borderRadius: "4px",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                height: "48px",
+                width: "80px",
+                background: "#e2e8f0",
+                borderRadius: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "11px",
+                color: "#94a3b8",
+              }}
+            >
+              Sin logo
+            </div>
+          )}
+          <div>
+            <p
+              style={{
+                margin: "0 0 4px",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "#334155",
+              }}
+            >
+              Logo de la clínica
+            </p>
+            <label
+              style={{
+                fontSize: "12px",
+                color: logoUploading ? "#94a3b8" : "#0d9488",
+                cursor: logoUploading ? "not-allowed" : "pointer",
+                fontWeight: "500",
+              }}
+            >
+              {logoUploading
+                ? "Subiendo…"
+                : "Cambiar logo (PNG/JPEG, máx. 2 MB)"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                style={{ display: "none" }}
+                disabled={logoUploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleLogoUpload(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
