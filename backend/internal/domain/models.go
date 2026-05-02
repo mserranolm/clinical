@@ -77,7 +77,8 @@ type Appointment struct {
 	ImageKeys           []string   `json:"imageKeys,omitempty"`
 	ReminderSentAt      *time.Time `json:"reminderSentAt,omitempty"`
 	PatientConfirmedAt  *time.Time `json:"patientConfirmedAt,omitempty"`
-	DoctorDailyClosedAt *time.Time `json:"doctorDailyClosedAt,omitempty"`
+	DoctorDailyClosedAt  *time.Time `json:"doctorDailyClosedAt,omitempty"`
+	ConsultationStartedAt *time.Time `json:"consultationStartedAt,omitempty"`
 	// ConsentSummary se rellena en listados (no se persiste en DB).
 	ConsentSummary *ConsentSummary `json:"consentSummary,omitempty"`
 }
