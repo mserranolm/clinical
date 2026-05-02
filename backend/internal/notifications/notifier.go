@@ -37,6 +37,7 @@ type Notifier interface {
 	SendAppointmentCreatedSMS(ctx context.Context, toPhone, patientName string, appt domain.Appointment) error
 	SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error
 	SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error
+	SendRescheduleRequest(ctx context.Context, toEmail, patientName string, startAt time.Time) error
 }
 
 // ConsentLink is a consent title and its public accept token for the email body.
@@ -841,6 +842,37 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
 	if err != nil {
 		log.Printf("[notify:consent] smtp send failed: %v", err)
+	}
+	return err
+}
+
+func (r *Router) SendRescheduleRequest(ctx context.Context, toEmail, patientName string, startAt time.Time) error {
+	if !r.allowed(ctx, "email") {
+		return fmt.Errorf("email notifications disabled")
+	}
+	dateStr := startAt.Format("02/01/2006")
+	timeStr := startAt.Format("15:04")
+	subject := "CliniSense — Solicitud de reprogramación de cita"
+	body := fmt.Sprintf(
+		"El paciente %s ha solicitado reprogramar su cita del %s a las %s.\n\nPor favor contáctalo para coordinar un nuevo horario.",
+		patientName, dateStr, timeStr,
+	)
+	htmlBody := fmt.Sprintf(`
+<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#1e293b;">Solicitud de reprogramación</p>
+<p style="margin:0 0 8px;font-size:14px;color:#334155;">El paciente <strong>%s</strong> ha solicitado reprogramar su cita del <strong>%s</strong> a las <strong>%s</strong>.</p>
+<p style="margin:0;font-size:14px;color:#64748b;">Por favor contáctalo para coordinar un nuevo horario.</p>`,
+		html.EscapeString(patientName), dateStr, timeStr)
+	log.Printf("[notify:reschedule-request] to=%s patient=%s start=%s", toEmail, patientName, startAt)
+	if !r.getSettings(ctx).SendEmail {
+		return nil
+	}
+	sender := r.cfg.SESSenderEmail
+	if sender == "" {
+		sender = "no-reply@aloai.me"
+	}
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	if err != nil {
+		log.Printf("[notify:reschedule-request] smtp send failed: %v", err)
 	}
 	return err
 }
