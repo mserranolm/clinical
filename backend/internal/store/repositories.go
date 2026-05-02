@@ -185,8 +185,10 @@ type BudgetRepository interface {
 }
 
 type PlatformSettings struct {
-	SendSMS   bool `json:"sendSMS"`
-	SendEmail bool `json:"sendEmail"`
+	SendSMS      bool   `json:"sendSMS"`
+	SendEmail    bool   `json:"sendEmail"`
+	LogoUrl      string `json:"logoUrl,omitempty"`
+	SignatureUrl string `json:"signatureUrl,omitempty"`
 }
 
 type PlatformSettingsRepository interface {

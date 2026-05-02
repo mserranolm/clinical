@@ -1947,13 +1947,20 @@ func (r *dynamoPlatformSettingsRepo) GetSettings(ctx context.Context) (PlatformS
 		return PlatformSettings{SendSMS: true, SendEmail: true}, nil
 	}
 	var row struct {
-		SendSMS   bool `dynamodbav:"sendSMS"`
-		SendEmail bool `dynamodbav:"sendEmail"`
+		SendSMS      bool   `dynamodbav:"sendSMS"`
+		SendEmail    bool   `dynamodbav:"sendEmail"`
+		LogoUrl      string `dynamodbav:"logoUrl"`
+		SignatureUrl string `dynamodbav:"signatureUrl"`
 	}
 	if err := attributevalue.UnmarshalMap(out.Item, &row); err != nil {
 		return PlatformSettings{SendSMS: true, SendEmail: true}, fmt.Errorf("unmarshal platform settings: %w", err)
 	}
-	return PlatformSettings{SendSMS: row.SendSMS, SendEmail: row.SendEmail}, nil
+	return PlatformSettings{
+		SendSMS:      row.SendSMS,
+		SendEmail:    row.SendEmail,
+		LogoUrl:      row.LogoUrl,
+		SignatureUrl: row.SignatureUrl,
+	}, nil
 }
 
 func (r *dynamoPlatformSettingsRepo) UpdateSettings(ctx context.Context, s PlatformSettings) error {
@@ -1962,10 +1969,12 @@ func (r *dynamoPlatformSettingsRepo) UpdateSettings(ctx context.Context, s Platf
 		tbl = "clinical-platform-settings"
 	}
 	item, err := attributevalue.MarshalMap(map[string]interface{}{
-		"PK":        "PLATFORM#SETTINGS",
-		"SK":        "CONFIG",
-		"sendSMS":   s.SendSMS,
-		"sendEmail": s.SendEmail,
+		"PK":           "PLATFORM#SETTINGS",
+		"SK":           "CONFIG",
+		"sendSMS":      s.SendSMS,
+		"sendEmail":    s.SendEmail,
+		"logoUrl":      s.LogoUrl,
+		"signatureUrl": s.SignatureUrl,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal platform settings: %w", err)

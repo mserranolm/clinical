@@ -246,13 +246,13 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 				resp, err = r.getPlatformStats(actx)
 			}
 		case method == "GET" && path == "/platform/settings":
-			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.getPlatformSettings(actx)
 			}
 		case method == "PUT" && path == "/platform/settings":
-			if actx, deny, ok := r.require(ctx, req, permPlatformManage); !ok {
+			if actx, deny, ok := r.require(ctx, req, permUsersManage); !ok {
 				resp, err = deny, nil
 			} else {
 				resp, err = r.updatePlatformSettings(actx, req)
