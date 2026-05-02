@@ -445,6 +445,77 @@ func (s *AppointmentService) ConfirmByToken(ctx context.Context, token string) (
 	return s.repo.Update(ctx, appt)
 }
 
+// AppointmentPublicInfo contains publicly-safe appointment data for the patient-facing confirmation page.
+type AppointmentPublicInfo struct {
+	PatientName string    `json:"patientName"`
+	DoctorName  string    `json:"doctorName"`
+	StartAt     time.Time `json:"startAt"`
+	Status      string    `json:"status"`
+}
+
+func (s *AppointmentService) GetInfoByToken(ctx context.Context, token string) (AppointmentPublicInfo, error) {
+	appt, err := s.repo.GetByConfirmToken(ctx, token)
+	if err != nil {
+		return AppointmentPublicInfo{}, fmt.Errorf("enlace inválido o expirado")
+	}
+	info := AppointmentPublicInfo{
+		StartAt: appt.StartAt,
+		Status:  appt.Status,
+	}
+	if s.patientRepo != nil {
+		if p, err := s.patientRepo.GetByID(ctx, appt.PatientID); err == nil {
+			info.PatientName = p.FirstName + " " + p.LastName
+		}
+	}
+	if s.authRepo != nil {
+		if u, err := s.authRepo.GetUserByID(ctx, appt.DoctorID); err == nil {
+			info.DoctorName = u.Name
+		}
+	}
+	return info, nil
+}
+
+func (s *AppointmentService) CancelByToken(ctx context.Context, token string) (domain.Appointment, error) {
+	appt, err := s.repo.GetByConfirmToken(ctx, token)
+	if err != nil {
+		return domain.Appointment{}, fmt.Errorf("enlace inválido o expirado")
+	}
+	if appt.Status == "cancelled" {
+		return appt, nil
+	}
+	if appt.Status == "completed" || appt.Status == "in_progress" {
+		return domain.Appointment{}, fmt.Errorf("no se puede cancelar una cita en progreso o finalizada")
+	}
+	appt.Status = "cancelled"
+	updated, err := s.repo.Update(ctx, appt)
+	if err != nil {
+		return domain.Appointment{}, err
+	}
+	if s.notifier != nil {
+		if email, name := s.patientEmail(ctx, updated.PatientID); email != "" {
+			_ = s.notifier.SendAppointmentEvent(ctx, email, name, "cancelled", updated.StartAt.UTC(), updated.EndAt.UTC())
+		}
+	}
+	return updated, nil
+}
+
+func (s *AppointmentService) RequestRescheduleByToken(ctx context.Context, token string) error {
+	appt, err := s.repo.GetByConfirmToken(ctx, token)
+	if err != nil {
+		return fmt.Errorf("enlace inválido o expirado")
+	}
+	if appt.Status == "cancelled" || appt.Status == "completed" {
+		return fmt.Errorf("esta cita ya no puede ser modificada")
+	}
+	if s.notifier != nil && s.authRepo != nil {
+		_, patientName := s.patientEmail(ctx, appt.PatientID)
+		if doc, err := s.authRepo.GetUserByID(ctx, appt.DoctorID); err == nil && doc.Email != "" {
+			_ = s.notifier.SendRescheduleRequest(ctx, doc.Email, patientName, appt.StartAt)
+		}
+	}
+	return nil
+}
+
 func generateAppointmentToken() (string, error) {
 	b := make([]byte, 20)
 	if _, err := rand.Read(b); err != nil {
