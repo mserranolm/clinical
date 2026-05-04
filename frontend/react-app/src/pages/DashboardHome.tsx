@@ -13,7 +13,8 @@ import {
   AUTO_REFRESH_OPTS,
   DURATION_BLOCKS,
   TIME_SLOTS,
-  fmtTimeSlot,
+  fmt12h,
+  fmt12hDate,
 } from "../lib/constants";
 import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
@@ -71,7 +72,9 @@ function KpiCard({
         borderRadius: 14,
         padding: "20px 22px",
         cursor: onClick ? "pointer" : "default",
-        borderTop: highlight ? `3px solid ${highlight}` : `1px solid ${t.borderFaint}`,
+        borderTop: highlight
+          ? `3px solid ${highlight}`
+          : `1px solid ${t.borderFaint}`,
         border: active
           ? `2px solid ${highlight ?? "#0D9488"}`
           : highlight
@@ -143,7 +146,13 @@ function KpiCard({
   );
 }
 
-function PendientesCard({ amount, onClick }: { amount: number; onClick: () => void }) {
+function PendientesCard({
+  amount,
+  onClick,
+}: {
+  amount: number;
+  onClick: () => void;
+}) {
   const t = useThemeTokens();
   return (
     <div
@@ -156,7 +165,9 @@ function PendientesCard({ amount, onClick }: { amount: number; onClick: () => vo
         alignItems: "center",
         gap: 24,
         marginBottom: 20,
-        boxShadow: t.isDark ? "0 1px 4px rgba(0,0,0,0.3)" : "0 1px 4px rgba(148,163,184,0.08)",
+        boxShadow: t.isDark
+          ? "0 1px 4px rgba(0,0,0,0.3)"
+          : "0 1px 4px rgba(148,163,184,0.08)",
         cursor: "pointer",
       }}
       onClick={onClick}
@@ -350,11 +361,7 @@ export function DashboardHome({
   const patientLabel = (row: AppointmentRow) =>
     row.patientName || row.patientId;
 
-  const rowTime = (row: AppointmentRow) =>
-    new Date(row.startAt).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const rowTime = (row: AppointmentRow) => fmt12hDate(new Date(row.startAt));
 
   const goToTreatment = async (row: AppointmentRow) => {
     if (!isInProgress(row.status)) {
@@ -444,7 +451,7 @@ export function DashboardHome({
               <option value="">Seleccione una hora</option>
               {TIME_SLOTS.map((s) => (
                 <option key={s} value={s}>
-                  {fmtTimeSlot(s)}
+                  {fmt12h(s)}
                 </option>
               ))}
             </select>
@@ -533,7 +540,12 @@ export function DashboardHome({
       </div>
 
       {/* ── KPIs plataforma/org admin ── */}
-      {canSeePending && orgStats && <PendientesCard onClick={() => navigate("/dashboard/pagos")} amount={orgStats.pendingRevenue} />}
+      {canSeePending && orgStats && (
+        <PendientesCard
+          onClick={() => navigate("/dashboard/pagos")}
+          amount={orgStats.pendingRevenue}
+        />
+      )}
 
       {/* ── Agenda card (columna única) ── */}
       <article className="agenda-card" style={{ margin: 0 }}>
