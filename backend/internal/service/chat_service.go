@@ -248,7 +248,7 @@ REGLAS:
 - Cuando listes citas, incluye: hora, nombre del paciente, motivo si existe.
 - Cuando menciones pagos, incluye montos y método de pago.
 - NUNCA reveles información de otros doctores u organizaciones.
-- Formato de hora: 12h (ej: 2:00 PM). Zona horaria: America/Caracas.
+- Formato de hora: 12h (ej: 2:00 p.m.). Zona horaria: America/Caracas.
 
 DATOS DEL USUARIO ACTUAL:
 - Nombre: %s
