@@ -1,7 +1,27 @@
 export const TIME_SLOTS = [
-  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
-  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
-  "15:00","15:30","16:00","16:30","17:00","17:30","18:00",
+  "07:00",
+  "07:30",
+  "08:00",
+  "08:30",
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
 ] as const;
 
 export const DURATION_BLOCKS = [
@@ -21,10 +41,19 @@ export const AUTO_REFRESH_OPTS = [
   { value: 60, label: "Cada 60 s" },
 ] as const;
 
-/** Formats a "HH:MM" time slot string to 12-hour AM/PM format. */
-export function fmtTimeSlot(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
+/** "14:30" → "2:30 p.m." */
+export function fmt12h(timeStr: string): string {
+  const [h, m] = timeStr.split(":").map(Number);
+  const period = h < 12 ? "a.m." : "p.m.";
   const h12 = h % 12 || 12;
-  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+/** Date → "2:30 p.m." */
+export function fmt12hDate(d: Date): string {
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const period = h < 12 ? "a.m." : "p.m.";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
