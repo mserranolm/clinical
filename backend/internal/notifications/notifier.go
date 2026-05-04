@@ -251,6 +251,37 @@ func htmlStatusBadge(label, bg, color string) string {
 	)
 }
 
+// ── getOrgName ───────────────────────────────────────────────────────────────
+
+// getOrgName fetches the organization name from DynamoDB using the OrgID in ctx.
+// Returns "" if unavailable so callers can safely pass it to buildHTMLEmail.
+func (r *Router) getOrgName(ctx context.Context) string {
+	if r.ddb == nil {
+		return ""
+	}
+	orgID := store.OrgIDFromContext(ctx)
+	if strings.TrimSpace(orgID) == "" {
+		return ""
+	}
+	out, err := r.ddb.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(r.cfg.PatientTable),
+		Key: map[string]ddbtypes.AttributeValue{
+			"PK": &ddbtypes.AttributeValueMemberS{Value: fmt.Sprintf("ORG#%s", orgID)},
+			"SK": &ddbtypes.AttributeValueMemberS{Value: "ORG"},
+		},
+		ProjectionExpression: aws.String("#n"),
+		ExpressionAttributeNames: map[string]string{"#n": "name"},
+	})
+	if err != nil || out.Item == nil {
+		return ""
+	}
+	var row struct{ Name string }
+	if err := attributevalue.UnmarshalMap(out.Item, &row); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(row.Name)
+}
+
 // ── normalizePhoneForSMS ──────────────────────────────────────────────────────
 
 // normalizePhoneForSMS returns E.164 phone for SNS (only digits and leading +). Empty if invalid.
@@ -310,7 +341,7 @@ func (r *Router) SendAppointmentReminder(ctx context.Context, patientID, channel
 		}
 		subject := "Confirmación de cita"
 		htmlBody := htmlParagraph(html.EscapeString(message))
-		err := r.sendMail(ctx, sender, to, subject, buildHTMLEmail(subject, htmlBody, ""), message)
+		err := r.sendMail(ctx, sender, to, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), message)
 		if err != nil {
 			log.Printf("[notify:ses] send failed: %v", err)
 			return err
@@ -328,7 +359,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 		frontendBase = "https://docco.aloai.me"
 	}
 	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
-	subject := "CliniSense — Tu cita ha sido agendada"
+	subject := "Docco — Tu cita ha sido agendada"
 
 	dateStr := appt.StartAt.Format("02/01/2006")
 	timeStr := appt.StartAt.Format("15:04")
@@ -341,7 +372,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 			"   %s\n\n"+
 			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
 			"Si no puedes hacer clic, copia y pega el enlace en tu navegador.\n\n"+
-			"CliniSense",
+			"Docco",
 		patientName, dateStr, timeStr, confirmURL,
 	)
 	htmlBody := fmt.Sprintf(`
@@ -370,7 +401,7 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:appointment-created] smtp send failed: %v", err)
 	}
@@ -392,14 +423,14 @@ func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patient
 		frontendBase = "https://docco.aloai.me"
 	}
 	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
-	msg := fmt.Sprintf("CliniSense: Hola %s. Tu cita es el %s a las %s. Confirmar: %s",
+	msg := fmt.Sprintf("Docco: Hola %s. Tu cita es el %s a las %s. Confirmar: %s",
 		strings.TrimSpace(patientName),
 		appt.StartAt.Format("02/01/2006"),
 		appt.StartAt.Format("15:04"),
 		confirmURL,
 	)
 	if len(msg) > 160 {
-		msg = fmt.Sprintf("CliniSense: Cita %s a las %s. Confirmar: %s",
+		msg = fmt.Sprintf("Docco: Cita %s a las %s. Confirmar: %s",
 			appt.StartAt.Format("02/01/2006"), appt.StartAt.Format("15:04"), confirmURL)
 	}
 	_, err := r.sns.Publish(ctx, &sns.PublishInput{
@@ -449,7 +480,7 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	if title == "" {
 		title = "Actualización de cita"
 	}
-	subject := fmt.Sprintf("CliniSense — %s", title)
+	subject := fmt.Sprintf("Docco — %s", title)
 
 	dateStr := startAt.Format("02/01/2006")
 	startStr := startAt.Format("15:04")
@@ -573,7 +604,7 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:appointment] smtp send failed: %v", err)
 		return err
@@ -583,10 +614,10 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 }
 
 func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientName, treatmentPlan string, consultDate time.Time) error {
-	subject := "CliniSense — Plan de tratamiento de tu consulta"
+	subject := "Docco — Plan de tratamiento de tu consulta"
 	dateStr := consultDate.Format("02/01/2006")
 	body := fmt.Sprintf(
-		"Hola %s,\n\nGracias por tu visita del %s.\n\nA continuación te compartimos el plan de tratamiento indicado por tu doctor:\n\n%s\n\nSi tienes alguna duda, no dudes en contactarnos.\n\nCliniSense",
+		"Hola %s,\n\nGracias por tu visita del %s.\n\nA continuación te compartimos el plan de tratamiento indicado por tu doctor:\n\n%s\n\nSi tienes alguna duda, no dudes en contactarnos.\n\nDocco",
 		patientName, dateStr, treatmentPlan,
 	)
 	htmlBody := fmt.Sprintf(`
@@ -617,7 +648,7 @@ func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientN
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:treatment-plan] smtp send failed: %v", err)
 	}
@@ -625,9 +656,9 @@ func (r *Router) SendTreatmentPlanSummary(ctx context.Context, toEmail, patientN
 }
 
 func (r *Router) SendOrgCreated(ctx context.Context, toEmail, orgName, adminName string) error {
-	subject := fmt.Sprintf("CliniSense — Organización '%s' creada", orgName)
+	subject := fmt.Sprintf("Docco — Organización '%s' creada", orgName)
 	body := fmt.Sprintf(
-		"Hola %s,\n\nTu organización '%s' ha sido creada exitosamente en CliniSense.\n\nYa puedes comenzar a agregar doctores, asistentes y pacientes desde el panel de administración.\n\nBienvenido a CliniSense.",
+		"Hola %s,\n\nTu organización '%s' ha sido creada exitosamente en Docco.\n\nYa puedes comenzar a agregar doctores, asistentes y pacientes desde el panel de administración.\n\nBienvenido a Docco.",
 		adminName, orgName,
 	)
 	htmlBody := fmt.Sprintf(`
@@ -640,7 +671,7 @@ func (r *Router) SendOrgCreated(ctx context.Context, toEmail, orgName, adminName
 </p>`,
 		html.EscapeString(adminName),
 		htmlParagraph(fmt.Sprintf(
-			"Tu organización <strong>%s</strong> ha sido creada exitosamente en CliniSense.",
+			"Tu organización <strong>%s</strong> ha sido creada exitosamente en Docco.",
 			html.EscapeString(orgName),
 		)),
 		htmlDivider(),
@@ -670,10 +701,10 @@ func (r *Router) SendWelcome(ctx context.Context, toEmail, name, role, password,
 	if label == "" {
 		label = role
 	}
-	subject := fmt.Sprintf("Bienvenido a CliniSense — Tu cuenta como %s", label)
+	subject := fmt.Sprintf("Bienvenido a Docco — Tu cuenta como %s", label)
 	body := fmt.Sprintf(
 		"Hola %s,\n\n"+
-			"Tu cuenta en CliniSense ha sido creada como %s.\n\n"+
+			"Tu cuenta en Docco ha sido creada como %s.\n\n"+
 			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
 			"Tus credenciales de acceso:\n\n"+
 			"   Email: %s\n"+
@@ -696,7 +727,7 @@ func (r *Router) SendWelcome(ctx context.Context, toEmail, name, role, password,
 </p>`,
 		html.EscapeString(name),
 		htmlParagraph(fmt.Sprintf(
-			"Tu cuenta en CliniSense ha sido creada como <strong>%s</strong>.",
+			"Tu cuenta en Docco ha sido creada como <strong>%s</strong>.",
 			html.EscapeString(label),
 		)),
 		htmlDivider(),
@@ -715,7 +746,7 @@ func (r *Router) SendWelcome(ctx context.Context, toEmail, name, role, password,
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:welcome] smtp send failed: %v", err)
 	}
@@ -731,9 +762,9 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
 	if label == "" {
 		label = role
 	}
-	subject := fmt.Sprintf("Invitación a CliniSense — Acceso como %s", label)
+	subject := fmt.Sprintf("Invitación a Docco — Acceso como %s", label)
 	body := fmt.Sprintf(
-		"Has sido invitado a unirte a CliniSense como %s.\n\n"+
+		"Has sido invitado a unirte a Docco como %s.\n\n"+
 			"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+
 			"Tu contraseña temporal es:\n\n"+
 			"   %s\n\n"+
@@ -758,7 +789,7 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
   Si no esperabas esta invitación, ignora este mensaje.
 </p>`,
 		htmlParagraph(fmt.Sprintf(
-			"Has sido invitado a unirte a CliniSense como <strong>%s</strong>.",
+			"Has sido invitado a unirte a Docco como <strong>%s</strong>.",
 			html.EscapeString(label),
 		)),
 		htmlDivider(),
@@ -776,7 +807,7 @@ func (r *Router) SendInvitation(ctx context.Context, toEmail, inviteURL, role, t
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:invitation] smtp send failed: %v", err)
 	}
@@ -789,7 +820,7 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 		frontendBase = "https://docco.aloai.me"
 	}
 	acceptURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, consent.AcceptToken)
-	subject := "CliniSense — Consentimiento informado y confirmación de cita"
+	subject := "Docco — Consentimiento informado y confirmación de cita"
 	dateStr := startAt.Format("02/01/2006")
 	timeStr := startAt.Format("15:04")
 	body := fmt.Sprintf(
@@ -804,7 +835,7 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 			"   %s\n\n"+
 			"Si no puedes hacer clic, copia y pega el enlace en tu navegador.\n\n"+
 			"Si tienes alguna duda, contáctanos.\n\n"+
-			"CliniSense",
+			"Docco",
 		patientName, dateStr, timeStr, consent.Content, acceptURL,
 	)
 	htmlBody := fmt.Sprintf(`
@@ -839,7 +870,7 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:consent] smtp send failed: %v", err)
 	}
@@ -849,7 +880,7 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 func (r *Router) SendRescheduleRequest(ctx context.Context, toEmail, patientName string, startAt time.Time) error {
 	dateStr := startAt.Format("02/01/2006")
 	timeStr := startAt.Format("15:04")
-	subject := "CliniSense — Solicitud de reprogramación de cita"
+	subject := "Docco — Solicitud de reprogramación de cita"
 	body := fmt.Sprintf(
 		"El paciente %s ha solicitado reprogramar su cita del %s a las %s.\n\nPor favor contáctalo para coordinar un nuevo horario.",
 		patientName, dateStr, timeStr,
@@ -867,7 +898,7 @@ func (r *Router) SendRescheduleRequest(ctx context.Context, toEmail, patientName
 	if sender == "" {
 		sender = "no-reply@aloai.me"
 	}
-	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, ""), body)
+	err := r.sendMail(ctx, sender, toEmail, subject, buildHTMLEmail(subject, htmlBody, r.getOrgName(ctx)), body)
 	if err != nil {
 		log.Printf("[notify:reschedule-request] smtp send failed: %v", err)
 	}

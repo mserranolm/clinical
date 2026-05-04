@@ -234,7 +234,7 @@ export function UserForm({
                   onChange={(e) =>
                     setCreateForm((f) => ({ ...f, email: e.target.value }))
                   }
-                  placeholder="doctor@clinisense.com"
+                  placeholder="doctor@docco.aloai.me"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ export function UserForm({
                   onChange={(e) =>
                     setInviteForm((f) => ({ ...f, email: e.target.value }))
                   }
-                  placeholder="doctor@clinisense.com"
+                  placeholder="doctor@docco.aloai.me"
                 />
               </div>
               <div>
