@@ -6,7 +6,7 @@ env:
     SAM_CLI_VERSION: "1.100.0"
   parameter-store:
     # Secrets from Parameter Store (configure these in AWS)
-    # CODECOMMIT_USER: "/clinical/codecommit/username"  
+    # CODECOMMIT_USER: "/clinical/codecommit/username"
     # CODECOMMIT_PASS: "/clinical/codecommit/password"
 
 phases:
@@ -17,47 +17,47 @@ phases:
       nodejs: 18
     commands:
       - echo "Installing dependencies..."
-      
+
       # Install SAM CLI
       - pip3 install aws-sam-cli==$SAM_CLI_VERSION
-      
+
       # Install golangci-lint for linting
       - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.55.2
-      
+
       # Verify installations
       - go version
       - sam --version
       - golangci-lint version
-      
+
   pre_build:
     commands:
       - echo "Pre-build phase started on `date`"
-      
+
       # Go to backend directory
       - cd backend
-      
+
       # Download Go modules
       - go mod download
       - go mod verify
-      
+
       # Run security scan with gosec
       - go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
       - gosec ./... || echo "Security warnings found, but continuing..."
-      
+
       # Run linting
       - golangci-lint run --timeout=5m || echo "Linting warnings found, but continuing..."
-      
+
       # Run tests with coverage
       - go test -v -race -coverprofile=coverage.out ./...
-      
+
       # Print test coverage
       - go tool cover -func=coverage.out
-      
+
   build:
     commands:
       - echo "Build phase started on `date`"
       - cd backend
-      
+
       # Set environment variables based on branch
       - |
         if [ "$CODEBUILD_WEBHOOK_HEAD_REF" = "refs/heads/main" ]; then
@@ -70,23 +70,23 @@ phases:
           export ENVIRONMENT="dev"
           export STACK_NAME="clinical-backend-dev-${CODEBUILD_BUILD_NUMBER}"
         fi
-      
+
       # Build with SAM
       - echo "Building for environment: $ENVIRONMENT"
       - sam build --use-container
-      
+
       # Package for deployment
       - |
         sam package \
           --s3-bucket clinical-sam-artifacts-${AWS_DEFAULT_REGION}-${AWS_ACCOUNT_ID} \
           --s3-prefix ${ENVIRONMENT}/builds \
           --output-template-file packaged-template.yaml
-      
+
   post_build:
     commands:
       - echo "Post-build phase started on `date`"
       - cd backend
-      
+
       # Deploy only if this is main, develop, or a deployment branch
       - |
         if [ "$CODEBUILD_WEBHOOK_HEAD_REF" = "refs/heads/main" ] || 
@@ -97,6 +97,7 @@ phases:
           
           # Deploy with SAM
           sam deploy \
+            --config-env pipeline \
             --template-file packaged-template.yaml \
             --stack-name $STACK_NAME \
             --capabilities CAPABILITY_IAM \
@@ -141,14 +142,14 @@ phases:
 reports:
   go-test-reports:
     files:
-      - 'backend/coverage.out'
-    base-directory: '.'
-    file-format: 'GOCOVERAGEXML'
+      - "backend/coverage.out"
+    base-directory: "."
+    file-format: "GOCOVERAGEXML"
   go-lint-reports:
     files:
-      - 'backend/golangci-lint-report.xml'
-    base-directory: '.'
-    file-format: 'JUNITXML'
+      - "backend/golangci-lint-report.xml"
+    base-directory: "."
+    file-format: "JUNITXML"
 
 artifacts:
   files:
@@ -156,9 +157,9 @@ artifacts:
     - backend/.aws-sam/**/*
     - backend/coverage.out
   name: clinical-backend-artifacts-$CODEBUILD_BUILD_NUMBER
-  
+
 cache:
   paths:
-    - '/go/pkg/mod/**/*'
-    - '/root/.cache/go-build/**/*'
-    - '/root/.cache/golangci-lint/**/*'
+    - "/go/pkg/mod/**/*"
+    - "/root/.cache/go-build/**/*"
+    - "/root/.cache/golangci-lint/**/*"

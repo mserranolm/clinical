@@ -11,3 +11,11 @@ profile = "aloai"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
+
+[pipeline.deploy.parameters]
+stack_name = "clinical-backend"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+no_fail_on_empty_changeset = true
