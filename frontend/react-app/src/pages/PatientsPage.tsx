@@ -742,10 +742,7 @@ export function PatientsPage({
                     month: "short",
                     year: "numeric",
                   });
-                  const horaLabel = fecha.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
+                  const horaLabel = fmt12hDate(fecha);
                   return (
                     <div
                       key={cita.id}
