@@ -841,7 +841,13 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 	acceptURL := fmt.Sprintf("%s/consent?token=%s", frontendBase, consent.AcceptToken)
 	subject := "Docco — Consentimiento informado y confirmación de cita"
 	dateStr := startAt.Format("02/01/2006")
-	timeStr := startAt.Format("15:04")
+	loc := time.UTC
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
+	timeStr := utilpkg.FormatHora(startAt, loc)
 	body := fmt.Sprintf(
 		"Hola %s,\n\n"+
 			"Tu cita ha sido agendada para el %s a las %s.\n\n"+
@@ -898,7 +904,13 @@ func (r *Router) SendConsentWithAppointment(ctx context.Context, toEmail, patien
 
 func (r *Router) SendRescheduleRequest(ctx context.Context, toEmail, patientName string, startAt time.Time) error {
 	dateStr := startAt.Format("02/01/2006")
-	timeStr := startAt.Format("15:04")
+	loc := time.UTC
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
+	timeStr := utilpkg.FormatHora(startAt, loc)
 	subject := "Docco — Solicitud de reprogramación de cita"
 	body := fmt.Sprintf(
 		"El paciente %s ha solicitado reprogramar su cita del %s a las %s.\n\nPor favor contáctalo para coordinar un nuevo horario.",
