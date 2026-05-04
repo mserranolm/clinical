@@ -14,6 +14,7 @@ import (
 	"clinical-backend/internal/config"
 	"clinical-backend/internal/domain"
 	"clinical-backend/internal/store"
+	utilpkg "clinical-backend/internal/util"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -362,7 +363,13 @@ func (r *Router) SendAppointmentCreated(ctx context.Context, toEmail, patientNam
 	subject := "Docco — Tu cita ha sido agendada"
 
 	dateStr := appt.StartAt.Format("02/01/2006")
-	timeStr := appt.StartAt.Format("15:04")
+	loc := time.UTC
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
+	timeStr := utilpkg.FormatHora(appt.StartAt, loc)
 
 	body := fmt.Sprintf(
 		"Hola %s,\n\n"+
@@ -423,15 +430,21 @@ func (r *Router) SendAppointmentCreatedSMS(ctx context.Context, toPhone, patient
 		frontendBase = "https://docco.aloai.me"
 	}
 	confirmURL := fmt.Sprintf("%s/confirm-appointment?token=%s", frontendBase, appt.ConfirmToken)
+	loc := time.UTC
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
 	msg := fmt.Sprintf("Docco: Hola %s. Tu cita es el %s a las %s. Confirmar: %s",
 		strings.TrimSpace(patientName),
 		appt.StartAt.Format("02/01/2006"),
-		appt.StartAt.Format("15:04"),
+		utilpkg.FormatHora(appt.StartAt, loc),
 		confirmURL,
 	)
 	if len(msg) > 160 {
 		msg = fmt.Sprintf("Docco: Cita %s a las %s. Confirmar: %s",
-			appt.StartAt.Format("02/01/2006"), appt.StartAt.Format("15:04"), confirmURL)
+			appt.StartAt.Format("02/01/2006"), utilpkg.FormatHora(appt.StartAt, loc), confirmURL)
 	}
 	_, err := r.sns.Publish(ctx, &sns.PublishInput{
 		PhoneNumber: aws.String(e164),
@@ -483,8 +496,14 @@ func (r *Router) SendAppointmentEvent(ctx context.Context, toEmail, patientName,
 	subject := fmt.Sprintf("Docco — %s", title)
 
 	dateStr := startAt.Format("02/01/2006")
-	startStr := startAt.Format("15:04")
-	endStr := endAt.Format("15:04")
+	loc := time.UTC
+	if tz := os.Getenv("CLINIC_TZ"); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
+	startStr := utilpkg.FormatHora(startAt, loc)
+	endStr := utilpkg.FormatHora(endAt, loc)
 
 	var body string
 	var htmlBody string
