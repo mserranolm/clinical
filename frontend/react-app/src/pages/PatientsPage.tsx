@@ -8,6 +8,7 @@ import { DatePicker } from "../components/ui/DatePicker";
 import { PhoneInput } from "../components/ui/PhoneInput";
 import { notify } from "../lib/notify";
 import { canDeletePatients, canWritePatients } from "../lib/rbac";
+import { fmt12hDate } from "../lib/constants";
 import type { AuthSession } from "../types";
 
 type PatientRow = {
@@ -52,10 +53,7 @@ function fmtDate(iso: string) {
   });
 }
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fmt12hDate(new Date(iso));
 }
 
 function exportCSV(patient: PatientRow, consultas: ConsultaHistorial[]) {

@@ -1,7 +1,8 @@
 import type { DoccoMessage as DoccoMessageType } from "./docco-types";
+import { fmt12hDate } from "@/lib/constants";
 
 function fmtTime(d: Date) {
-  return d.toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" });
+  return fmt12hDate(d);
 }
 
 function DoccoAvatar() {
@@ -43,7 +44,9 @@ export function DoccoMessageItem({ msg }: { msg: DoccoMessageType }) {
           style={{
             padding: "8px 12px",
             borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-            background: isUser ? "var(--primary, #0ea5e9)" : "var(--surface-2, #f1f5f9)",
+            background: isUser
+              ? "var(--primary, #0ea5e9)"
+              : "var(--surface-2, #f1f5f9)",
             color: isUser ? "#fff" : "var(--text, #0f172a)",
             fontSize: 14,
             lineHeight: 1.5,

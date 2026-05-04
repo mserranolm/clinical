@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clinicalApi } from "../api/clinical";
 import { EmptyState, PageHeader, StatusBadge } from "../components/ui/shared";
 import { notify } from "../lib/notify";
+import { fmt12hDate } from "../lib/constants";
 import { OdontogramChart } from "../modules/treatment/components/OdontogramChart";
 import {
   EMPTY_SURFACES,
@@ -71,7 +72,7 @@ function formatDateTime(iso: string) {
       month: "2-digit",
       year: "numeric",
     }),
-    time: dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    time: fmt12hDate(dt),
   };
 }
 
