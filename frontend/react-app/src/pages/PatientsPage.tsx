@@ -851,15 +851,9 @@ export function PatientsPage({
                         },
                       )}
                       {" · "}
-                      {new Date(detailCita.startAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {fmt12hDate(new Date(detailCita.startAt))}
                       {" – "}
-                      {new Date(detailCita.endAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {fmt12hDate(new Date(detailCita.endAt))}
                     </p>
                   </div>
                   <button
