@@ -16,6 +16,8 @@ import {
   AUTO_REFRESH_OPTS,
   DURATION_BLOCKS,
   TIME_SLOTS,
+  fmt12h,
+  fmt12hDate,
 } from "../lib/constants";
 import { notify } from "../lib/notify";
 import {
@@ -99,18 +101,11 @@ function getDateRangeByView(anchorDate: string, viewMode: ViewMode): string[] {
 }
 
 function formatTimeRange(startAt: string, endAt: string): string {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  const fmt = (d: Date) =>
-    d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return `${fmt(start)} – ${fmt(end)}`;
+  return `${fmt12hDate(new Date(startAt))} – ${fmt12hDate(new Date(endAt))}`;
 }
 
 function formatSlotLabel(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+  return fmt12h(slot);
 }
 
 export function AppointmentsPage({
