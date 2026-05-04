@@ -7,7 +7,12 @@ import { Modal } from "../components/Modal";
 import { DatePicker } from "../components/ui/DatePicker";
 import { PatientSearch } from "../modules/appointments/components/PatientSearch";
 import { DoctorSearch } from "../modules/appointments/components/DoctorSearch";
-import { DURATION_BLOCKS, TIME_SLOTS } from "../lib/constants";
+import {
+  DURATION_BLOCKS,
+  TIME_SLOTS,
+  fmt12h,
+  fmt12hDate,
+} from "../lib/constants";
 import { localDateTimeToISO } from "../lib/datetime";
 import { canWriteAppointments } from "../lib/rbac";
 import { useIsDark } from "../lib/use-is-dark";
@@ -352,10 +357,7 @@ export function CalendarPage({
                 <div className="gcal-pills">
                   {visible.map((appt) => {
                     const name = patients.get(appt.patientId) || "—";
-                    const start = new Date(appt.startAt).toLocaleTimeString(
-                      [],
-                      { hour: "2-digit", minute: "2-digit" },
-                    );
+                    const start = fmt12hDate(new Date(appt.startAt));
                     const status = STATUS_CLASS[appt.status] || "scheduled";
                     return (
                       <button
@@ -466,8 +468,7 @@ export function CalendarPage({
           {/* Time slots */}
           {Array.from({ length: TOTAL_HOURS }, (_, h) => {
             const hour = HOUR_START + h;
-            const label =
-              hour < 12 ? `${hour}am` : hour === 12 ? "12pm" : `${hour - 12}pm`;
+            const label = fmt12h(`${hour}:00`);
             return (
               <>
                 <div
@@ -528,12 +529,7 @@ export function CalendarPage({
                           TIMELINE_COLORS.scheduled;
                         const name =
                           patients.get(appt.patientId) || appt.patientId;
-                        const startFmt = new Date(
-                          appt.startAt,
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
+                        const startFmt = fmt12hDate(new Date(appt.startAt));
                         return (
                           <div
                             key={appt.id}
@@ -688,8 +684,7 @@ export function CalendarPage({
             const name = patients.get(appt.patientId) || appt.patientId;
             const start = new Date(appt.startAt);
             const end = appt.endAt ? new Date(appt.endAt) : null;
-            const fmt = (d: Date) =>
-              d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            const fmt = fmt12hDate;
             const fmtDt = (d: Date) =>
               d.toLocaleDateString("es-ES", {
                 weekday: "long",
