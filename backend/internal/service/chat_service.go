@@ -13,6 +13,7 @@ import (
 	"clinical-backend/internal/bedrock"
 	"clinical-backend/internal/domain"
 	"clinical-backend/internal/store"
+	utilpkg "clinical-backend/internal/util"
 )
 
 // ChatMessage represents a single turn in a conversation.
@@ -264,7 +265,7 @@ DATOS DEL USUARIO ACTUAL:
 		b.WriteString("No hay citas programadas para hoy.\n")
 	} else {
 		for _, a := range cctx.TodayAppointments {
-			hora := a.StartAt.In(s.tz).Format("3:04 PM")
+			hora := utilpkg.FormatHora(a.StartAt, s.tz)
 			reason := a.Reason
 			if reason == "" {
 				reason = a.EvolutionNotes
@@ -283,7 +284,7 @@ DATOS DEL USUARIO ACTUAL:
 		b.WriteString("No hay citas programadas para mañana.\n")
 	} else {
 		for _, a := range cctx.TomorrowAppointments {
-			hora := a.StartAt.In(s.tz).Format("3:04 PM")
+			hora := utilpkg.FormatHora(a.StartAt, s.tz)
 			reason := a.Reason
 			if reason == "" {
 				reason = a.EvolutionNotes

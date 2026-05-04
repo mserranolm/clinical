@@ -13,6 +13,7 @@ import (
 	"clinical-backend/internal/domain"
 	"clinical-backend/internal/notifications"
 	"clinical-backend/internal/store"
+	utilpkg "clinical-backend/internal/util"
 )
 
 type AppointmentService struct {
@@ -143,7 +144,7 @@ func (s *AppointmentService) Create(ctx context.Context, in CreateAppointmentInp
 			continue
 		}
 		if startAt.Before(existing.EndAt) && endAt.After(existing.StartAt) {
-			return domain.Appointment{}, fmt.Errorf("el horario de %s a %s ya está ocupado", startAt.In(loc).Format("15:04"), endAt.In(loc).Format("15:04"))
+			return domain.Appointment{}, fmt.Errorf("el horario de %s a %s ya está ocupado", utilpkg.FormatHora(startAt, loc), utilpkg.FormatHora(endAt, loc))
 		}
 	}
 
