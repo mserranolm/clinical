@@ -106,6 +106,32 @@ func isAllowedContentType(ct string) bool {
 	return false
 }
 
+// generatePresignedGetURLs devuelve presigned GET URLs (1 hora) para cada key de S3.
+// Si el client falla o una key da error, esa key se omite del resultado.
+func generatePresignedGetURLs(ctx context.Context, bucket string, keys []string) []string {
+	if len(keys) == 0 || bucket == "" {
+		return nil
+	}
+	client := getS3Client(ctx)
+	if client == nil {
+		return nil
+	}
+	presigner := s3.NewPresignClient(client)
+	urls := make([]string, 0, len(keys))
+	for _, key := range keys {
+		presigned, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		}, s3.WithPresignExpires(time.Hour))
+		if err != nil {
+			log.Printf("[images] presign get error for key %s: %v", key, err)
+			continue
+		}
+		urls = append(urls, presigned.URL)
+	}
+	return urls
+}
+
 // getOrgUploadURL genera una presigned PUT URL en S3 para subir logo o firma de la organización.
 // Query params: kind=logo|signature, filename=<nombre-del-archivo>
 // El orgID se obtiene del JWT (claims en el contexto).

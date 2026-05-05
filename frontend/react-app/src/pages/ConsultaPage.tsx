@@ -347,15 +347,9 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         if (appt.evolutionNotes) setEvolutionNotes(appt.evolutionNotes);
         if (appt.treatmentPlan) setTreatmentPlan(appt.treatmentPlan);
         if (appt.paymentAmount) setPaymentAmount(appt.paymentAmount);
-        if ((appt as { imageKeys?: string[] }).imageKeys?.length) {
-          const bucket = (appt as { imageKeys?: string[] }).imageKeys!;
-          setImageUrls(
-            bucket.map((k) =>
-              k.startsWith("http")
-                ? k
-                : `https://clinical-appointment-images-975738006503.s3.amazonaws.com/${k}`,
-            ),
-          );
+        const apptAny = appt as unknown as { imageUrls?: string[] };
+        if (apptAny.imageUrls?.length) {
+          setImageUrls(apptAny.imageUrls);
         }
       }
 

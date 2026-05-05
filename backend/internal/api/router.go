@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -983,6 +984,19 @@ func (r *Router) createAppointment(ctx context.Context, req events.APIGatewayV2H
 	return response(201, appointment)
 }
 
+type appointmentWithImageURLs struct {
+	domain.Appointment
+	ImageURLs []string `json:"imageUrls,omitempty"`
+}
+
+func enrichWithImageURLs(ctx context.Context, appt domain.Appointment) appointmentWithImageURLs {
+	out := appointmentWithImageURLs{Appointment: appt}
+	if len(appt.ImageKeys) > 0 {
+		out.ImageURLs = generatePresignedGetURLs(ctx, os.Getenv("IMAGES_BUCKET"), appt.ImageKeys)
+	}
+	return out
+}
+
 func (r *Router) listAppointments(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	var items []domain.Appointment
 	var err error
@@ -1005,11 +1019,13 @@ func (r *Router) listAppointments(ctx context.Context, req events.APIGatewayV2HT
 		ids[i] = items[i].ID
 	}
 	summaries := r.consents.GetSummariesForAppointments(ctx, ids)
+	enriched := make([]appointmentWithImageURLs, len(items))
 	for i := range items {
 		s := summaries[items[i].ID]
 		items[i].ConsentSummary = &s
+		enriched[i] = enrichWithImageURLs(ctx, items[i])
 	}
-	return response(200, map[string]any{"items": items})
+	return response(200, map[string]any{"items": enriched})
 }
 
 func (r *Router) getAppointment(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {
@@ -1017,7 +1033,7 @@ func (r *Router) getAppointment(ctx context.Context, id string) (events.APIGatew
 	if err != nil {
 		return response(404, map[string]string{"error": err.Error()})
 	}
-	return response(200, item)
+	return response(200, enrichWithImageURLs(ctx, item))
 }
 
 func (r *Router) deleteAppointment(ctx context.Context, id string) (events.APIGatewayV2HTTPResponse, error) {

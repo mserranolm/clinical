@@ -36,6 +36,8 @@ export type AppointmentDTO = {
   paymentType?: string;
   reason?: string;
   consentSummary?: ConsentSummary;
+  imageKeys?: string[];
+  imageUrls?: string[];
 };
 
 export const clinicalApi = {

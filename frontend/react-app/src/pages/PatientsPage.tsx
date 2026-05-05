@@ -31,6 +31,7 @@ type ConsultaHistorial = {
   paymentAmount?: number;
   paymentMethod?: string;
   imageKeys?: string[];
+  imageUrls?: string[];
 };
 
 type PatientDetail = PatientRow & {
@@ -821,11 +822,7 @@ export function PatientsPage({
           const has = (t: string) => bgs.some((b) => b.type === t);
           const detail = (t: string) =>
             bgs.find((b) => b.type === t)?.description ?? "";
-          const imageUrls = (detailCita.imageKeys ?? []).map((k) =>
-            k.startsWith("http")
-              ? k
-              : `https://clinical-appointment-images-975738006503.s3.amazonaws.com/${k}`,
-          );
+          const imageUrls = detailCita.imageUrls ?? [];
           return (
             <div
               className="modal-overlay"
