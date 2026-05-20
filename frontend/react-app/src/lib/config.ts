@@ -1,5 +1,6 @@
 const DEFAULT_LOCAL = "http://localhost:3000";
-const DEFAULT_PROD = "https://ipv2henk5m.execute-api.us-east-1.amazonaws.com/prod";
+const DEFAULT_PROD =
+  "https://ipv2henk5m.execute-api.us-east-1.amazonaws.com/prod";
 
 const STORAGE_KEY = "clinical_api_base_url";
 
@@ -7,10 +8,12 @@ const STORAGE_KEY = "clinical_api_base_url";
 const DEPRECATED_API_IDS = ["egsnzyxipf"];
 try {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && DEPRECATED_API_IDS.some(id => stored.includes(id))) {
+  if (stored && DEPRECATED_API_IDS.some((id) => stored.includes(id))) {
     localStorage.removeItem(STORAGE_KEY);
   }
-} catch { /* ignore in SSR/test environments */ }
+} catch {
+  /* ignore in SSR/test environments */
+}
 
 export const endpointCatalog = {
   health: "/health",
@@ -27,24 +30,37 @@ export const endpointCatalog = {
   createAppointment: "/appointments",
   listAppointments: "/appointments",
   getAppointment: (appointmentId: string) => `/appointments/${appointmentId}`,
-  updateAppointment: (appointmentId: string) => `/appointments/${appointmentId}`,
-  deleteAppointment: (appointmentId: string) => `/appointments/${appointmentId}`,
-  resendAppointmentConfirmation: (appointmentId: string) => `/appointments/${appointmentId}/resend-confirmation`,
-  confirmAppointment: (appointmentId: string) => `/appointments/${appointmentId}/confirm`,
-  closeAppointmentDay: (appointmentId: string) => `/appointments/${appointmentId}/close-day`,
-  appointmentUploadUrl: (appointmentId: string) => `/appointments/${appointmentId}/upload-url`,
+  updateAppointment: (appointmentId: string) =>
+    `/appointments/${appointmentId}`,
+  deleteAppointment: (appointmentId: string) =>
+    `/appointments/${appointmentId}`,
+  resendAppointmentConfirmation: (appointmentId: string) =>
+    `/appointments/${appointmentId}/resend-confirmation`,
+  confirmAppointment: (appointmentId: string) =>
+    `/appointments/${appointmentId}/confirm`,
+  closeAppointmentDay: (appointmentId: string) =>
+    `/appointments/${appointmentId}/close-day`,
+  appointmentUploadUrl: (appointmentId: string) =>
+    `/appointments/${appointmentId}/upload-url`,
   platformStats: "/platform/stats",
   orgStats: "/org/stats",
   createConsent: "/consents",
   verifyConsent: (consentId: string) => `/consents/verify/${consentId}`,
   createOdontogram: "/odontograms",
-  getOdontogramByPatient: (patientId: string) => `/odontograms/patient/${patientId}`,
+  getOdontogramByPatient: (patientId: string) =>
+    `/odontograms/patient/${patientId}`,
   updateOdontogram: (odontogramId: string) => `/odontograms/${odontogramId}`,
   createTreatmentPlan: "/treatment-plans",
   getTreatmentPlan: (planId: string) => `/treatment-plans/${planId}`,
-  getTreatmentPlansByPatient: (patientId: string) => `/treatment-plans/patient/${patientId}`,
+  getTreatmentPlansByPatient: (patientId: string) =>
+    `/treatment-plans/patient/${patientId}`,
   updateTreatmentPlan: "/treatment-plans",
-  chat: "/chat"
+  chat: "/chat",
+  whatsAppConnect: "/admin/whatsapp/connect",
+  whatsAppStatus: "/admin/whatsapp/status",
+  whatsAppDisconnect: "/admin/whatsapp/disconnect",
+  whatsAppGetKnowledge: "/admin/whatsapp/knowledge",
+  whatsAppSaveKnowledge: "/admin/whatsapp/knowledge",
 };
 
 function normalizeUrl(url: string): string {
@@ -53,7 +69,11 @@ function normalizeUrl(url: string): string {
 
 export function getApiBaseUrl(): string {
   const envValue = import.meta.env.VITE_API_BASE_URL;
-  if (envValue && typeof envValue === "string" && !DEPRECATED_API_IDS.some(id => envValue.includes(id))) {
+  if (
+    envValue &&
+    typeof envValue === "string" &&
+    !DEPRECATED_API_IDS.some((id) => envValue.includes(id))
+  ) {
     return normalizeUrl(envValue);
   }
 
@@ -62,7 +82,10 @@ export function getApiBaseUrl(): string {
     return normalizeUrl(runtime);
   }
 
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost"
+  ) {
     return DEFAULT_PROD;
   }
 
@@ -84,6 +107,11 @@ export function getApiConfig() {
 
   return {
     baseUrl: getApiBaseUrl(),
-    source: (envValue && !DEPRECATED_API_IDS.some(id => envValue.includes(id))) ? "env" : runtime ? "localStorage" : "default"
+    source:
+      envValue && !DEPRECATED_API_IDS.some((id) => envValue.includes(id))
+        ? "env"
+        : runtime
+          ? "localStorage"
+          : "default",
   };
 }

@@ -790,6 +790,41 @@ export const clinicalApi = {
       token,
     }),
 
+  whatsAppConnect: (token: string) =>
+    request<{ qrCode: string; stage: string; connected: boolean }>(
+      endpointCatalog.whatsAppConnect,
+      { method: "POST", token },
+    ),
+
+  whatsAppStatus: (token: string) =>
+    request<{ connected: boolean; stage: string; instanceName: string }>(
+      endpointCatalog.whatsAppStatus,
+      { token },
+    ),
+
+  whatsAppDisconnect: (token: string) =>
+    request<{ status: string }>(endpointCatalog.whatsAppDisconnect, {
+      method: "POST",
+      token,
+    }),
+
+  whatsAppGetKnowledge: (token: string) =>
+    request<{ knowledgeBase: string; welcomeMessage: string }>(
+      endpointCatalog.whatsAppGetKnowledge,
+      { token },
+    ),
+
+  whatsAppSaveKnowledge: (
+    knowledgeBase: string,
+    welcomeMessage: string,
+    token: string,
+  ) =>
+    request<{ status: string }>(endpointCatalog.whatsAppSaveKnowledge, {
+      method: "PUT",
+      body: { knowledgeBase, welcomeMessage },
+      token,
+    }),
+
   // Public appointment management (called from email link — no auth token)
   getPublicAppointmentInfo: (token: string) =>
     request<{
