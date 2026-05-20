@@ -8,8 +8,9 @@ type WhatsAppConfig struct {
 	SK             string `dynamodbav:"SK"`
 	Connected      bool   `dynamodbav:"connected"`
 	InstanceName   string `dynamodbav:"instanceName"`
-	KnowledgeBase  string `dynamodbav:"knowledgeBase"`
-	WelcomeMessage string `dynamodbav:"welcomeMessage"`
+	KnowledgeBase         string `dynamodbav:"knowledgeBase"`
+	WelcomeMessage        string `dynamodbav:"welcomeMessage"`
+	AssistantInstructions string `dynamodbav:"assistantInstructions"`
 	UpdatedAt      string `dynamodbav:"updatedAt"`
 }
 

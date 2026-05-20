@@ -118,8 +118,9 @@ func (s *WhatsAppService) Disconnect(ctx context.Context, orgID string) error {
 
 // KnowledgeResult es la Base de Conocimiento configurada.
 type KnowledgeResult struct {
-	KnowledgeBase  string `json:"knowledgeBase"`
-	WelcomeMessage string `json:"welcomeMessage"`
+	KnowledgeBase         string `json:"knowledgeBase"`
+	WelcomeMessage        string `json:"welcomeMessage"`
+	AssistantInstructions string `json:"assistantInstructions"`
 }
 
 // GetKnowledge retorna la Base de Conocimiento.
@@ -129,19 +130,21 @@ func (s *WhatsAppService) GetKnowledge(ctx context.Context, orgID string) (*Know
 		return nil, err
 	}
 	return &KnowledgeResult{
-		KnowledgeBase:  cfg.KnowledgeBase,
-		WelcomeMessage: cfg.WelcomeMessage,
+		KnowledgeBase:         cfg.KnowledgeBase,
+		WelcomeMessage:        cfg.WelcomeMessage,
+		AssistantInstructions: cfg.AssistantInstructions,
 	}, nil
 }
 
 // SaveKnowledge persiste la Base de Conocimiento.
-func (s *WhatsAppService) SaveKnowledge(ctx context.Context, orgID, knowledgeBase, welcomeMessage string) error {
+func (s *WhatsAppService) SaveKnowledge(ctx context.Context, orgID, knowledgeBase, welcomeMessage, assistantInstructions string) error {
 	cfg, err := s.repo.Get(ctx, orgID)
 	if err != nil {
 		return err
 	}
 	cfg.KnowledgeBase = strings.TrimSpace(knowledgeBase)
 	cfg.WelcomeMessage = strings.TrimSpace(welcomeMessage)
+	cfg.AssistantInstructions = strings.TrimSpace(assistantInstructions)
 	return s.repo.Save(ctx, cfg)
 }
 

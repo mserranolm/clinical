@@ -80,13 +80,14 @@ func (r *Router) handleWhatsAppGetKnowledge(ctx context.Context, _ events.APIGat
 func (r *Router) handleWhatsAppSaveKnowledge(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
 	var body struct {
-		KnowledgeBase  string `json:"knowledgeBase"`
-		WelcomeMessage string `json:"welcomeMessage"`
+		KnowledgeBase         string `json:"knowledgeBase"`
+		WelcomeMessage        string `json:"welcomeMessage"`
+		AssistantInstructions string `json:"assistantInstructions"`
 	}
 	if err := json.Unmarshal([]byte(req.Body), &body); err != nil {
 		return response(400, map[string]string{"error": "invalid_json"})
 	}
-	if err := r.whatsApp.SaveKnowledge(ctx, auth.User.OrgID, body.KnowledgeBase, body.WelcomeMessage); err != nil {
+	if err := r.whatsApp.SaveKnowledge(ctx, auth.User.OrgID, body.KnowledgeBase, body.WelcomeMessage, body.AssistantInstructions); err != nil {
 		return response(500, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]string{"status": "saved"})
@@ -164,7 +165,7 @@ func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *ser
 		return err
 	}
 
-	aiResponse, err := aiSvc.GenerateResponse(ctx, "la clínica", cfg.KnowledgeBase, msg.Message)
+	aiResponse, err := aiSvc.GenerateResponse(ctx, "la clínica", cfg.KnowledgeBase, cfg.AssistantInstructions, msg.Message)
 	if err != nil {
 		return err
 	}
