@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Evolution API infrastructure for WhatsApp integration — clinical/docco
+Description: Evolution API infrastructure for WhatsApp integration - clinical/docco
 
 Parameters:
   DBPassword:
@@ -89,7 +89,7 @@ Resources:
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Evolution API container — allow 8080 from ALB only
+      GroupDescription: Evolution API container - allow 8080 from ALB only
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -100,7 +100,7 @@ Resources:
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: PostgreSQL — allow 5432 from app only
+      GroupDescription: PostgreSQL - allow 5432 from app only
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
