@@ -1,0 +1,352 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Evolution API infrastructure for WhatsApp integration — clinical/docco
+
+Parameters:
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for Evolution API PostgreSQL database (min 16 chars)
+
+  EvolutionAPIKey:
+    Type: String
+    NoEcho: true
+    Description: API key for authenticating requests to Evolution API
+
+Resources:
+  # ─── VPC ────────────────────────────────────────────────────────────────────
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.30.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: clinical-whatsapp-vpc
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.30.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.30.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetAAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  SubnetBAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # ─── Security Groups ─────────────────────────────────────────────────────────
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from anywhere to ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Evolution API container — allow 8080 from ALB only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PostgreSQL — allow 5432 from app only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  # ─── Secrets Manager ─────────────────────────────────────────────────────────
+  EvolutionAPIKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: clinical/evolution/api-key
+      Description: Evolution API authentication key for clinical/docco
+      SecretString: !Ref EvolutionAPIKey
+
+  # ─── RDS PostgreSQL ───────────────────────────────────────────────────────────
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for Evolution API PostgreSQL
+      SubnetIds:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: clinical-evolution-db
+      DBInstanceClass: db.t4g.micro
+      Engine: postgres
+      EngineVersion: "16"
+      MasterUsername: evolution
+      MasterUserPassword: !Ref DBPassword
+      DBName: evolution
+      AllocatedStorage: 20
+      StorageType: gp2
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: product
+          Value: clinisense
+
+  # ─── ECS Cluster ─────────────────────────────────────────────────────────────
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: clinical-whatsapp
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 4
+        - CapacityProvider: FARGATE
+          Weight: 1
+          Base: 1
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/clinical-whatsapp/evolution-api
+      RetentionInDays: 7
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # ─── Application Load Balancer ────────────────────────────────────────────────
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: clinical-whatsapp-alb
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: clinical-whatsapp-tg
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VPC
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200-404"
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+
+  # ─── ECS Task Definition ─────────────────────────────────────────────────────
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: clinical-evolution-api
+      Cpu: "512"
+      Memory: "1024"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: redis
+          Image: redis:7-alpine
+          Essential: false
+          PortMappings:
+            - ContainerPort: 6379
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: redis
+
+        - Name: evolution-api
+          Image: evoapicloud/evolution-api:v2.3.7
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+          DependsOn:
+            - ContainerName: redis
+              Condition: START
+          Environment:
+            - Name: SERVER_PORT
+              Value: "8080"
+            - Name: SERVER_URL
+              Value: !Sub "http://${ALB.DNSName}"
+            - Name: DATABASE_PROVIDER
+              Value: postgresql
+            - Name: DATABASE_CONNECTION_URI
+              Value: !Sub "postgresql://evolution:${DBPassword}@${Database.Endpoint.Address}:5432/evolution"
+            - Name: DATABASE_SAVE_DATA_INSTANCE
+              Value: "true"
+            - Name: DATABASE_SAVE_DATA_NEW_MESSAGE
+              Value: "true"
+            - Name: DATABASE_SAVE_MESSAGE_UPDATE
+              Value: "true"
+            - Name: DATABASE_SAVE_DATA_CONTACTS
+              Value: "true"
+            - Name: DATABASE_SAVE_DATA_CHATS
+              Value: "true"
+            - Name: DATABASE_SAVE_DATA_SESSIONS
+              Value: "true"
+            - Name: CACHE_REDIS_ENABLED
+              Value: "true"
+            - Name: CACHE_REDIS_URI
+              Value: redis://localhost:6379
+            - Name: CACHE_REDIS_PREFIX_KEY
+              Value: clinical
+            - Name: AUTHENTICATION_TYPE
+              Value: apikey
+            - Name: AUTHENTICATION_API_KEY
+              Value: !Ref EvolutionAPIKey
+            - Name: AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES
+              Value: "true"
+            - Name: DEL_INSTANCE
+              Value: "false"
+            - Name: QRCODE_LIMIT
+              Value: "30"
+            - Name: STORE_MESSAGES
+              Value: "true"
+            - Name: STORE_MESSAGE_UP
+              Value: "true"
+            - Name: WEBHOOK_GLOBAL_ENABLED
+              Value: "false"
+            - Name: WEBHOOK_EVENTS_MESSAGES_UPSERT
+              Value: "true"
+            - Name: WEBHOOK_EVENTS_CONNECTION_UPDATE
+              Value: "true"
+            - Name: LOG_LEVEL
+              Value: "ERROR,WARN,INFO"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: evolution-api
+
+  # ─── ECS Service ─────────────────────────────────────────────────────────────
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      ServiceName: clinical-evolution-api
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PublicSubnetA
+            - !Ref PublicSubnetB
+          SecurityGroups:
+            - !Ref AppSecurityGroup
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - ContainerName: evolution-api
+          ContainerPort: 8080
+          TargetGroupArn: !Ref ALBTargetGroup
+
+  # ─── SSM Parameter ────────────────────────────────────────────────────────────
+  EvolutionAPIURLParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /clinical/evolution-api-url
+      Type: String
+      Value: !Sub "http://${ALB.DNSName}"
+      Description: Evolution API base URL for clinical/docco Lambda functions
+
+Outputs:
+  EvolutionAPIURL:
+    Description: Evolution API base URL
+    Value: !Sub "http://${ALB.DNSName}"
+    Export:
+      Name: clinical-whatsapp-EvolutionAPIURL
+
+  EvolutionAPIKeySecretArn:
+    Description: ARN of Evolution API key secret
+    Value: !Ref EvolutionAPIKeySecret
+    Export:
+      Name: clinical-whatsapp-EvolutionAPIKeySecretArn
