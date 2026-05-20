@@ -33,6 +33,14 @@ type Config struct {
 	SMTPPort             int
 	SMTPUser             string
 	SMTPPass             string
+	// WhatsApp
+	WhatsAppEnabled     bool
+	WhatsAppConfigTable string
+	EvolutionAPIURL     string
+	EvolutionAPIKey     string
+	WhatsAppModelID     string
+	WhatsAppQueueURL    string
+	APIGatewayURL       string
 }
 
 func Load() Config {
@@ -75,6 +83,13 @@ func Load() Config {
 		SMTPPort:             getEnvInt("SMTP_PORT", 587),
 		SMTPUser:             getEnv("SMTP_USER", "resend"),
 		SMTPPass:             getEnv("SMTP_PASS", ""),
+		WhatsAppEnabled:     getEnv("WHATSAPP_ENABLED", "false") == "true",
+		WhatsAppConfigTable: getEnv("WHATSAPP_CONFIG_TABLE", "clinical-whatsapp-config"),
+		EvolutionAPIURL:     getEnv("EVOLUTION_API_URL", ""),
+		EvolutionAPIKey:     getEnv("EVOLUTION_API_KEY", ""),
+		WhatsAppModelID:     getEnv("WHATSAPP_MODEL_ID", "us.anthropic.claude-sonnet-4-6-20261001-v1:0"),
+		WhatsAppQueueURL:    getEnv("WHATSAPP_QUEUE_URL", ""),
+		APIGatewayURL:       getEnv("API_GATEWAY_URL", ""),
 	}
 }
 

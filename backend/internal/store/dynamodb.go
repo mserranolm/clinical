@@ -30,6 +30,7 @@ type DynamoDBConfig struct {
 	PlatformSettingsTableName string
 	UseLocalProfile           bool
 	ProfileName              string
+	WhatsAppConfigTableName string
 }
 
 // DynamoDBRepositories provides all DynamoDB repositories
@@ -46,6 +47,7 @@ type DynamoDBRepositories struct {
 	Payments         PaymentRepository
 	Budgets          BudgetRepository
 	PlatformSettings PlatformSettingsRepository
+	WhatsApp         WhatsAppRepository
 }
 
 // NewDynamoDBRepositories creates new DynamoDB repositories with table auto-creation
@@ -117,6 +119,7 @@ func NewDynamoDBRepositories(ctx context.Context, cfg DynamoDBConfig) (*DynamoDB
 		Payments:         &dynamoPaymentRepo{client: client, tableName: cfg.PaymentTableName},
 		Budgets:          &dynamoBudgetRepo{client: client, tableName: cfg.BudgetTableName},
 		PlatformSettings: &dynamoPlatformSettingsRepo{client: client, tableName: cfg.PlatformSettingsTableName},
+		WhatsApp:         &dynamoWhatsAppRepo{client: client, tableName: cfg.WhatsAppConfigTableName},
 	}, nil
 }
 
