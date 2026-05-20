@@ -39,6 +39,13 @@ Globals:
         SMTP_PORT: "587"
         SMTP_USER: AKIA53MYETRACFNKDPPF
         SMTP_PASS: "{{resolve:ssm:/clinical/smtp_pass}}"
+        WHATSAPP_ENABLED: "true"
+        WHATSAPP_CONFIG_TABLE: !Ref WhatsAppConfigTable
+        EVOLUTION_API_URL: "{{resolve:ssm:/clinical/evolution-api-url}}"
+        EVOLUTION_API_KEY: "{{resolve:secretsmanager:clinical/evolution/api-key}}"
+        WHATSAPP_MODEL_ID: "us.anthropic.claude-sonnet-4-6-20261001-v1:0"
+        WHATSAPP_QUEUE_URL: !Ref WhatsAppMessagesQueue
+        API_GATEWAY_URL: !Sub "https://${ClinicalRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
 
 Resources:
   # API Gateway REST API (para API Keys)
@@ -207,6 +214,20 @@ Resources:
                 - "arn:aws:bedrock:*::foundation-model/*"
                 - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
                 - !Sub "arn:aws:bedrock:us:${AWS::AccountId}:inference-profile/*"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WhatsAppConfigTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt WhatsAppMessagesQueue.QueueName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:clinical/evolution/*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/clinical/*"
       Events:
         Api:
           Type: Api
@@ -275,6 +296,62 @@ Resources:
           Properties:
             Schedule: cron(0 22 * * ? *)
             Name: clinical-end-day-reminder
+
+  WhatsAppWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: bootstrap
+      Timeout: 120
+      MemorySize: 512
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref WhatsAppConfigTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+                - !Sub "arn:aws:bedrock:us:${AWS::AccountId}:inference-profile/*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:clinical/evolution/*"
+        - SQSPollerPolicy:
+            QueueName: !GetAtt WhatsAppMessagesQueue.QueueName
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WhatsAppMessagesQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  WhatsAppMessagesDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: clinical-whatsapp-messages-dlq
+      MessageRetentionPeriod: 1209600
+      Tags:
+        - Key: product
+          Value: clinisense
+
+  WhatsAppMessagesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: clinical-whatsapp-messages
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 86400
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WhatsAppMessagesDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: product
+          Value: clinisense
 
   PlatformSettingsTable:
     Type: AWS::DynamoDB::Table
@@ -470,6 +547,27 @@ Resources:
         - Key: product
           Value: clinisense
 
+  WhatsAppConfigTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: clinical-whatsapp-config
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      Tags:
+        - Key: product
+          Value: clinisense
+
 Outputs:
   ApiUrl:
     Description: REST API endpoint with API Key authentication
@@ -494,3 +592,9 @@ Outputs:
     Value: !Ref ClinicalUsagePlan
     Export:
       Name: !Sub ${AWS::StackName}-UsagePlanId
+
+  WhatsAppQueueUrl:
+    Description: SQS Queue URL for WhatsApp messages
+    Value: !Ref WhatsAppMessagesQueue
+    Export:
+      Name: !Sub ${AWS::StackName}-WhatsAppQueueUrl
