@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { clinicalApi } from "../../api/clinical";
 
 const MAX_KB_CHARS = 5000;
+const MAX_INSTRUCTIONS_CHARS = 3000;
 
 type Props = {
   token: string;
@@ -10,6 +11,7 @@ type Props = {
 export function KnowledgeBaseEditor({ token }: Props) {
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [assistantInstructions, setAssistantInstructions] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,6 +27,7 @@ export function KnowledgeBaseEditor({ token }: Props) {
       const data = await clinicalApi.whatsAppGetKnowledge(token);
       setKnowledgeBase(data.knowledgeBase || "");
       setWelcomeMessage(data.welcomeMessage || "");
+      setAssistantInstructions(data.assistantInstructions || "");
     } catch {
       setError("No se pudo cargar la configuración.");
     } finally {
@@ -40,6 +43,7 @@ export function KnowledgeBaseEditor({ token }: Props) {
       await clinicalApi.whatsAppSaveKnowledge(
         knowledgeBase,
         welcomeMessage,
+        assistantInstructions,
         token,
       );
       setSaved(true);
@@ -62,30 +66,36 @@ export function KnowledgeBaseEditor({ token }: Props) {
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-title">Base de Conocimiento del Asistente</h3>
+        <h3 className="card-title">Configuración del Asistente</h3>
         <p className="text-muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
-          Escribe todo lo que el asistente debe saber sobre tu clínica:
-          servicios, precios, horarios, especialidades, ubicación. El asistente
-          usará esta información para responder a tus pacientes.
+          Define qué sabe el asistente y cómo debe responder a tus pacientes.
         </p>
       </div>
 
       <div
         className="card-body"
-        style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
       >
         {error && <div className="alert alert-error">{error}</div>}
 
+        {/* Sección 1: Información de la clínica */}
         <div>
           <label
             className="form-label"
-            style={{ fontWeight: 600, marginBottom: 6, display: "block" }}
+            style={{ fontWeight: 600, marginBottom: 4, display: "block" }}
           >
             Información de la Clínica
           </label>
+          <p
+            className="text-muted"
+            style={{ fontSize: "0.82rem", marginBottom: 6 }}
+          >
+            Datos que el asistente puede mencionar: servicios, precios,
+            horarios, ubicación, teléfono.
+          </p>
           <textarea
             className="form-input"
-            rows={10}
+            rows={8}
             placeholder={`Ejemplo:
 Somos la Clínica Dental Pérez, especialistas en ortodoncia y estética dental.
 
@@ -109,14 +119,97 @@ Teléfono: +58 212 555-0100`}
               marginTop: 4,
             }}
           >
-            {knowledgeBase.length} / {MAX_KB_CHARS} caracteres
+            {knowledgeBase.length} / {MAX_KB_CHARS}
           </div>
         </div>
 
-        <div>
+        {/* Sección 2: Instrucciones clínicas */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            paddingTop: "1.25rem",
+          }}
+        >
           <label
             className="form-label"
-            style={{ fontWeight: 600, marginBottom: 6, display: "block" }}
+            style={{ fontWeight: 600, marginBottom: 4, display: "block" }}
+          >
+            Instrucciones Clínicas del Asistente
+          </label>
+          <p
+            className="text-muted"
+            style={{ fontSize: "0.82rem", marginBottom: 6 }}
+          >
+            Reglas específicas sobre cómo debe responder el asistente en
+            situaciones delicadas. Estas instrucciones se aplican directamente y
+            el asistente las sigue al pie de la letra. Por ejemplo: cómo manejar
+            preguntas sobre medicamentos, cuándo derivar al doctor, qué temas
+            evitar.
+          </p>
+          <div
+            style={{
+              background: "var(--bg-subtle, #f8fafc)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              padding: "0.75rem",
+              fontSize: "0.82rem",
+              color: "var(--text-muted)",
+              marginBottom: 8,
+            }}
+          >
+            <strong
+              style={{
+                color: "var(--text)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Ejemplo de instrucciones:
+            </strong>
+            Si alguien pregunta qué medicamento puede tomar, responde: "Eso
+            únicamente lo puede indicar el Dr. López en consulta. Te recomiendo
+            agendar una cita para que él te evalúe personalmente."
+            <br />
+            <br />
+            Si alguien pregunta sobre diagnósticos o resultados de exámenes,
+            responde que eso requiere evaluación presencial y ofrece agendar una
+            cita.
+            <br />
+            <br />
+            Para preguntas sobre dolor dental agudo, indica que llamen al +58
+            212 555-0100 para cita de urgencia.
+          </div>
+          <textarea
+            className="form-input"
+            rows={7}
+            placeholder="Escribe aquí las instrucciones específicas para tu clínica..."
+            value={assistantInstructions}
+            onChange={(e) => setAssistantInstructions(e.target.value)}
+            style={{ width: "100%", resize: "vertical", fontFamily: "inherit" }}
+            maxLength={MAX_INSTRUCTIONS_CHARS}
+          />
+          <div
+            style={{
+              textAlign: "right",
+              fontSize: "0.78rem",
+              color: "var(--text-muted)",
+              marginTop: 4,
+            }}
+          >
+            {assistantInstructions.length} / {MAX_INSTRUCTIONS_CHARS}
+          </div>
+        </div>
+
+        {/* Sección 3: Mensaje de bienvenida */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            paddingTop: "1.25rem",
+          }}
+        >
+          <label
+            className="form-label"
+            style={{ fontWeight: 600, marginBottom: 4, display: "block" }}
           >
             Mensaje de Bienvenida
           </label>
@@ -143,7 +236,7 @@ Teléfono: +58 212 555-0100`}
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? "Guardando..." : "Guardar Base de Conocimiento"}
+            {saving ? "Guardando..." : "Guardar Configuración"}
           </button>
           {saved && (
             <span

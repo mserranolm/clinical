@@ -809,19 +809,21 @@ export const clinicalApi = {
     }),
 
   whatsAppGetKnowledge: (token: string) =>
-    request<{ knowledgeBase: string; welcomeMessage: string }>(
-      endpointCatalog.whatsAppGetKnowledge,
-      { token },
-    ),
+    request<{
+      knowledgeBase: string;
+      welcomeMessage: string;
+      assistantInstructions: string;
+    }>(endpointCatalog.whatsAppGetKnowledge, { token }),
 
   whatsAppSaveKnowledge: (
     knowledgeBase: string,
     welcomeMessage: string,
+    assistantInstructions: string,
     token: string,
   ) =>
     request<{ status: string }>(endpointCatalog.whatsAppSaveKnowledge, {
       method: "PUT",
-      body: { knowledgeBase, welcomeMessage },
+      body: { knowledgeBase, welcomeMessage, assistantInstructions },
       token,
     }),
 

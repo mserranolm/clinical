@@ -21,4 +21,5 @@ export type WhatsAppConnectResult = {
 export type WhatsAppKnowledge = {
   knowledgeBase: string;
   welcomeMessage: string;
+  assistantInstructions: string;
 };
