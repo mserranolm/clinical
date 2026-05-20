@@ -45,7 +45,7 @@ Globals:
         EVOLUTION_API_KEY: "{{resolve:secretsmanager:clinical/evolution/api-key}}"
         WHATSAPP_MODEL_ID: "us.anthropic.claude-sonnet-4-6-20261001-v1:0"
         WHATSAPP_QUEUE_URL: !Ref WhatsAppMessagesQueue
-        API_GATEWAY_URL: !Sub "https://${ClinicalRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+        API_GATEWAY_URL: "{{resolve:ssm:/clinical/api-gateway-url}}"
 
 Resources:
   # API Gateway REST API (para API Keys)
