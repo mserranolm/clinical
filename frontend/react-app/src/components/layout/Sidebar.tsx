@@ -9,6 +9,7 @@ import {
   FileText,
   Receipt,
   FileSpreadsheet,
+  MessageSquare,
 } from "lucide-react";
 import { Logo } from "../ui/Logo";
 import { useTheme } from "../../App";
@@ -107,6 +108,11 @@ export function Sidebar({
       to: "/dashboard/usuarios",
       label: "Usuarios",
       icon: <Users {...iconProps} />,
+    },
+    {
+      to: "/dashboard/whatsapp",
+      label: "WhatsApp Asistente",
+      icon: <MessageSquare {...iconProps} />,
     },
   ];
 

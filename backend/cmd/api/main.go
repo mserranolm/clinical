@@ -13,8 +13,10 @@ import (
 	"clinical-backend/internal/notifications"
 	"clinical-backend/internal/service"
 	"clinical-backend/internal/store"
+	"clinical-backend/internal/whatsapp"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -34,6 +36,7 @@ func main() {
 		Payments         store.PaymentRepository
 		Budgets          store.BudgetRepository
 		PlatformSettings store.PlatformSettingsRepository
+		WhatsApp         store.WhatsAppRepository
 	}
 
 	if cfg.ShouldUseDynamoDB() {
@@ -50,6 +53,7 @@ func main() {
 			PaymentTableName:         cfg.PaymentTable,
 			BudgetTableName:           cfg.BudgetTable,
 			PlatformSettingsTableName: cfg.PlatformSettingsTable,
+			WhatsAppConfigTableName:   cfg.WhatsAppConfigTable,
 			UseLocalProfile:           cfg.IsLocal(),
 			ProfileName:              cfg.AWSProfile,
 		}
@@ -80,6 +84,7 @@ func main() {
 			repos.Payments = dynamoRepos.Payments
 			repos.Budgets = dynamoRepos.Budgets
 			repos.PlatformSettings = dynamoRepos.PlatformSettings
+			repos.WhatsApp = dynamoRepos.WhatsApp
 		}
 	} else {
 		log.Printf("Using in-memory repositories (local development)")
@@ -146,7 +151,50 @@ func main() {
 		}
 	}
 
-	router := api.NewRouter(appointments, patients, consents, auth, odontogramHandler, paymentService, budgetService, chatService, platformSettingsService)
+	// Initialize WhatsApp services
+	var whatsAppService *service.WhatsAppService
+	var whatsAppAIService *service.WhatsAppAIService
+	var sqsClient *awssqs.Client
+
+	if cfg.WhatsAppEnabled && cfg.EvolutionAPIURL != "" {
+		evolutionClient := whatsapp.NewClient(cfg.EvolutionAPIURL, cfg.EvolutionAPIKey)
+		if repos.WhatsApp != nil {
+			apiGWURL := cfg.APIGatewayURL
+			if apiGWURL == "" {
+				apiGWURL = cfg.FrontendBaseURL
+			}
+			whatsAppService = service.NewWhatsAppService(evolutionClient, repos.WhatsApp, apiGWURL)
+			log.Printf("WhatsApp service initialized (evolution: %s)", cfg.EvolutionAPIURL)
+		}
+		if cfg.WhatsAppQueueURL != "" {
+			awsCfgWA, waErr := awsconfig.LoadDefaultConfig(context.Background())
+			if waErr == nil {
+				sqsClient = awssqs.NewFromConfig(awsCfgWA)
+				log.Printf("WhatsApp SQS client initialized")
+			}
+		}
+	}
+
+	if cfg.WhatsAppModelID != "" {
+		awsCfgAI, aiErr := awsconfig.LoadDefaultConfig(context.Background())
+		if aiErr == nil {
+			waBedrockClient := bedrock.NewClient(awsCfgAI, cfg.WhatsAppModelID)
+			whatsAppAIService = service.NewWhatsAppAIService(waBedrockClient)
+			log.Printf("WhatsApp AI service initialized (model: %s)", cfg.WhatsAppModelID)
+		}
+	}
+
+	router := api.NewRouter(
+		appointments, patients, consents, auth, odontogramHandler,
+		paymentService, budgetService, chatService, platformSettingsService,
+		api.RouterOptions{
+			WhatsApp:              whatsAppService,
+			WhatsAppRepo:          repos.WhatsApp,
+			SQSClient:             sqsClient,
+			WhatsAppQueueURL:      cfg.WhatsAppQueueURL,
+			WhatsAppWebhookSecret: cfg.EvolutionAPIKey,
+		},
+	)
 
 	if os.Getenv("LOCAL_HTTP") == "true" {
 		if err := runLocalHTTP(router); err != nil {
@@ -157,6 +205,27 @@ func main() {
 
 	// Lambda handler that detects event type and routes accordingly
 	lambda.Start(func(ctx context.Context, event json.RawMessage) (interface{}, error) {
+		// SQS event — WhatsApp worker
+		type sqsRecord struct {
+			EventSource string `json:"eventSource"`
+			Body        string `json:"body"`
+		}
+		type sqsEventPayload struct {
+			Records []sqsRecord `json:"Records"`
+		}
+		var sqsEvt sqsEventPayload
+		if sqsErr := json.Unmarshal(event, &sqsEvt); sqsErr == nil &&
+			len(sqsEvt.Records) > 0 &&
+			sqsEvt.Records[0].EventSource == "aws:sqs" {
+			log.Printf("Processing SQS WhatsApp event: %d records", len(sqsEvt.Records))
+			for _, record := range sqsEvt.Records {
+				if procErr := api.ProcessWhatsAppSQSRecord(ctx, record.Body, whatsAppService, whatsAppAIService, repos.WhatsApp); procErr != nil {
+					log.Printf("WhatsApp SQS record error: %v", procErr)
+				}
+			}
+			return map[string]string{"status": "processed"}, nil
+		}
+
 		var apiReqV1 events.APIGatewayProxyRequest
 		if err := json.Unmarshal(event, &apiReqV1); err == nil {
 			if apiReqV1.HTTPMethod != "" {

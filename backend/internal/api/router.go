@@ -14,6 +14,7 @@ import (
 	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 type authCtxKey string
@@ -31,6 +32,7 @@ const (
 	permAppointmentsWrite  permission = "appointments.write"
 	permAppointmentsDelete permission = "appointments.delete"
 	permTreatmentsManage   permission = "treatments.manage"
+	permWhatsAppManage     permission = "whatsapp.manage"
 )
 
 // hasPermission enforces the RBAC matrix:
@@ -61,6 +63,8 @@ func hasPermission(role string, p permission) bool {
 		return r == "admin"
 	case permTreatmentsManage:
 		return r == "admin" || r == "doctor"
+	case permWhatsAppManage:
+		return r == "admin"
 	default:
 		return false
 	}
@@ -106,6 +110,9 @@ func isPublicEndpoint(method, path string) bool {
 	if method == "POST" && strings.HasPrefix(path, "/public/appointments/") && strings.HasSuffix(path, "/reschedule-request") {
 		return true
 	}
+	if method == "POST" && path == "/public/whatsapp/webhook" {
+		return true
+	}
 	return false
 }
 
@@ -125,15 +132,20 @@ func (r *Router) require(ctx context.Context, req events.APIGatewayV2HTTPRequest
 }
 
 type Router struct {
-	appointments     *service.AppointmentService
-	patients         *service.PatientService
-	consents         *service.ConsentService
-	auth             *service.AuthService
-	odontogram       *OdontogramHandler
-	payments         *service.PaymentService
-	budgets          *service.BudgetService
-	chat             *service.ChatService
-	platformSettings *service.PlatformSettingsService
+	appointments          *service.AppointmentService
+	patients              *service.PatientService
+	consents              *service.ConsentService
+	auth                  *service.AuthService
+	odontogram            *OdontogramHandler
+	payments              *service.PaymentService
+	budgets               *service.BudgetService
+	chat                  *service.ChatService
+	platformSettings      *service.PlatformSettingsService
+	whatsApp              *service.WhatsAppService
+	whatsAppRepo          store.WhatsAppRepository
+	sqsClient             *sqs.Client
+	whatsAppQueueURL      string
+	whatsAppWebhookSecret string
 }
 
 func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -166,8 +178,36 @@ func (r *Router) registerPayment(ctx context.Context, id string, req events.APIG
 	return response(200, appt)
 }
 
-func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService, chat *service.ChatService, platformSettings *service.PlatformSettingsService) *Router {
-	return &Router{appointments: appointments, patients: patients, consents: consents, auth: auth, odontogram: odontogram, payments: payments, budgets: budgets, chat: chat, platformSettings: platformSettings}
+// RouterOptions permite configurar servicios opcionales en el Router.
+type RouterOptions struct {
+	WhatsApp              *service.WhatsAppService
+	WhatsAppRepo          store.WhatsAppRepository
+	SQSClient             *sqs.Client
+	WhatsAppQueueURL      string
+	WhatsAppWebhookSecret string
+}
+
+func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService, chat *service.ChatService, platformSettings *service.PlatformSettingsService, opts ...RouterOptions) *Router {
+	r := &Router{
+		appointments:     appointments,
+		patients:         patients,
+		consents:         consents,
+		auth:             auth,
+		odontogram:       odontogram,
+		payments:         payments,
+		budgets:          budgets,
+		chat:             chat,
+		platformSettings: platformSettings,
+	}
+	if len(opts) > 0 {
+		o := opts[0]
+		r.whatsApp = o.WhatsApp
+		r.whatsAppRepo = o.WhatsAppRepo
+		r.sqsClient = o.SQSClient
+		r.whatsAppQueueURL = o.WhatsAppQueueURL
+		r.whatsAppWebhookSecret = o.WhatsAppWebhookSecret
+	}
+	return r
 }
 
 func (r *Router) isPublicConsentAccept(method, path string) bool {
@@ -652,6 +692,48 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.handleChat(actx, req)
 			}
+		case method == "POST" && path == "/admin/whatsapp/connect":
+			if r.whatsApp == nil {
+				resp, err = response(503, map[string]string{"error": "whatsapp_not_configured"})
+			} else if actx, deny, ok := r.require(ctx, req, permWhatsAppManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleWhatsAppConnect(actx, req)
+			}
+		case method == "GET" && path == "/admin/whatsapp/status":
+			if r.whatsApp == nil {
+				resp, err = response(503, map[string]string{"error": "whatsapp_not_configured"})
+			} else if actx, deny, ok := r.require(ctx, req, permWhatsAppManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleWhatsAppStatus(actx, req)
+			}
+		case method == "POST" && path == "/admin/whatsapp/disconnect":
+			if r.whatsApp == nil {
+				resp, err = response(503, map[string]string{"error": "whatsapp_not_configured"})
+			} else if actx, deny, ok := r.require(ctx, req, permWhatsAppManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleWhatsAppDisconnect(actx, req)
+			}
+		case method == "GET" && path == "/admin/whatsapp/knowledge":
+			if r.whatsApp == nil {
+				resp, err = response(503, map[string]string{"error": "whatsapp_not_configured"})
+			} else if actx, deny, ok := r.require(ctx, req, permWhatsAppManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleWhatsAppGetKnowledge(actx, req)
+			}
+		case method == "PUT" && path == "/admin/whatsapp/knowledge":
+			if r.whatsApp == nil {
+				resp, err = response(503, map[string]string{"error": "whatsapp_not_configured"})
+			} else if actx, deny, ok := r.require(ctx, req, permWhatsAppManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleWhatsAppSaveKnowledge(actx, req)
+			}
+		case method == "POST" && path == "/public/whatsapp/webhook":
+			resp, err = r.handleWhatsAppWebhook(ctx, req)
 		default:
 			resp, err = response(404, map[string]string{"error": "endpoint_not_found", "message": "The requested endpoint was not found"})
 		}

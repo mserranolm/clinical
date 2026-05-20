@@ -26,6 +26,7 @@ import {
 } from "../../pages/PresupuestoPage";
 import { TreatmentWizard } from "../../pages/TreatmentWizard";
 import { UsersAdminPage } from "../../pages/UsersAdminPage";
+import { WhatsAppSettingsPage } from "../../pages/WhatsAppSettingsPage";
 
 type DashboardAppointmentRow = {
   id: string;
@@ -351,6 +352,10 @@ export function DashboardLayout({
                   onSessionChange={() => onLogout()}
                 />
               }
+            />
+            <Route
+              path="whatsapp"
+              element={<WhatsAppSettingsPage session={session} />}
             />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
