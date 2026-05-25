@@ -69,9 +69,11 @@ func (s *WhatsAppService) Connect(ctx context.Context, orgID string) (*ConnectRe
 
 // StatusResult es el resultado de consultar el estado.
 type StatusResult struct {
-	Connected    bool   `json:"connected"`
-	Stage        string `json:"stage"`
-	InstanceName string `json:"instanceName"`
+	Connected      bool     `json:"connected"`
+	Stage          string   `json:"stage"`
+	InstanceName   string   `json:"instanceName"`
+	BotMode        string   `json:"botMode"`
+	BetaTestPhones []string `json:"betaTestPhones"`
 }
 
 // GetStatus retorna el estado actual de la conexión WhatsApp.
@@ -81,7 +83,7 @@ func (s *WhatsAppService) GetStatus(ctx context.Context, orgID string) (*StatusR
 		return nil, fmt.Errorf("whatsapp status: get config: %w", err)
 	}
 	if cfg.InstanceName == "" {
-		return &StatusResult{Connected: false, Stage: "idle"}, nil
+		return &StatusResult{Connected: false, Stage: "idle", BotMode: cfg.BotMode, BetaTestPhones: cfg.BetaTestPhones}, nil
 	}
 
 	state, err := s.evolution.GetConnectionState(cfg.InstanceName)
@@ -99,7 +101,7 @@ func (s *WhatsAppService) GetStatus(ctx context.Context, orgID string) (*StatusR
 		_ = s.repo.SetConnected(ctx, orgID, connected)
 	}
 
-	return &StatusResult{Connected: connected, Stage: stage, InstanceName: cfg.InstanceName}, nil
+	return &StatusResult{Connected: connected, Stage: stage, InstanceName: cfg.InstanceName, BotMode: cfg.BotMode, BetaTestPhones: cfg.BetaTestPhones}, nil
 }
 
 // Disconnect desconecta y elimina la instancia WhatsApp.

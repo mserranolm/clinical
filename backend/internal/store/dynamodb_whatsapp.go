@@ -72,3 +72,30 @@ func (r *dynamoWhatsAppRepo) SetConnected(ctx context.Context, orgID string, con
 	})
 	return err
 }
+
+func (r *dynamoWhatsAppRepo) SetBotMode(ctx context.Context, orgID string, mode string, phones []string) error {
+	if phones == nil {
+		phones = []string{}
+	}
+	phoneAttrs := make([]types.AttributeValue, len(phones))
+	for i, p := range phones {
+		phoneAttrs[i] = &types.AttributeValueMemberS{Value: p}
+	}
+	_, err := r.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "ORG#" + orgID},
+			"SK": &types.AttributeValueMemberS{Value: whatsAppSK},
+		},
+		UpdateExpression: aws.String("SET botMode = :m, betaTestPhones = :p, updatedAt = :u"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":m": &types.AttributeValueMemberS{Value: mode},
+			":p": &types.AttributeValueMemberL{Value: phoneAttrs},
+			":u": &types.AttributeValueMemberS{Value: time.Now().UTC().Format(time.RFC3339)},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("whatsapp set-bot-mode: %w", err)
+	}
+	return nil
+}

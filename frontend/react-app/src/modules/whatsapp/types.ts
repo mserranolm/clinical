@@ -6,10 +6,14 @@ export type WhatsAppStage =
   | "disconnecting"
   | "error";
 
+export type BotMode = "beta" | "production";
+
 export type WhatsAppStatus = {
   connected: boolean;
   stage: string;
   instanceName: string;
+  botMode?: BotMode;
+  betaTestPhones?: string[];
 };
 
 export type WhatsAppConnectResult = {

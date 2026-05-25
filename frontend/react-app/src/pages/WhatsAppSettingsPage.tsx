@@ -1,4 +1,5 @@
 import { MessageSquare } from "lucide-react";
+import { BotModeSelector } from "../modules/whatsapp/BotModeSelector";
 import { KnowledgeBaseEditor } from "../modules/whatsapp/KnowledgeBaseEditor";
 import { WhatsAppConnect } from "../modules/whatsapp/WhatsAppConnect";
 import type { AuthSession } from "../types";
@@ -35,6 +36,7 @@ export function WhatsAppSettingsPage({ session }: Props) {
         }}
       >
         <WhatsAppConnect token={session.token} />
+        <BotModeSelector token={session.token} />
         <KnowledgeBaseEditor token={session.token} />
       </div>
     </div>

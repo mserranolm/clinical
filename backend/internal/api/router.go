@@ -732,6 +732,14 @@ func (r *Router) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest)
 			} else {
 				resp, err = r.handleWhatsAppSaveKnowledge(actx, req)
 			}
+		case method == "PUT" && path == "/admin/whatsapp/bot-mode":
+			if r.whatsApp == nil {
+				resp, err = response(503, map[string]string{"error": "whatsapp_not_configured"})
+			} else if actx, deny, ok := r.require(ctx, req, permWhatsAppManage); !ok {
+				resp, err = deny, nil
+			} else {
+				resp, err = r.handleWhatsAppSetBotMode(actx, req)
+			}
 		case method == "POST" && path == "/public/whatsapp/webhook":
 			resp, err = r.handleWhatsAppWebhook(ctx, req)
 		default:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"regexp"
 	"strings"
 
 	"clinical-backend/internal/service"
@@ -13,6 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
+
+var nonDigitRegex = regexp.MustCompile(`\D`)
 
 type whatsAppSQSMessage struct {
 	OrgID        string `json:"orgId"`
@@ -128,6 +131,37 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 		}
 		phone := strings.Split(data.Key.RemoteJID, "@")[0]
 
+		// Filtro beta: solo responder si botMode == "production" o el número está en la lista
+		if r.whatsAppRepo != nil {
+			cfg, cfgErr := r.whatsAppRepo.Get(ctx, orgID)
+			if cfgErr == nil && cfg.BotMode != "" && cfg.BotMode != "production" {
+				betaPhones := cfg.BetaTestPhones
+				if len(betaPhones) == 0 {
+					log.Printf("MSG_SKIP_BETA: no phones configured, orgId=%s", orgID)
+					return response(200, map[string]string{"status": "skipped_beta"})
+				}
+				normalizedCustomer := nonDigitRegex.ReplaceAllString(phone, "")
+				allowed := false
+				for _, bp := range betaPhones {
+					normalizedBeta := nonDigitRegex.ReplaceAllString(bp, "")
+					if len(normalizedBeta) > 10 {
+						normalizedBeta = normalizedBeta[len(normalizedBeta)-10:]
+					}
+					if len(normalizedCustomer) >= 10 && strings.HasSuffix(normalizedCustomer, normalizedBeta) {
+						allowed = true
+						break
+					} else if normalizedCustomer == normalizedBeta {
+						allowed = true
+						break
+					}
+				}
+				if !allowed {
+					log.Printf("MSG_SKIP_BETA: phone not in list, orgId=%s phone=%s", orgID, phone)
+					return response(200, map[string]string{"status": "skipped_beta"})
+				}
+			}
+		}
+
 		if r.sqsClient != nil && r.whatsAppQueueURL != "" {
 			sqsMsg := whatsAppSQSMessage{
 				OrgID:        orgID,
@@ -146,6 +180,48 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 	}
 
 	return response(200, map[string]string{"status": "ok"})
+}
+
+func (r *Router) handleWhatsAppSetBotMode(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
+	var body struct {
+		Mode           string   `json:"mode"`
+		BetaTestPhones []string `json:"betaTestPhones"`
+	}
+	if err := json.Unmarshal([]byte(req.Body), &body); err != nil {
+		return response(400, map[string]string{"error": "invalid_json"})
+	}
+
+	// Normalizar modo
+	if body.Mode != "production" {
+		body.Mode = "beta"
+	}
+
+	// Validar teléfonos — regex: 7-15 dígitos, + opcional
+	phoneRegex := regexp.MustCompile(`^\+?\d{7,15}$`)
+	var validPhones []string
+	for _, p := range body.BetaTestPhones {
+		cleaned := strings.ReplaceAll(p, " ", "")
+		if phoneRegex.MatchString(cleaned) {
+			validPhones = append(validPhones, cleaned)
+		}
+	}
+	if len(validPhones) > 10 {
+		validPhones = validPhones[:10]
+	}
+
+	// Modo beta requiere al menos un teléfono
+	if body.Mode == "beta" && len(validPhones) == 0 {
+		return response(400, map[string]string{"error": "beta_mode_requires_phones"})
+	}
+
+	if err := r.whatsAppRepo.SetBotMode(ctx, auth.User.OrgID, body.Mode, validPhones); err != nil {
+		return response(500, map[string]string{"error": err.Error()})
+	}
+	return response(200, map[string]interface{}{
+		"botMode":        body.Mode,
+		"betaTestPhones": validPhones,
+	})
 }
 
 // ProcessWhatsAppSQSRecord procesa un mensaje SQS del worker de WhatsApp.

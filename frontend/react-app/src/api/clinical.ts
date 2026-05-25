@@ -1,5 +1,6 @@
 import { endpointCatalog } from "../lib/config";
 import { request } from "../lib/http";
+import type { BotMode } from "../modules/whatsapp/types";
 import {
   type Budget,
   type BudgetItem,
@@ -797,10 +798,13 @@ export const clinicalApi = {
     ),
 
   whatsAppStatus: (token: string) =>
-    request<{ connected: boolean; stage: string; instanceName: string }>(
-      endpointCatalog.whatsAppStatus,
-      { token },
-    ),
+    request<{
+      connected: boolean;
+      stage: string;
+      instanceName: string;
+      botMode?: BotMode;
+      betaTestPhones?: string[];
+    }>(endpointCatalog.whatsAppStatus, { token }),
 
   whatsAppDisconnect: (token: string) =>
     request<{ status: string }>(endpointCatalog.whatsAppDisconnect, {
@@ -826,6 +830,16 @@ export const clinicalApi = {
       body: { knowledgeBase, welcomeMessage, assistantInstructions },
       token,
     }),
+
+  whatsAppSetBotMode: (
+    mode: BotMode,
+    betaTestPhones: string[],
+    token: string,
+  ) =>
+    request<{ botMode: BotMode; betaTestPhones: string[] }>(
+      endpointCatalog.whatsAppSetBotMode,
+      { method: "PUT", body: { mode, betaTestPhones }, token },
+    ),
 
   // Public appointment management (called from email link — no auth token)
   getPublicAppointmentInfo: (token: string) =>

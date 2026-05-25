@@ -61,6 +61,7 @@ export const endpointCatalog = {
   whatsAppDisconnect: "/admin/whatsapp/disconnect",
   whatsAppGetKnowledge: "/admin/whatsapp/knowledge",
   whatsAppSaveKnowledge: "/admin/whatsapp/knowledge",
+  whatsAppSetBotMode: "/admin/whatsapp/bot-mode",
 };
 
 function normalizeUrl(url: string): string {
