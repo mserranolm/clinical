@@ -25,6 +25,24 @@ for TYPE in DEFAULT_4XX DEFAULT_5XX INVALID_API_KEY ACCESS_DENIED UNAUTHORIZED; 
     --output text --query 'responseType'
 done
 
+echo "==> Eximiendo OPTIONS del API Key requirement (necesario para CORS preflight)..."
+# SAM resetea apiKeyRequired=true en OPTIONS con cada deploy
+# El browser nunca puede incluir x-api-key en un preflight, por eso OPTIONS debe ser libre
+PROXY_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id "$API_ID" --profile "$PROFILE" --region "$REGION" --output json | \
+  python3 -c "import json,sys; d=json.load(sys.stdin); print([i['id'] for i in d['items'] if i.get('path')=='/{proxy+}'][0])")
+WEBHOOK_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id "$API_ID" --profile "$PROFILE" --region "$REGION" --output json | \
+  python3 -c "import json,sys; d=json.load(sys.stdin); print([i['id'] for i in d['items'] if i.get('path')=='/public/whatsapp/webhook'][0])")
+
+for RESOURCE_ID in "$PROXY_RESOURCE_ID" "$WEBHOOK_RESOURCE_ID"; do
+  aws apigateway update-method \
+    --rest-api-id "$API_ID" \
+    --resource-id "$RESOURCE_ID" \
+    --http-method OPTIONS \
+    --patch-operations "op=replace,path=/apiKeyRequired,value=false" \
+    --region "$REGION" --profile "$PROFILE" \
+    --output text --query 'apiKeyRequired' 2>/dev/null || true
+done
+
 echo "==> Vinculando UsagePlan al stage $STAGE..."
 aws apigateway update-usage-plan --usage-plan-id "$USAGE_PLAN_ID" \
   --patch-operations "op=add,path=/apiStages,value=${API_ID}:${STAGE}" \
