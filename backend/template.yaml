@@ -63,6 +63,8 @@ Resources:
         AllowOrigin: "'*'"
         AllowHeaders: "'Content-Type,Authorization,x-api-key'"
         AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+      Auth:
+        ApiKeyRequired: true
 
   # GatewayResponses: añadir CORS headers a errores que API Gateway devuelve antes de llegar a Lambda
   GatewayResponseDefault4XX:
@@ -237,6 +239,14 @@ Resources:
             Method: ANY
             Auth:
               ApiKeyRequired: true
+        WhatsAppWebhook:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClinicalRestApi
+            Path: /public/whatsapp/webhook
+            Method: POST
+            Auth:
+              ApiKeyRequired: false
 
   Reminder24hFunction:
     Type: AWS::Serverless::Function
