@@ -1,17 +1,21 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
+	"time"
 
 	"clinical-backend/internal/service"
 	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
@@ -38,10 +42,12 @@ type evolutionMessageData struct {
 	Key struct {
 		RemoteJID string `json:"remoteJid"`
 		FromMe    bool   `json:"fromMe"`
+		ID        string `json:"id"`
 	} `json:"key"`
 	Message struct {
 		Conversation string `json:"conversation"`
 	} `json:"message"`
+	MessageTimestamp int64 `json:"messageTimestamp"`
 }
 
 func (r *Router) handleWhatsAppConnect(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -126,6 +132,16 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 		if err := json.Unmarshal(payload.Data, &data); err != nil {
 			return response(200, map[string]string{"status": "ignored_parse_error"})
 		}
+
+		// Auditoría: guardar TODOS los mensajes entrantes en S3 antes de cualquier filtro
+		if !data.Key.FromMe {
+			ts := data.MessageTimestamp
+			if ts == 0 {
+				ts = time.Now().Unix()
+			}
+			go r.auditWhatsAppMessage(ctx, payload.Instance, data.Key.RemoteJID, data.Key.ID, ts, payload.Data)
+		}
+
 		if data.Key.FromMe || strings.TrimSpace(data.Message.Conversation) == "" {
 			return response(200, map[string]string{"status": "ignored"})
 		}
@@ -222,6 +238,37 @@ func (r *Router) handleWhatsAppSetBotMode(ctx context.Context, req events.APIGat
 		"botMode":        body.Mode,
 		"betaTestPhones": validPhones,
 	})
+}
+
+// auditWhatsAppMessage guarda el payload completo del mensaje en S3 para auditoría.
+func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJid, msgID string, ts int64, rawData json.RawMessage) {
+	if r.auditS3Client == nil || r.auditBucket == "" {
+		return
+	}
+	date := time.Unix(ts, 0).UTC().Format("2006-01-02")
+	key := fmt.Sprintf("whatsapp/%s/%s/%s/%d_%s.json", instanceName, date, remoteJid, ts, msgID)
+
+	envelope := map[string]interface{}{
+		"instanceName": instanceName,
+		"remoteJid":    remoteJid,
+		"messageId":    msgID,
+		"timestamp":    ts,
+		"auditedAt":    time.Now().UTC().Format(time.RFC3339),
+		"data":         json.RawMessage(rawData),
+	}
+	payload, _ := json.Marshal(envelope)
+
+	_, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(r.auditBucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(payload),
+		ContentType: aws.String("application/json"),
+	})
+	if err != nil {
+		log.Printf("audit: s3 put failed key=%s: %v", key, err)
+	} else {
+		log.Printf("audit: saved key=%s", key)
+	}
 }
 
 // ProcessWhatsAppSQSRecord procesa un mensaje SQS del worker de WhatsApp.

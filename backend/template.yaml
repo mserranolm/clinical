@@ -43,9 +43,11 @@ Globals:
         WHATSAPP_CONFIG_TABLE: !Ref WhatsAppConfigTable
         EVOLUTION_API_URL: "{{resolve:ssm:/clinical/evolution-api-url}}"
         EVOLUTION_API_KEY: "{{resolve:secretsmanager:clinical/evolution/api-key}}"
-        WHATSAPP_MODEL_ID: "us.anthropic.claude-sonnet-4-6-20261001-v1:0"
+        WHATSAPP_MODEL_ID: "us.anthropic.claude-sonnet-4-6"
         WHATSAPP_QUEUE_URL: !Ref WhatsAppMessagesQueue
         API_GATEWAY_URL: "{{resolve:ssm:/clinical/api-gateway-url}}"
+        WHATSAPP_AUDIT_ENABLED: "true"
+        WHATSAPP_AUDIT_BUCKET: "audit-docco-security"
 
 Resources:
   # API Gateway REST API (para API Keys)
@@ -220,6 +222,8 @@ Resources:
             TableName: !Ref WhatsAppConfigTable
         - SQSSendMessagePolicy:
             QueueName: !GetAtt WhatsAppMessagesQueue.QueueName
+        - S3WritePolicy:
+            BucketName: audit-docco-security
         - Statement:
             - Effect: Allow
               Action:

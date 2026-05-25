@@ -16,6 +16,7 @@ import (
 	"clinical-backend/internal/whatsapp"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -184,6 +185,15 @@ func main() {
 		}
 	}
 
+	var auditS3Client *awss3.Client
+	if cfg.WhatsAppAuditEnabled && cfg.WhatsAppAuditBucket != "" {
+		awsCfgAudit, auditErr := awsconfig.LoadDefaultConfig(context.Background())
+		if auditErr == nil {
+			auditS3Client = awss3.NewFromConfig(awsCfgAudit)
+			log.Printf("WhatsApp audit S3 initialized (bucket: %s)", cfg.WhatsAppAuditBucket)
+		}
+	}
+
 	router := api.NewRouter(
 		appointments, patients, consents, auth, odontogramHandler,
 		paymentService, budgetService, chatService, platformSettingsService,
@@ -193,6 +203,8 @@ func main() {
 			SQSClient:             sqsClient,
 			WhatsAppQueueURL:      cfg.WhatsAppQueueURL,
 			WhatsAppWebhookSecret: cfg.EvolutionAPIKey,
+			AuditS3Client:         auditS3Client,
+			AuditBucket:           cfg.WhatsAppAuditBucket,
 		},
 	)
 
