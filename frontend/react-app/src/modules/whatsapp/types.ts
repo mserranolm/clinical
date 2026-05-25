@@ -12,8 +12,10 @@ export type WhatsAppStatus = {
   connected: boolean;
   stage: string;
   instanceName: string;
+  botEnabled?: boolean;
   botMode?: BotMode;
   betaTestPhones?: string[];
+  phoneNumber?: string;
 };
 
 export type WhatsAppConnectResult = {

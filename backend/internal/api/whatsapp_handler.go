@@ -147,33 +147,41 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 		}
 		phone := strings.Split(data.Key.RemoteJID, "@")[0]
 
-		// Filtro beta: solo responder si botMode == "production" o el número está en la lista
+		// Filtros de bot: desactivado o modo beta
 		if r.whatsAppRepo != nil {
 			cfg, cfgErr := r.whatsAppRepo.Get(ctx, orgID)
-			if cfgErr == nil && cfg.BotMode != "" && cfg.BotMode != "production" {
-				betaPhones := cfg.BetaTestPhones
-				if len(betaPhones) == 0 {
-					log.Printf("MSG_SKIP_BETA: no phones configured, orgId=%s", orgID)
-					return response(200, map[string]string{"status": "skipped_beta"})
+			if cfgErr == nil {
+				// Si el bot está apagado, no procesar
+				if cfg.BotDisabled {
+					log.Printf("MSG_SKIP_BOT_DISABLED orgId=%s", orgID)
+					return response(200, map[string]string{"status": "bot_disabled"})
 				}
-				normalizedCustomer := nonDigitRegex.ReplaceAllString(phone, "")
-				allowed := false
-				for _, bp := range betaPhones {
-					normalizedBeta := nonDigitRegex.ReplaceAllString(bp, "")
-					if len(normalizedBeta) > 10 {
-						normalizedBeta = normalizedBeta[len(normalizedBeta)-10:]
+				// Filtro beta: solo responder si botMode == "production" o el número está en la lista
+				if cfg.BotMode != "" && cfg.BotMode != "production" {
+					betaPhones := cfg.BetaTestPhones
+					if len(betaPhones) == 0 {
+						log.Printf("MSG_SKIP_BETA: no phones configured, orgId=%s", orgID)
+						return response(200, map[string]string{"status": "skipped_beta"})
 					}
-					if len(normalizedCustomer) >= 10 && strings.HasSuffix(normalizedCustomer, normalizedBeta) {
-						allowed = true
-						break
-					} else if normalizedCustomer == normalizedBeta {
-						allowed = true
-						break
+					normalizedCustomer := nonDigitRegex.ReplaceAllString(phone, "")
+					allowed := false
+					for _, bp := range betaPhones {
+						normalizedBeta := nonDigitRegex.ReplaceAllString(bp, "")
+						if len(normalizedBeta) > 10 {
+							normalizedBeta = normalizedBeta[len(normalizedBeta)-10:]
+						}
+						if len(normalizedCustomer) >= 10 && strings.HasSuffix(normalizedCustomer, normalizedBeta) {
+							allowed = true
+							break
+						} else if normalizedCustomer == normalizedBeta {
+							allowed = true
+							break
+						}
 					}
-				}
-				if !allowed {
-					log.Printf("MSG_SKIP_BETA: phone not in list, orgId=%s phone=%s", orgID, phone)
-					return response(200, map[string]string{"status": "skipped_beta"})
+					if !allowed {
+						log.Printf("MSG_SKIP_BETA: phone not in list, orgId=%s phone=%s", orgID, phone)
+						return response(200, map[string]string{"status": "skipped_beta"})
+					}
 				}
 			}
 		}
@@ -201,6 +209,7 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 func (r *Router) handleWhatsAppSetBotMode(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
 	var body struct {
+		Enabled        bool     `json:"enabled"`
 		Mode           string   `json:"mode"`
 		BetaTestPhones []string `json:"betaTestPhones"`
 	}
@@ -226,15 +235,16 @@ func (r *Router) handleWhatsAppSetBotMode(ctx context.Context, req events.APIGat
 		validPhones = validPhones[:10]
 	}
 
-	// Modo beta requiere al menos un teléfono
-	if body.Mode == "beta" && len(validPhones) == 0 {
+	// Modo beta requiere al menos un teléfono (solo si el bot está activo)
+	if body.Enabled && body.Mode == "beta" && len(validPhones) == 0 {
 		return response(400, map[string]string{"error": "beta_mode_requires_phones"})
 	}
 
-	if err := r.whatsAppRepo.SetBotMode(ctx, auth.User.OrgID, body.Mode, validPhones); err != nil {
+	if err := r.whatsAppRepo.SetBotMode(ctx, auth.User.OrgID, body.Enabled, body.Mode, validPhones); err != nil {
 		return response(500, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]interface{}{
+		"botEnabled":     body.Enabled,
 		"botMode":        body.Mode,
 		"betaTestPhones": validPhones,
 	})

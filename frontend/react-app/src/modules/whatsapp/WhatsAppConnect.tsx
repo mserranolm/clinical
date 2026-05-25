@@ -16,6 +16,7 @@ type Props = {
 export function WhatsAppConnect({ token }: Props) {
   const [stage, setStage] = useState<WhatsAppStage>("idle");
   const [qrCode, setQrCode] = useState<string>("");
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [countdown, setCountdown] = useState<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -37,6 +38,7 @@ export function WhatsAppConnect({ token }: Props) {
     try {
       const status: WhatsAppStatus = await clinicalApi.whatsAppStatus(token);
       setStage(status.connected ? "connected" : "idle");
+      if (status.phoneNumber) setPhoneNumber(status.phoneNumber);
     } catch {
       setStage("idle");
     }
@@ -60,6 +62,7 @@ export function WhatsAppConnect({ token }: Props) {
           clearTimers();
           setStage("connected");
           setQrCode("");
+          if (status.phoneNumber) setPhoneNumber(status.phoneNumber);
         }
       } catch {
         /* ignorar errores de polling */
@@ -82,6 +85,7 @@ export function WhatsAppConnect({ token }: Props) {
         await clinicalApi.whatsAppConnect(token);
       if (result.connected) {
         setStage("connected");
+        await loadStatus();
         return;
       }
       if (result.qrCode) {
@@ -103,6 +107,7 @@ export function WhatsAppConnect({ token }: Props) {
       await clinicalApi.whatsAppDisconnect(token);
       setStage("idle");
       setQrCode("");
+      setPhoneNumber("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al desconectar");
       setStage("connected");
@@ -116,106 +121,410 @@ export function WhatsAppConnect({ token }: Props) {
     setError("");
   }
 
-  function StatusBadge() {
-    if (stage === "connected")
-      return <span className="badge badge-success">Conectado</span>;
-    if (stage === "qr_ready")
-      return <span className="badge badge-warning">Esperando escaneo...</span>;
-    if (stage === "connecting" || stage === "disconnecting")
-      return <span className="badge badge-info">Procesando...</span>;
-    return <span className="badge badge-error">Desconectado</span>;
-  }
+  const isConnected = stage === "connected";
+  const isQrReady = stage === "qr_ready";
+  const isBusy = stage === "connecting" || stage === "disconnecting";
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <h3 className="card-title">Conexión WhatsApp</h3>
-          <StatusBadge />
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border-strong)",
+        borderRadius: "var(--r-xl)",
+        overflow: "hidden",
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      {/* Header con gradiente */}
+      <div
+        style={{
+          background: isConnected
+            ? "linear-gradient(135deg, #16a34a 0%, #15803d 100%)"
+            : "linear-gradient(135deg, #0d9488 0%, #0891b2 100%)",
+          padding: "1.5rem 1.75rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+          transition: "background 0.4s ease",
+        }}
+      >
+        {/* WhatsApp icon */}
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            fontSize: "1.5rem",
+          }}
+        >
+          💬
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: "1rem",
+                fontWeight: 700,
+                color: "white",
+                margin: 0,
+              }}
+            >
+              Conexión WhatsApp
+            </h3>
+            {/* Badge de estado */}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                padding: "0.2rem 0.7rem",
+                borderRadius: 999,
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                background: isConnected
+                  ? "rgba(255,255,255,0.25)"
+                  : isBusy
+                    ? "rgba(255,255,255,0.2)"
+                    : isQrReady
+                      ? "rgba(255,200,0,0.35)"
+                      : "rgba(255,255,255,0.15)",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.3)",
+              }}
+            >
+              {isConnected && (
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#4ade80",
+                    flexShrink: 0,
+                    boxShadow: "0 0 0 2px rgba(74,222,128,0.4)",
+                    animation: "pulseLive 2s ease-in-out infinite",
+                  }}
+                />
+              )}
+              {isConnected
+                ? "CONECTADO"
+                : isBusy
+                  ? "PROCESANDO..."
+                  : isQrReady
+                    ? "ESPERANDO ESCANEO"
+                    : "DESCONECTADO"}
+            </span>
+          </div>
+
+          {/* Número conectado */}
+          {isConnected && phoneNumber && (
+            <p
+              style={{
+                margin: "0.3rem 0 0",
+                fontSize: "0.88rem",
+                color: "rgba(255,255,255,0.85)",
+                fontWeight: 500,
+                letterSpacing: "0.02em",
+              }}
+            >
+              {phoneNumber}
+            </p>
+          )}
+          {isConnected && !phoneNumber && (
+            <p
+              style={{
+                margin: "0.3rem 0 0",
+                fontSize: "0.82rem",
+                color: "rgba(255,255,255,0.65)",
+              }}
+            >
+              Asistente activo · responde mensajes automáticamente
+            </p>
+          )}
+          {!isConnected && !isBusy && !isQrReady && (
+            <p
+              style={{
+                margin: "0.3rem 0 0",
+                fontSize: "0.82rem",
+                color: "rgba(255,255,255,0.7)",
+              }}
+            >
+              Vincula el número de tu clínica para activar el asistente
+            </p>
+          )}
         </div>
       </div>
 
-      {error && (
-        <div className="alert alert-error" style={{ margin: "0 1rem" }}>
-          {error}
-        </div>
-      )}
+      {/* Cuerpo */}
+      <div style={{ padding: "1.5rem 1.75rem" }}>
+        {error && (
+          <div
+            style={{
+              background: "rgba(220,38,38,0.07)",
+              border: "1px solid rgba(220,38,38,0.2)",
+              borderRadius: "var(--r-md)",
+              padding: "0.75rem 1rem",
+              fontSize: "0.875rem",
+              color: "#dc2626",
+              marginBottom: "1.25rem",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-      <div className="card-body">
         {stage === "idle" && (
-          <div>
-            <p
-              className="text-muted"
-              style={{ marginBottom: "1rem", fontSize: "0.9rem" }}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                fontSize: "0.875rem",
+                color: "var(--text-secondary)",
+              }}
             >
-              Conecta el número de WhatsApp de tu clínica para activar el
-              asistente virtual de respuesta automática.
-            </p>
-            <button className="btn btn-primary" onClick={handleConnect}>
-              Conectar WhatsApp
+              {[
+                "Respuesta automática 24/7",
+                "Sin costos por mensaje",
+                "Configuración en 1 minuto",
+              ].map((feat) => (
+                <span
+                  key={feat}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                  }}
+                >
+                  <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+                    ✓
+                  </span>
+                  {feat}
+                </span>
+              ))}
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handleConnect}
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <span>📱</span> Conectar WhatsApp
             </button>
           </div>
         )}
 
         {stage === "connecting" && (
-          <p className="text-muted">Generando código QR...</p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              color: "var(--text-secondary)",
+              fontSize: "0.9rem",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 18,
+                height: 18,
+                border: "2px solid var(--accent)",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 0.7s linear infinite",
+              }}
+            />
+            Generando código QR...
+          </div>
         )}
 
         {stage === "qr_ready" && qrCode && (
-          <div style={{ textAlign: "center" }}>
-            <p
-              className="text-muted"
-              style={{ marginBottom: "0.75rem", fontSize: "0.88rem" }}
-            >
-              Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo →
-              Escanea el QR
-            </p>
-            <img
-              src={
-                qrCode.startsWith("data:")
-                  ? qrCode
-                  : `data:image/png;base64,${qrCode}`
-              }
-              alt="WhatsApp QR Code"
+          <div
+            style={{
+              display: "flex",
+              gap: "2rem",
+              alignItems: "flex-start",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* QR Code */}
+            <div
               style={{
-                width: 220,
-                height: 220,
-                border: "2px solid var(--border)",
-                borderRadius: 8,
+                flexShrink: 0,
+                background: "white",
+                borderRadius: "var(--r-lg)",
+                padding: "0.75rem",
+                boxShadow: "var(--shadow-md)",
+                border: "1px solid var(--border)",
               }}
-            />
-            <p
-              className="text-muted"
-              style={{ marginTop: "0.5rem", fontSize: "0.82rem" }}
             >
-              El código expira en {countdown}s
-            </p>
-            <button
-              className="btn btn-ghost"
-              onClick={handleCancelQR}
-              style={{ marginTop: "0.5rem" }}
-            >
-              Cancelar
-            </button>
+              <img
+                src={
+                  qrCode.startsWith("data:")
+                    ? qrCode
+                    : `data:image/png;base64,${qrCode}`
+                }
+                alt="WhatsApp QR Code"
+                style={{ width: 200, height: 200, display: "block" }}
+              />
+            </div>
+
+            {/* Instrucciones */}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <p
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  color: "var(--text-primary)",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                Escanea con tu teléfono
+              </p>
+              {[
+                "Abre WhatsApp en tu teléfono",
+                "Ve a Dispositivos vinculados",
+                "Toca Vincular dispositivo",
+                "Apunta la cámara al QR",
+              ].map((step, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "0.6rem",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: "var(--accent-soft)",
+                      border: "1px solid var(--accent-border)",
+                      color: "var(--accent)",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      marginTop: 1,
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {step}
+                  </span>
+                </div>
+              ))}
+
+              <div
+                style={{
+                  marginTop: "1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  fontSize: "0.82rem",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: countdown > 30 ? "#16a34a" : "#f59e0b",
+                  }}
+                />
+                Expira en {countdown}s
+              </div>
+
+              <button
+                className="btn btn-ghost"
+                onClick={handleCancelQR}
+                style={{ marginTop: "0.75rem", fontSize: "0.875rem" }}
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         )}
 
         {stage === "connected" && (
-          <div>
-            <p
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}
+          >
+            <div
               style={{
-                marginBottom: "1rem",
-                color: "var(--success, #16a34a)",
-                fontSize: "0.9rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.25rem",
               }}
             >
-              WhatsApp conectado y activo. El asistente responde mensajes
-              entrantes automáticamente.
-            </p>
+              {phoneNumber && (
+                <p
+                  style={{
+                    fontSize: "1.1rem",
+                    fontWeight: 700,
+                    color: "var(--text-primary)",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {phoneNumber}
+                </p>
+              )}
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                El asistente responde mensajes entrantes automáticamente.
+              </p>
+            </div>
             <button
               className="btn btn-ghost"
               onClick={handleDisconnect}
-              style={{ color: "var(--error, #dc2626)" }}
+              style={{
+                color: "#dc2626",
+                border: "1px solid rgba(220,38,38,0.2)",
+                fontSize: "0.875rem",
+              }}
             >
               Desconectar
             </button>
@@ -223,9 +532,40 @@ export function WhatsAppConnect({ token }: Props) {
         )}
 
         {stage === "disconnecting" && (
-          <p className="text-muted">Desconectando...</p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              color: "var(--text-secondary)",
+              fontSize: "0.9rem",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 18,
+                height: 18,
+                border: "2px solid var(--text-muted)",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 0.7s linear infinite",
+              }}
+            />
+            Desconectando...
+          </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulseLive {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+          50% { box-shadow: 0 0 0 4px rgba(74,222,128,0); }
+        }
+      `}</style>
     </div>
   );
 }

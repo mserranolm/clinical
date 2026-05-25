@@ -4,13 +4,14 @@ import "context"
 
 // WhatsAppConfig almacena la configuración de WhatsApp por organización.
 type WhatsAppConfig struct {
-	OrgID          string `dynamodbav:"PK"`
-	SK             string `dynamodbav:"SK"`
-	Connected      bool   `dynamodbav:"connected"`
-	InstanceName   string `dynamodbav:"instanceName"`
-	KnowledgeBase         string `dynamodbav:"knowledgeBase"`
-	WelcomeMessage        string `dynamodbav:"welcomeMessage"`
+	OrgID                 string   `dynamodbav:"PK"`
+	SK                    string   `dynamodbav:"SK"`
+	Connected             bool     `dynamodbav:"connected"`
+	InstanceName          string   `dynamodbav:"instanceName"`
+	KnowledgeBase         string   `dynamodbav:"knowledgeBase"`
+	WelcomeMessage        string   `dynamodbav:"welcomeMessage"`
 	AssistantInstructions string   `dynamodbav:"assistantInstructions"`
+	BotDisabled           bool     `dynamodbav:"botDisabled"` // false = activo (default seguro para registros existentes)
 	BotMode               string   `dynamodbav:"botMode"`
 	BetaTestPhones        []string `dynamodbav:"betaTestPhones"`
 	UpdatedAt             string   `dynamodbav:"updatedAt"`
@@ -21,5 +22,5 @@ type WhatsAppRepository interface {
 	Get(ctx context.Context, orgID string) (*WhatsAppConfig, error)
 	Save(ctx context.Context, cfg *WhatsAppConfig) error
 	SetConnected(ctx context.Context, orgID string, connected bool) error
-	SetBotMode(ctx context.Context, orgID string, mode string, phones []string) error
+	SetBotMode(ctx context.Context, orgID string, enabled bool, mode string, phones []string) error
 }

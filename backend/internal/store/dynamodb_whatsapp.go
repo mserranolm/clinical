@@ -73,7 +73,7 @@ func (r *dynamoWhatsAppRepo) SetConnected(ctx context.Context, orgID string, con
 	return err
 }
 
-func (r *dynamoWhatsAppRepo) SetBotMode(ctx context.Context, orgID string, mode string, phones []string) error {
+func (r *dynamoWhatsAppRepo) SetBotMode(ctx context.Context, orgID string, enabled bool, mode string, phones []string) error {
 	if phones == nil {
 		phones = []string{}
 	}
@@ -87,8 +87,9 @@ func (r *dynamoWhatsAppRepo) SetBotMode(ctx context.Context, orgID string, mode 
 			"PK": &types.AttributeValueMemberS{Value: "ORG#" + orgID},
 			"SK": &types.AttributeValueMemberS{Value: whatsAppSK},
 		},
-		UpdateExpression: aws.String("SET botMode = :m, betaTestPhones = :p, updatedAt = :u"),
+		UpdateExpression: aws.String("SET botDisabled = :d, botMode = :m, betaTestPhones = :p, updatedAt = :u"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":d": &types.AttributeValueMemberBOOL{Value: !enabled},
 			":m": &types.AttributeValueMemberS{Value: mode},
 			":p": &types.AttributeValueMemberL{Value: phoneAttrs},
 			":u": &types.AttributeValueMemberS{Value: time.Now().UTC().Format(time.RFC3339)},

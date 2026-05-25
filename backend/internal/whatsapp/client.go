@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -117,6 +118,42 @@ func (c *Client) InstanceExists(instanceName string) bool {
 		}
 	}
 	return false
+}
+
+// GetOwnerPhone retorna el número de teléfono conectado a la instancia (ej. "+584120383478").
+func (c *Client) GetOwnerPhone(instanceName string) string {
+	var result []struct {
+		InstanceName string `json:"instanceName"`
+		Owner        string `json:"owner"`
+		OwnerJid     string `json:"ownerJid"`
+		Instance     struct {
+			Owner    string `json:"owner"`
+			OwnerJid string `json:"ownerJid"`
+		} `json:"instance"`
+	}
+	if err := c.get("/instance/fetchInstances", &result); err != nil {
+		return ""
+	}
+	for _, inst := range result {
+		if inst.InstanceName != instanceName {
+			continue
+		}
+		jid := inst.OwnerJid
+		if jid == "" {
+			jid = inst.Owner
+		}
+		if jid == "" {
+			jid = inst.Instance.OwnerJid
+		}
+		if jid == "" {
+			jid = inst.Instance.Owner
+		}
+		if idx := strings.Index(jid, "@"); idx > 0 {
+			return "+" + jid[:idx]
+		}
+		return jid
+	}
+	return ""
 }
 
 func (c *Client) post(path string, body, result interface{}) error {

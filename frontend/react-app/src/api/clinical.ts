@@ -802,8 +802,10 @@ export const clinicalApi = {
       connected: boolean;
       stage: string;
       instanceName: string;
+      botEnabled?: boolean;
       botMode?: BotMode;
       betaTestPhones?: string[];
+      phoneNumber?: string;
     }>(endpointCatalog.whatsAppStatus, { token }),
 
   whatsAppDisconnect: (token: string) =>
@@ -832,14 +834,20 @@ export const clinicalApi = {
     }),
 
   whatsAppSetBotMode: (
+    enabled: boolean,
     mode: BotMode,
     betaTestPhones: string[],
     token: string,
   ) =>
-    request<{ botMode: BotMode; betaTestPhones: string[] }>(
-      endpointCatalog.whatsAppSetBotMode,
-      { method: "PUT", body: { mode, betaTestPhones }, token },
-    ),
+    request<{
+      botEnabled: boolean;
+      botMode: BotMode;
+      betaTestPhones: string[];
+    }>(endpointCatalog.whatsAppSetBotMode, {
+      method: "PUT",
+      body: { enabled, mode, betaTestPhones },
+      token,
+    }),
 
   // Public appointment management (called from email link — no auth token)
   getPublicAppointmentInfo: (token: string) =>
