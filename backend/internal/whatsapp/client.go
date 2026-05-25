@@ -156,6 +156,23 @@ func (c *Client) GetOwnerPhone(instanceName string) string {
 	return ""
 }
 
+// GetMediaBase64 descarga el binario de un mensaje de media desde Evolution API.
+// rawData es el objeto completo del mensaje tal como llega en el webhook (payload.Data).
+func (c *Client) GetMediaBase64(instanceName string, rawData json.RawMessage) (base64data string, mimetype string, err error) {
+	body := map[string]interface{}{
+		"message":      rawData,
+		"convertToMp4": false,
+	}
+	var result struct {
+		Base64   string `json:"base64"`
+		Mimetype string `json:"mimetype"`
+	}
+	if err := c.post(fmt.Sprintf("/chat/getBase64FromMediaMessage/%s", instanceName), body, &result); err != nil {
+		return "", "", err
+	}
+	return result.Base64, result.Mimetype, nil
+}
+
 func (c *Client) post(path string, body, result interface{}) error {
 	return c.doRequest("POST", path, body, result)
 }

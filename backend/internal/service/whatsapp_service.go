@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -160,6 +162,29 @@ func (s *WhatsAppService) SaveKnowledge(ctx context.Context, orgID, knowledgeBas
 // SendTextToPatient envía texto de respuesta al número de WhatsApp del paciente.
 func (s *WhatsAppService) SendTextToPatient(_ context.Context, instanceName, phone, text string) error {
 	return s.evolution.SendText(instanceName, phone, text)
+}
+
+// DownloadMedia descarga el binario de un mensaje de media (imagen, audio, video, documento).
+// rawData es el payload.Data completo que llega del webhook de Evolution API.
+// Retorna los bytes del archivo, el mimetype y un error si falla.
+func (s *WhatsAppService) DownloadMedia(instanceName string, rawData json.RawMessage) ([]byte, string, error) {
+	b64, mime, err := s.evolution.GetMediaBase64(instanceName, rawData)
+	if err != nil {
+		return nil, "", fmt.Errorf("evolution media download: %w", err)
+	}
+	// Evolution puede devolver "data:image/jpeg;base64,..." o solo el base64 puro
+	if idx := strings.Index(b64, ","); idx >= 0 {
+		b64 = b64[idx+1:]
+	}
+	decoded, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		// intentar con RawStdEncoding (sin padding)
+		decoded, err = base64.RawStdEncoding.DecodeString(b64)
+		if err != nil {
+			return nil, "", fmt.Errorf("base64 decode: %w", err)
+		}
+	}
+	return decoded, mime, nil
 }
 
 // OrgIDFromInstance extrae el orgID del nombre de instancia (formato: clinical-{orgId}).

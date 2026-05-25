@@ -250,34 +250,113 @@ func (r *Router) handleWhatsAppSetBotMode(ctx context.Context, req events.APIGat
 	})
 }
 
-// auditWhatsAppMessage guarda el payload completo del mensaje en S3 para auditoría.
+// auditMediaType detecta si el rawData del webhook contiene media (imagen, audio, video, etc.).
+// Retorna el tipo ("image", "audio", "video", "document", "sticker") o "" si es texto puro.
+func auditMediaType(rawData json.RawMessage) string {
+	var outer struct {
+		Message map[string]json.RawMessage `json:"message"`
+	}
+	if err := json.Unmarshal(rawData, &outer); err != nil {
+		return ""
+	}
+	switch {
+	case outer.Message["imageMessage"] != nil:
+		return "image"
+	case outer.Message["audioMessage"] != nil:
+		return "audio"
+	case outer.Message["videoMessage"] != nil:
+		return "video"
+	case outer.Message["documentMessage"] != nil:
+		return "document"
+	case outer.Message["stickerMessage"] != nil:
+		return "sticker"
+	default:
+		return ""
+	}
+}
+
+// mimeToExt convierte un mimetype en extensión de archivo.
+func mimeToExt(mime string) string {
+	switch {
+	case strings.HasPrefix(mime, "image/jpeg"):
+		return ".jpg"
+	case strings.HasPrefix(mime, "image/png"):
+		return ".png"
+	case strings.HasPrefix(mime, "image/webp"):
+		return ".webp"
+	case strings.HasPrefix(mime, "audio/ogg"):
+		return ".ogg"
+	case strings.HasPrefix(mime, "audio/mpeg"), strings.HasPrefix(mime, "audio/mp4"):
+		return ".mp3"
+	case strings.HasPrefix(mime, "video/mp4"):
+		return ".mp4"
+	case strings.HasPrefix(mime, "application/pdf"):
+		return ".pdf"
+	default:
+		return ".bin"
+	}
+}
+
+// auditWhatsAppMessage guarda el mensaje completo en S3 organizado por número de teléfono.
+// Para mensajes con media (imagen, audio, video), también descarga y guarda el archivo binario.
 func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJid, msgID string, ts int64, rawData json.RawMessage) {
 	if r.auditS3Client == nil || r.auditBucket == "" {
 		return
 	}
-	date := time.Unix(ts, 0).UTC().Format("2006-01-02")
-	key := fmt.Sprintf("whatsapp/%s/%s/%s/%d_%s.json", instanceName, date, remoteJid, ts, msgID)
 
+	// Extraer número limpio del remoteJid (ej: "584120383478@s.whatsapp.net" → "584120383478")
+	phone := remoteJid
+	if idx := strings.Index(remoteJid, "@"); idx > 0 {
+		phone = remoteJid[:idx]
+	}
+
+	date := time.Unix(ts, 0).UTC().Format("2006-01-02")
+	baseKey := fmt.Sprintf("whatsapp/%s/%s/%d_%s", phone, date, ts, msgID)
+
+	// 1. Guardar JSON con el mensaje completo
 	envelope := map[string]interface{}{
 		"instanceName": instanceName,
 		"remoteJid":    remoteJid,
+		"phone":        phone,
 		"messageId":    msgID,
 		"timestamp":    ts,
 		"auditedAt":    time.Now().UTC().Format(time.RFC3339),
 		"data":         json.RawMessage(rawData),
 	}
-	payload, _ := json.Marshal(envelope)
-
-	_, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
+	jsonPayload, _ := json.Marshal(envelope)
+	if _, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(r.auditBucket),
-		Key:         aws.String(key),
-		Body:        bytes.NewReader(payload),
+		Key:         aws.String(baseKey + ".json"),
+		Body:        bytes.NewReader(jsonPayload),
 		ContentType: aws.String("application/json"),
-	})
-	if err != nil {
-		log.Printf("audit: s3 put failed key=%s: %v", key, err)
+	}); err != nil {
+		log.Printf("audit: json upload failed key=%s.json: %v", baseKey, err)
 	} else {
-		log.Printf("audit: saved key=%s", key)
+		log.Printf("audit: saved json key=%s.json", baseKey)
+	}
+
+	// 2. Detectar si hay media y descargarla
+	mediaType := auditMediaType(rawData)
+	if mediaType == "" || r.whatsApp == nil {
+		return
+	}
+
+	mediaBin, mime, err := r.whatsApp.DownloadMedia(instanceName, rawData)
+	if err != nil {
+		log.Printf("audit: media download failed msgId=%s type=%s: %v", msgID, mediaType, err)
+		return
+	}
+
+	ext := mimeToExt(mime)
+	if _, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(r.auditBucket),
+		Key:         aws.String(baseKey + ext),
+		Body:        bytes.NewReader(mediaBin),
+		ContentType: aws.String(mime),
+	}); err != nil {
+		log.Printf("audit: media upload failed key=%s%s: %v", baseKey, ext, err)
+	} else {
+		log.Printf("audit: saved media key=%s%s (%s, %d bytes)", baseKey, ext, mediaType, len(mediaBin))
 	}
 }
 
