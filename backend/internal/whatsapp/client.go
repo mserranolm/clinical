@@ -37,6 +37,7 @@ func NewClient(baseURL, apiKey string) *Client {
 func (c *Client) CreateInstance(instanceName, webhookURL string) error {
 	body := map[string]interface{}{
 		"instanceName": instanceName,
+		"integration":  "WHATSAPP-BAILEYS",
 		"qrcode":       true,
 		"webhook": map[string]interface{}{
 			"enabled":           true,
@@ -51,14 +52,12 @@ func (c *Client) CreateInstance(instanceName, webhookURL string) error {
 // GetQRCode obtiene el código QR base64 de una instancia.
 func (c *Client) GetQRCode(instanceName string) (string, error) {
 	var result struct {
-		QRCode struct {
-			Base64 string `json:"base64"`
-		} `json:"qrcode"`
+		Base64 string `json:"base64"`
 	}
 	if err := c.get(fmt.Sprintf("/instance/connect/%s", instanceName), &result); err != nil {
 		return "", err
 	}
-	return result.QRCode.Base64, nil
+	return result.Base64, nil
 }
 
 // GetConnectionState retorna el estado de conexión de una instancia.
