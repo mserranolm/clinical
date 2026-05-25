@@ -44,9 +44,25 @@ func (c *Client) CreateInstance(instanceName, webhookURL string) error {
 			"url":               webhookURL,
 			"webhook_by_events": false,
 			"events":            []string{"CONNECTION_UPDATE", "MESSAGES_UPSERT"},
+			"headers":           map[string]string{"apikey": c.apiKey},
 		},
 	}
 	return c.post("/instance/create", body, nil)
+}
+
+// SetWebhook actualiza la configuración del webhook de una instancia existente.
+func (c *Client) SetWebhook(instanceName, webhookURL string) error {
+	body := map[string]interface{}{
+		"webhook": map[string]interface{}{
+			"url":             webhookURL,
+			"enabled":         true,
+			"webhookByEvents": false,
+			"webhookBase64":   false,
+			"events":          []string{"CONNECTION_UPDATE", "MESSAGES_UPSERT"},
+			"headers":         map[string]string{"apikey": c.apiKey},
+		},
+	}
+	return c.post(fmt.Sprintf("/webhook/set/%s", instanceName), body, nil)
 }
 
 // GetQRCode obtiene el código QR base64 de una instancia.

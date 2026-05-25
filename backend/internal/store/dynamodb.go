@@ -129,6 +129,11 @@ func createTableIfNotExists(ctx context.Context, client *dynamodb.Client, tableN
 	})
 
 	if err != nil {
+		if strings.Contains(err.Error(), "AccessDeniedException") {
+			// Lambda role lacks DescribeTable on this table — assume it exists in prod.
+			log.Printf("Error checking table %s: %v", tableName, err)
+			return nil
+		}
 		if strings.Contains(err.Error(), "ResourceNotFoundException") ||
 			strings.Contains(err.Error(), "Requested resource not found") {
 			// Create table
