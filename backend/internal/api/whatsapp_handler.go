@@ -38,6 +38,10 @@ type evolutionConnectionData struct {
 	State string `json:"state"`
 }
 
+type evolutionMediaMsg struct {
+	Caption string `json:"caption"`
+}
+
 type evolutionMessageData struct {
 	Key struct {
 		RemoteJID string `json:"remoteJid"`
@@ -45,9 +49,52 @@ type evolutionMessageData struct {
 		ID        string `json:"id"`
 	} `json:"key"`
 	Message struct {
-		Conversation string `json:"conversation"`
+		Conversation        string             `json:"conversation"`
+		ExtendedTextMessage *struct {
+			Text string `json:"text"`
+		} `json:"extendedTextMessage"`
+		ImageMessage    *evolutionMediaMsg `json:"imageMessage"`
+		VideoMessage    *evolutionMediaMsg `json:"videoMessage"`
+		AudioMessage    *json.RawMessage   `json:"audioMessage"`
+		DocumentMessage *evolutionMediaMsg `json:"documentMessage"`
+		StickerMessage  *json.RawMessage   `json:"stickerMessage"`
 	} `json:"message"`
 	MessageTimestamp int64 `json:"messageTimestamp"`
+}
+
+// extractText devuelve el texto efectivo de cualquier tipo de mensaje WhatsApp.
+// Para imágenes/video sin caption devuelve un placeholder que el AI puede manejar.
+func extractText(data evolutionMessageData) string {
+	if t := strings.TrimSpace(data.Message.Conversation); t != "" {
+		return t
+	}
+	if data.Message.ExtendedTextMessage != nil {
+		if t := strings.TrimSpace(data.Message.ExtendedTextMessage.Text); t != "" {
+			return t
+		}
+	}
+	if data.Message.ImageMessage != nil {
+		if c := strings.TrimSpace(data.Message.ImageMessage.Caption); c != "" {
+			return c
+		}
+		return "[imagen]"
+	}
+	if data.Message.VideoMessage != nil {
+		if c := strings.TrimSpace(data.Message.VideoMessage.Caption); c != "" {
+			return c
+		}
+		return "[video]"
+	}
+	if data.Message.AudioMessage != nil {
+		return "[nota de voz]"
+	}
+	if data.Message.DocumentMessage != nil {
+		if c := strings.TrimSpace(data.Message.DocumentMessage.Caption); c != "" {
+			return "[documento] " + c
+		}
+		return "[documento]"
+	}
+	return ""
 }
 
 func (r *Router) handleWhatsAppConnect(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -144,7 +191,8 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 			go r.auditWhatsAppMessage(context.Background(), payload.Instance, data.Key.RemoteJID, data.Key.ID, ts, data.Key.FromMe, payload.Data)
 		}
 
-		if data.Key.FromMe || strings.TrimSpace(data.Message.Conversation) == "" {
+		text := extractText(data)
+		if data.Key.FromMe || text == "" {
 			return response(200, map[string]string{"status": "ignored"})
 		}
 		phone := strings.Split(data.Key.RemoteJID, "@")[0]
@@ -192,7 +240,7 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 			sqsMsg := whatsAppSQSMessage{
 				OrgID:        orgID,
 				Phone:        phone,
-				Message:      data.Message.Conversation,
+				Message:      text,
 				InstanceName: payload.Instance,
 			}
 			sqsBody, _ := json.Marshal(sqsMsg)
@@ -273,6 +321,21 @@ func auditMediaType(rawData json.RawMessage) string {
 	case outer.Message["stickerMessage"] != nil:
 		return "sticker"
 	default:
+		log.Printf("audit: no media detected in message fields: %v", func() []string {
+			keys := make([]string, 0)
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(rawData, &fields); err == nil {
+				var msg map[string]json.RawMessage
+				if m, ok := fields["message"]; ok {
+					if err2 := json.Unmarshal(m, &msg); err2 == nil {
+						for k := range msg {
+							keys = append(keys, k)
+						}
+					}
+				}
+			}
+			return keys
+		}())
 		return ""
 	}
 }
@@ -352,11 +415,16 @@ func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJ
 		return
 	}
 
+	dlCtx, dlCancel := context.WithTimeout(ctx, 25*time.Second)
+	defer dlCancel()
+	_ = dlCtx // usado implícitamente por DownloadMedia vía el cliente HTTP
+	log.Printf("audit: downloading media msgId=%s type=%s instance=%s", msgID, mediaType, instanceName)
 	mediaBin, mime, err := r.whatsApp.DownloadMedia(instanceName, rawData)
 	if err != nil {
 		log.Printf("audit: media download failed msgId=%s type=%s: %v", msgID, mediaType, err)
 		return
 	}
+	log.Printf("audit: media downloaded msgId=%s type=%s size=%d mime=%s", msgID, mediaType, len(mediaBin), mime)
 
 	ext := mimeToExt(mime)
 	if _, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
