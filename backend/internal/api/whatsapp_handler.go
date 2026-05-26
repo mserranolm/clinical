@@ -417,9 +417,8 @@ func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJ
 
 	dlCtx, dlCancel := context.WithTimeout(ctx, 25*time.Second)
 	defer dlCancel()
-	_ = dlCtx // usado implícitamente por DownloadMedia vía el cliente HTTP
 	log.Printf("audit: downloading media msgId=%s type=%s instance=%s", msgID, mediaType, instanceName)
-	mediaBin, mime, err := r.whatsApp.DownloadMedia(instanceName, rawData)
+	mediaBin, mime, err := r.whatsApp.DownloadMedia(dlCtx, instanceName, rawData)
 	if err != nil {
 		log.Printf("audit: media download failed msgId=%s type=%s: %v", msgID, mediaType, err)
 		return

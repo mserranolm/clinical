@@ -167,8 +167,8 @@ func (s *WhatsAppService) SendTextToPatient(_ context.Context, instanceName, pho
 // DownloadMedia descarga el binario de un mensaje de media (imagen, audio, video, documento).
 // rawData es el payload.Data completo que llega del webhook de Evolution API.
 // Retorna los bytes del archivo, el mimetype y un error si falla.
-func (s *WhatsAppService) DownloadMedia(instanceName string, rawData json.RawMessage) ([]byte, string, error) {
-	b64, mime, err := s.evolution.GetMediaBase64(instanceName, rawData)
+func (s *WhatsAppService) DownloadMedia(ctx context.Context, instanceName string, rawData json.RawMessage) ([]byte, string, error) {
+	b64, mime, err := s.evolution.GetMediaBase64(ctx, instanceName, rawData)
 	if err != nil {
 		return nil, "", fmt.Errorf("evolution media download: %w", err)
 	}

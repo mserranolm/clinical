@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -101,7 +102,7 @@ func (c *Client) SendText(instanceName, phone, text string) error {
 
 // DeleteInstance elimina una instancia de Evolution API.
 func (c *Client) DeleteInstance(instanceName string) error {
-	return c.doRequest("DELETE", fmt.Sprintf("/instance/delete/%s", instanceName), nil, nil)
+	return c.doRequest(context.Background(), "DELETE", fmt.Sprintf("/instance/delete/%s", instanceName), nil, nil)
 }
 
 // InstanceExists comprueba si una instancia ya existe.
@@ -158,7 +159,7 @@ func (c *Client) GetOwnerPhone(instanceName string) string {
 
 // GetMediaBase64 descarga el binario de un mensaje de media desde Evolution API.
 // rawData es el objeto completo del mensaje tal como llega en el webhook (payload.Data).
-func (c *Client) GetMediaBase64(instanceName string, rawData json.RawMessage) (base64data string, mimetype string, err error) {
+func (c *Client) GetMediaBase64(ctx context.Context, instanceName string, rawData json.RawMessage) (base64data string, mimetype string, err error) {
 	body := map[string]interface{}{
 		"message":      rawData,
 		"convertToMp4": false,
@@ -167,21 +168,25 @@ func (c *Client) GetMediaBase64(instanceName string, rawData json.RawMessage) (b
 		Base64   string `json:"base64"`
 		Mimetype string `json:"mimetype"`
 	}
-	if err := c.post(fmt.Sprintf("/chat/getBase64FromMediaMessage/%s", instanceName), body, &result); err != nil {
+	if err := c.postCtx(ctx, fmt.Sprintf("/chat/getBase64FromMediaMessage/%s", instanceName), body, &result); err != nil {
 		return "", "", err
 	}
 	return result.Base64, result.Mimetype, nil
 }
 
 func (c *Client) post(path string, body, result interface{}) error {
-	return c.doRequest("POST", path, body, result)
+	return c.doRequest(context.Background(), "POST", path, body, result)
+}
+
+func (c *Client) postCtx(ctx context.Context, path string, body, result interface{}) error {
+	return c.doRequest(ctx, "POST", path, body, result)
 }
 
 func (c *Client) get(path string, result interface{}) error {
-	return c.doRequest("GET", path, nil, result)
+	return c.doRequest(context.Background(), "GET", path, nil, result)
 }
 
-func (c *Client) doRequest(method, path string, body, result interface{}) error {
+func (c *Client) doRequest(ctx context.Context, method, path string, body, result interface{}) error {
 	var bodyBytes []byte
 	if body != nil {
 		var err error
@@ -191,7 +196,7 @@ func (c *Client) doRequest(method, path string, body, result interface{}) error 
 		}
 	}
 
-	req, err := http.NewRequest(method, c.baseURL+path, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("evolution: create request: %w", err)
 	}
