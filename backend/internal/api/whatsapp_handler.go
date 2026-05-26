@@ -133,13 +133,15 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 			return response(200, map[string]string{"status": "ignored_parse_error"})
 		}
 
-		// Auditoría: guardar TODOS los mensajes entrantes en S3 antes de cualquier filtro
-		if !data.Key.FromMe {
+		// Auditoría: guardar TODOS los mensajes (entrantes y salientes) en S3.
+		// Usamos context.Background() para que el goroutine no muera cuando el handler
+		// devuelve HTTP 200 y Lambda cancela el contexto del request.
+		{
 			ts := data.MessageTimestamp
 			if ts == 0 {
 				ts = time.Now().Unix()
 			}
-			go r.auditWhatsAppMessage(ctx, payload.Instance, data.Key.RemoteJID, data.Key.ID, ts, payload.Data)
+			go r.auditWhatsAppMessage(context.Background(), payload.Instance, data.Key.RemoteJID, data.Key.ID, ts, data.Key.FromMe, payload.Data)
 		}
 
 		if data.Key.FromMe || strings.TrimSpace(data.Message.Conversation) == "" {
@@ -298,8 +300,10 @@ func mimeToExt(mime string) string {
 }
 
 // auditWhatsAppMessage guarda el mensaje completo en S3 organizado por número de teléfono.
+// Captura mensajes entrantes (fromMe=false) y salientes (fromMe=true, ej: la doctora enviando).
 // Para mensajes con media (imagen, audio, video), también descarga y guarda el archivo binario.
-func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJid, msgID string, ts int64, rawData json.RawMessage) {
+// IMPORTANTE: recibe context.Background() para no ser cancelado cuando el handler devuelve.
+func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJid, msgID string, ts int64, fromMe bool, rawData json.RawMessage) {
 	if r.auditS3Client == nil || r.auditBucket == "" {
 		return
 	}
@@ -310,14 +314,21 @@ func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJ
 		phone = remoteJid[:idx]
 	}
 
+	// Prefijo direction para distinguir recibidos de enviados en el mismo folder
+	direction := "in"
+	if fromMe {
+		direction = "out"
+	}
+
 	date := time.Unix(ts, 0).UTC().Format("2006-01-02")
-	baseKey := fmt.Sprintf("whatsapp/%s/%s/%d_%s", phone, date, ts, msgID)
+	baseKey := fmt.Sprintf("whatsapp/%s/%s/%s_%d_%s", phone, date, direction, ts, msgID)
 
 	// 1. Guardar JSON con el mensaje completo
 	envelope := map[string]interface{}{
 		"instanceName": instanceName,
 		"remoteJid":    remoteJid,
 		"phone":        phone,
+		"fromMe":       fromMe,
 		"messageId":    msgID,
 		"timestamp":    ts,
 		"auditedAt":    time.Now().UTC().Format(time.RFC3339),
