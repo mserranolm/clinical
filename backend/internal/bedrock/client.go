@@ -157,3 +157,99 @@ func parseNovaResponse(body []byte) (string, error) {
 	}
 	return "", fmt.Errorf("bedrock: no text content in nova response")
 }
+
+// --- Opciones avanzadas de invocación ---
+
+// SystemBlock es un bloque del system prompt con soporte de cache_control.
+type SystemBlock struct {
+	Type         string        `json:"type"`
+	Text         string        `json:"text"`
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+// CacheControl activa el prompt caching de Anthropic para un bloque.
+type CacheControl struct {
+	Type string `json:"type"` // "ephemeral"
+}
+
+// InvokeOptions configura una llamada a Bedrock con control avanzado.
+type InvokeOptions struct {
+	ModelID      string        // Override del modelo (vacío = usa el modelo del cliente)
+	Temperature  float64       // Temperatura de inferencia (0 = omitir, usa default del modelo)
+	SystemBlocks []SystemBlock // Si no es nil, reemplaza systemPrompt con bloques cacheables (solo Anthropic)
+}
+
+func (c *Client) resolveModelID(opts InvokeOptions) string {
+	if opts.ModelID != "" {
+		return opts.ModelID
+	}
+	return c.modelID
+}
+
+// anthropicCachedRequest es el payload Anthropic con system como array de bloques.
+type anthropicCachedRequest struct {
+	AnthropicVersion string        `json:"anthropic_version"`
+	MaxTokens        int           `json:"max_tokens"`
+	Temperature      *float64      `json:"temperature,omitempty"`
+	System           []SystemBlock `json:"system,omitempty"`
+	Messages         []Message     `json:"messages"`
+}
+
+// InvokeWithOptions es como Invoke pero acepta modelo override, temperatura y prompt caching.
+// Si opts.SystemBlocks no es nil y el modelo es Anthropic, usa el formato de array con cache_control.
+func (c *Client) InvokeWithOptions(ctx context.Context, systemPrompt string, msgs []Message, opts InvokeOptions) (string, error) {
+	modelID := c.resolveModelID(opts)
+
+	isAnthropicModel := func(id string) bool {
+		lower := strings.ToLower(id)
+		return strings.Contains(lower, "anthropic") || strings.Contains(lower, "claude")
+	}
+
+	var bodyBytes []byte
+	var err error
+
+	if isAnthropicModel(modelID) {
+		req := anthropicCachedRequest{
+			AnthropicVersion: "bedrock-2023-05-31",
+			MaxTokens:        1024,
+			Messages:         msgs,
+		}
+		if opts.Temperature > 0 {
+			t := opts.Temperature
+			req.Temperature = &t
+		}
+		if len(opts.SystemBlocks) > 0 {
+			blocks := make([]SystemBlock, len(opts.SystemBlocks))
+			for i, b := range opts.SystemBlocks {
+				blocks[i] = b
+				if blocks[i].Type == "" {
+					blocks[i].Type = "text"
+				}
+			}
+			req.System = blocks
+		} else if systemPrompt != "" {
+			req.System = []SystemBlock{{Type: "text", Text: systemPrompt}}
+		}
+		bodyBytes, err = json.Marshal(req)
+	} else {
+		bodyBytes, err = json.Marshal(c.buildNovaRequest(systemPrompt, msgs))
+	}
+	if err != nil {
+		return "", fmt.Errorf("bedrock: marshal request: %w", err)
+	}
+
+	out, err := c.runtime.InvokeModel(ctx, &bedrockruntime.InvokeModelInput{
+		ModelId:     aws.String(modelID),
+		ContentType: aws.String("application/json"),
+		Accept:      aws.String("application/json"),
+		Body:        bodyBytes,
+	})
+	if err != nil {
+		return "", fmt.Errorf("bedrock: invoke model: %w", err)
+	}
+
+	if isAnthropicModel(modelID) {
+		return parseAnthropicResponse(out.Body)
+	}
+	return parseNovaResponse(out.Body)
+}
