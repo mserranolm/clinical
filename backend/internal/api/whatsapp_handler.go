@@ -145,14 +145,31 @@ func (r *Router) handleWhatsAppGetKnowledge(ctx context.Context, _ events.APIGat
 func (r *Router) handleWhatsAppSaveKnowledge(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	auth := ctx.Value(ctxAuthKey).(service.Authenticated)
 	var body struct {
-		KnowledgeBase         string `json:"knowledgeBase"`
-		WelcomeMessage        string `json:"welcomeMessage"`
-		AssistantInstructions string `json:"assistantInstructions"`
+		KnowledgeBase            string           `json:"knowledgeBase"`
+		WelcomeMessage           string           `json:"welcomeMessage"`
+		AssistantInstructions    string           `json:"assistantInstructions"`
+		CustomIdentity           string           `json:"customIdentity"`
+		Considerations           string           `json:"considerations"`
+		HandoffMode              store.HandoffMode `json:"handoffMode"`
+		OwnerNotificationChannel string           `json:"ownerNotificationChannel"`
+		ToneConfig               string           `json:"toneConfig"`
+		ModelTier                string           `json:"modelTier"`
 	}
 	if err := json.Unmarshal([]byte(req.Body), &body); err != nil {
 		return response(400, map[string]string{"error": "invalid_json"})
 	}
-	if err := r.whatsApp.SaveKnowledge(ctx, auth.User.OrgID, body.KnowledgeBase, body.WelcomeMessage, body.AssistantInstructions); err != nil {
+	saveReq := service.KnowledgeSaveRequest{
+		KnowledgeBase:            body.KnowledgeBase,
+		WelcomeMessage:           body.WelcomeMessage,
+		AssistantInstructions:    body.AssistantInstructions,
+		CustomIdentity:           body.CustomIdentity,
+		Considerations:           body.Considerations,
+		HandoffMode:              body.HandoffMode,
+		OwnerNotificationChannel: body.OwnerNotificationChannel,
+		ToneConfig:               body.ToneConfig,
+		ModelTier:                body.ModelTier,
+	}
+	if err := r.whatsApp.SaveKnowledge(ctx, auth.User.OrgID, saveReq); err != nil {
 		return response(500, map[string]string{"error": err.Error()})
 	}
 	return response(200, map[string]string{"status": "saved"})
@@ -231,6 +248,14 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 						return response(200, map[string]string{"status": "skipped_beta"})
 					}
 				}
+			}
+		}
+
+		// Si el número está esperando atención humana, el bot no interviene.
+		if r.whatsAppRepo != nil {
+			if awaiting, awaitErr := r.whatsAppRepo.IsAwaitingHuman(ctx, orgID, phone); awaitErr == nil && awaiting {
+				log.Printf("MSG_SKIP_AWAITING_HUMAN orgId=%s phone=%s", orgID, phone)
+				return response(200, map[string]string{"status": "awaiting_human"})
 			}
 		}
 

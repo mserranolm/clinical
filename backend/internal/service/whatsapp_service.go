@@ -127,35 +127,68 @@ func (s *WhatsAppService) Disconnect(ctx context.Context, orgID string) error {
 	return s.repo.SetConnected(ctx, orgID, false)
 }
 
-// KnowledgeResult es la Base de Conocimiento configurada.
-type KnowledgeResult struct {
-	KnowledgeBase         string `json:"knowledgeBase"`
-	WelcomeMessage        string `json:"welcomeMessage"`
-	AssistantInstructions string `json:"assistantInstructions"`
+// KnowledgeSaveRequest contiene todos los campos configurables del agente WhatsApp.
+type KnowledgeSaveRequest struct {
+	KnowledgeBase            string
+	WelcomeMessage           string
+	AssistantInstructions    string
+	CustomIdentity           string
+	Considerations           string
+	HandoffMode              store.HandoffMode
+	OwnerNotificationChannel string
+	ToneConfig               string
+	ModelTier                string
 }
 
-// GetKnowledge retorna la Base de Conocimiento.
+// KnowledgeResult es la configuración completa del agente devuelta al frontend.
+type KnowledgeResult struct {
+	KnowledgeBase            string                 `json:"knowledgeBase"`
+	WelcomeMessage           string                 `json:"welcomeMessage"`
+	AssistantInstructions    string                 `json:"assistantInstructions"`
+	CustomIdentity           string                 `json:"customIdentity,omitempty"`
+	Considerations           string                 `json:"considerations,omitempty"`
+	HandoffMode              store.HandoffMode      `json:"handoffMode,omitempty"`
+	OwnerNotificationChannel string                 `json:"ownerNotificationChannel,omitempty"`
+	ToneConfig               string                 `json:"toneConfig,omitempty"`
+	ModelTier                string                 `json:"modelTier,omitempty"`
+	HistoricalChats          []store.HistoricalChat `json:"historicalChats,omitempty"`
+}
+
+// GetKnowledge retorna la configuración completa del agente.
 func (s *WhatsAppService) GetKnowledge(ctx context.Context, orgID string) (*KnowledgeResult, error) {
 	cfg, err := s.repo.Get(ctx, orgID)
 	if err != nil {
 		return nil, err
 	}
 	return &KnowledgeResult{
-		KnowledgeBase:         cfg.KnowledgeBase,
-		WelcomeMessage:        cfg.WelcomeMessage,
-		AssistantInstructions: cfg.AssistantInstructions,
+		KnowledgeBase:            cfg.KnowledgeBase,
+		WelcomeMessage:           cfg.WelcomeMessage,
+		AssistantInstructions:    cfg.AssistantInstructions,
+		CustomIdentity:           cfg.CustomIdentity,
+		Considerations:           cfg.Considerations,
+		HandoffMode:              cfg.HandoffMode,
+		OwnerNotificationChannel: cfg.OwnerNotificationChannel,
+		ToneConfig:               cfg.ToneConfig,
+		ModelTier:                cfg.ModelTier,
+		HistoricalChats:          cfg.HistoricalChats,
 	}, nil
 }
 
-// SaveKnowledge persiste la Base de Conocimiento.
-func (s *WhatsAppService) SaveKnowledge(ctx context.Context, orgID, knowledgeBase, welcomeMessage, assistantInstructions string) error {
+// SaveKnowledge persiste la configuración completa del agente.
+func (s *WhatsAppService) SaveKnowledge(ctx context.Context, orgID string, req KnowledgeSaveRequest) error {
 	cfg, err := s.repo.Get(ctx, orgID)
 	if err != nil {
 		return err
 	}
-	cfg.KnowledgeBase = strings.TrimSpace(knowledgeBase)
-	cfg.WelcomeMessage = strings.TrimSpace(welcomeMessage)
-	cfg.AssistantInstructions = strings.TrimSpace(assistantInstructions)
+	cfg.KnowledgeBase = strings.TrimSpace(req.KnowledgeBase)
+	cfg.WelcomeMessage = strings.TrimSpace(req.WelcomeMessage)
+	cfg.AssistantInstructions = strings.TrimSpace(req.AssistantInstructions)
+	cfg.CustomIdentity = strings.TrimSpace(req.CustomIdentity)
+	cfg.Considerations = strings.TrimSpace(req.Considerations)
+	cfg.HandoffMode = req.HandoffMode
+	cfg.OwnerNotificationChannel = strings.TrimSpace(req.OwnerNotificationChannel)
+	cfg.ToneConfig = strings.TrimSpace(req.ToneConfig)
+	cfg.ModelTier = strings.TrimSpace(req.ModelTier)
 	return s.repo.Save(ctx, cfg)
 }
 
