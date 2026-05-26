@@ -107,13 +107,13 @@ func (c *Client) DeleteInstance(instanceName string) error {
 // InstanceExists comprueba si una instancia ya existe.
 func (c *Client) InstanceExists(instanceName string) bool {
 	var result []struct {
-		InstanceName string `json:"instanceName"`
+		Name string `json:"name"`
 	}
 	if err := c.get("/instance/fetchInstances", &result); err != nil {
 		return false
 	}
 	for _, inst := range result {
-		if inst.InstanceName == instanceName {
+		if inst.Name == instanceName {
 			return true
 		}
 	}
@@ -123,10 +123,10 @@ func (c *Client) InstanceExists(instanceName string) bool {
 // GetOwnerPhone retorna el número de teléfono conectado a la instancia (ej. "+584120383478").
 func (c *Client) GetOwnerPhone(instanceName string) string {
 	var result []struct {
-		InstanceName string `json:"instanceName"`
-		Owner        string `json:"owner"`
-		OwnerJid     string `json:"ownerJid"`
-		Instance     struct {
+		Name     string `json:"name"`
+		Owner    string `json:"owner"`
+		OwnerJid string `json:"ownerJid"`
+		Instance struct {
 			Owner    string `json:"owner"`
 			OwnerJid string `json:"ownerJid"`
 		} `json:"instance"`
@@ -135,7 +135,7 @@ func (c *Client) GetOwnerPhone(instanceName string) string {
 		return ""
 	}
 	for _, inst := range result {
-		if inst.InstanceName != instanceName {
+		if inst.Name != instanceName {
 			continue
 		}
 		jid := inst.OwnerJid
