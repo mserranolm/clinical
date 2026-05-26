@@ -153,3 +153,65 @@ func (r *dynamoWhatsAppRepo) SetBotMode(ctx context.Context, orgID string, enabl
 	}
 	return nil
 }
+
+// awaitingHumanItem representa el ítem DynamoDB para el estado AWAITING_HUMAN.
+type awaitingHumanItem struct {
+	PK        string `dynamodbav:"PK"`
+	SK        string `dynamodbav:"SK"`
+	Reason    string `dynamodbav:"reason"`
+	CreatedAt string `dynamodbav:"createdAt"`
+	TTL       int64  `dynamodbav:"ttl"`
+}
+
+func awaitingHumanSK(phone string) string {
+	return "AWAITING_HUMAN#" + phone
+}
+
+// MarkAwaitingHuman registra que el número `phone` necesita atención humana.
+// El ítem expira automáticamente 72 horas después (requiere TTL habilitado en la tabla).
+func (r *dynamoWhatsAppRepo) MarkAwaitingHuman(ctx context.Context, orgID, phone, reason string) error {
+	now := time.Now().UTC()
+	item := awaitingHumanItem{
+		PK:        "ORG#" + orgID,
+		SK:        awaitingHumanSK(phone),
+		Reason:    reason,
+		CreatedAt: now.Format(time.RFC3339),
+		TTL:       now.Add(72 * time.Hour).Unix(),
+	}
+	av, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		return fmt.Errorf("whatsapp awaiting marshal: %w", err)
+	}
+	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      av,
+	})
+	return err
+}
+
+// IsAwaitingHuman retorna true si el número `phone` tiene un handoff pendiente.
+func (r *dynamoWhatsAppRepo) IsAwaitingHuman(ctx context.Context, orgID, phone string) (bool, error) {
+	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "ORG#" + orgID},
+			"SK": &types.AttributeValueMemberS{Value: awaitingHumanSK(phone)},
+		},
+	})
+	if err != nil {
+		return false, fmt.Errorf("whatsapp awaiting get: %w", err)
+	}
+	return result.Item != nil, nil
+}
+
+// ClearAwaitingHuman elimina el estado AWAITING_HUMAN para que el bot retome la conversación.
+func (r *dynamoWhatsAppRepo) ClearAwaitingHuman(ctx context.Context, orgID, phone string) error {
+	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "ORG#" + orgID},
+			"SK": &types.AttributeValueMemberS{Value: awaitingHumanSK(phone)},
+		},
+	})
+	return err
+}
