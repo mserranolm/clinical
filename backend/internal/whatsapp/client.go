@@ -159,10 +159,34 @@ func (c *Client) GetOwnerPhone(instanceName string) string {
 
 // GetMediaBase64 descarga el binario de un mensaje de media desde Evolution API.
 // rawData es el objeto completo del mensaje tal como llega en el webhook (payload.Data).
+// Evolution API solo necesita message.key (remoteJid, fromMe, id) para buscar el media en WhatsApp CDN.
 func (c *Client) GetMediaBase64(ctx context.Context, instanceName string, rawData json.RawMessage) (base64data string, mimetype string, err error) {
+	// Extraer solo la key del mensaje — enviar el rawData completo hace que el endpoint falle/timeout
+	var envelope struct {
+		Key struct {
+			RemoteJID string `json:"remoteJid"`
+			FromMe    bool   `json:"fromMe"`
+			ID        string `json:"id"`
+		} `json:"key"`
+	}
+	if err := json.Unmarshal(rawData, &envelope); err != nil {
+		return "", "", fmt.Errorf("evolution media: parse key: %w", err)
+	}
+
+	// Asegurar que remoteJid tiene el sufijo @s.whatsapp.net si es número directo
+	remoteJid := envelope.Key.RemoteJID
+	if !strings.Contains(remoteJid, "@") {
+		remoteJid = remoteJid + "@s.whatsapp.net"
+	}
+
 	body := map[string]interface{}{
-		"message":      rawData,
-		"convertToMp4": false,
+		"message": map[string]interface{}{
+			"key": map[string]interface{}{
+				"remoteJid": remoteJid,
+				"fromMe":    envelope.Key.FromMe,
+				"id":        envelope.Key.ID,
+			},
+		},
 	}
 	var result struct {
 		Base64   string `json:"base64"`
