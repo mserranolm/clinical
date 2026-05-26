@@ -165,6 +165,12 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:clinical/*"
 
+              # SQS - needed for EventSourceMapping (Lambda trigger) management
+              - Effect: Allow
+                Action:
+                  - sqs:*
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:clinical-*"
+
   # CodeBuild Project for Backend
   BackendCodeBuildProject:
     Type: AWS::CodeBuild::Project
