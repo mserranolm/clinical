@@ -1,21 +1,18 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
 	"strings"
-	"time"
 
 	"clinical-backend/internal/service"
 	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
@@ -95,6 +92,18 @@ func extractText(data evolutionMessageData) string {
 		return "[documento]"
 	}
 	return ""
+}
+
+// parseAssistantSignal parsea la respuesta del AI para detectar señales de control.
+// Retorna ("handoff", "") si el modelo emitió [HANDOFF].
+// Retorna ("answer", texto) en cualquier otro caso.
+func parseAssistantSignal(reply string) (signal, cleanReply string) {
+	trimmed := strings.TrimSpace(reply)
+	if strings.HasPrefix(trimmed, "[HANDOFF]") {
+		return "handoff", ""
+	}
+	clean := strings.TrimPrefix(trimmed, "[ANSWER]")
+	return "answer", strings.TrimSpace(clean)
 }
 
 func (r *Router) handleWhatsAppConnect(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -178,17 +187,6 @@ func (r *Router) handleWhatsAppWebhook(ctx context.Context, req events.APIGatewa
 		var data evolutionMessageData
 		if err := json.Unmarshal(payload.Data, &data); err != nil {
 			return response(200, map[string]string{"status": "ignored_parse_error"})
-		}
-
-		// Auditoría: guardar TODOS los mensajes (entrantes y salientes) en S3.
-		// Usamos context.Background() para que el goroutine no muera cuando el handler
-		// devuelve HTTP 200 y Lambda cancela el contexto del request.
-		{
-			ts := data.MessageTimestamp
-			if ts == 0 {
-				ts = time.Now().Unix()
-			}
-			go r.auditWhatsAppMessage(context.Background(), payload.Instance, data.Key.RemoteJID, data.Key.ID, ts, data.Key.FromMe, payload.Data)
 		}
 
 		text := extractText(data)
@@ -300,158 +298,6 @@ func (r *Router) handleWhatsAppSetBotMode(ctx context.Context, req events.APIGat
 	})
 }
 
-// auditMediaType detecta si el rawData del webhook contiene media (imagen, audio, video, etc.).
-// Retorna el tipo ("image", "audio", "video", "document", "sticker") o "" si es texto puro.
-func auditMediaType(rawData json.RawMessage) string {
-	var outer struct {
-		Message map[string]json.RawMessage `json:"message"`
-	}
-	if err := json.Unmarshal(rawData, &outer); err != nil {
-		return ""
-	}
-	switch {
-	case outer.Message["imageMessage"] != nil:
-		return "image"
-	case outer.Message["audioMessage"] != nil:
-		return "audio"
-	case outer.Message["videoMessage"] != nil:
-		return "video"
-	case outer.Message["documentMessage"] != nil:
-		return "document"
-	case outer.Message["stickerMessage"] != nil:
-		return "sticker"
-	default:
-		log.Printf("audit: no media detected in message fields: %v", func() []string {
-			keys := make([]string, 0)
-			var fields map[string]json.RawMessage
-			if err := json.Unmarshal(rawData, &fields); err == nil {
-				var msg map[string]json.RawMessage
-				if m, ok := fields["message"]; ok {
-					if err2 := json.Unmarshal(m, &msg); err2 == nil {
-						for k := range msg {
-							keys = append(keys, k)
-						}
-					}
-				}
-			}
-			return keys
-		}())
-		return ""
-	}
-}
-
-// mimeToExt convierte un mimetype en extensión de archivo.
-func mimeToExt(mime string) string {
-	switch {
-	case strings.HasPrefix(mime, "image/jpeg"):
-		return ".jpg"
-	case strings.HasPrefix(mime, "image/png"):
-		return ".png"
-	case strings.HasPrefix(mime, "image/webp"):
-		return ".webp"
-	case strings.HasPrefix(mime, "audio/ogg"):
-		return ".ogg"
-	case strings.HasPrefix(mime, "audio/mpeg"), strings.HasPrefix(mime, "audio/mp4"):
-		return ".mp3"
-	case strings.HasPrefix(mime, "video/mp4"):
-		return ".mp4"
-	case strings.HasPrefix(mime, "application/pdf"):
-		return ".pdf"
-	default:
-		return ".bin"
-	}
-}
-
-// auditWhatsAppMessage guarda el mensaje completo en S3 organizado por número de teléfono.
-// Captura mensajes entrantes (fromMe=false) y salientes (fromMe=true, ej: la doctora enviando).
-// Para mensajes con media (imagen, audio, video), también descarga y guarda el archivo binario.
-// IMPORTANTE: recibe context.Background() para no ser cancelado cuando el handler devuelve.
-func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJid, msgID string, ts int64, fromMe bool, rawData json.RawMessage) {
-	if r.auditS3Client == nil || r.auditBucket == "" {
-		return
-	}
-
-	// Extraer número limpio del remoteJid (ej: "584120383478@s.whatsapp.net" → "584120383478")
-	phone := remoteJid
-	if idx := strings.Index(remoteJid, "@"); idx > 0 {
-		phone = remoteJid[:idx]
-	}
-
-	// Prefijo direction para distinguir recibidos de enviados en el mismo folder
-	direction := "in"
-	if fromMe {
-		direction = "out"
-	}
-
-	date := time.Unix(ts, 0).UTC().Format("2006-01-02")
-	baseKey := fmt.Sprintf("whatsapp/%s/%s/%s_%d_%s", phone, date, direction, ts, msgID)
-
-	// 1. Guardar JSON con el mensaje completo
-	envelope := map[string]interface{}{
-		"instanceName": instanceName,
-		"remoteJid":    remoteJid,
-		"phone":        phone,
-		"fromMe":       fromMe,
-		"messageId":    msgID,
-		"timestamp":    ts,
-		"auditedAt":    time.Now().UTC().Format(time.RFC3339),
-		"data":         json.RawMessage(rawData),
-	}
-	jsonPayload, _ := json.Marshal(envelope)
-	if _, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(r.auditBucket),
-		Key:         aws.String(baseKey + ".json"),
-		Body:        bytes.NewReader(jsonPayload),
-		ContentType: aws.String("application/json"),
-	}); err != nil {
-		log.Printf("audit: json upload failed key=%s.json: %v", baseKey, err)
-	} else {
-		log.Printf("audit: saved json key=%s.json", baseKey)
-	}
-
-	// 2. Detectar si hay media y descargarla
-	mediaType := auditMediaType(rawData)
-	if mediaType == "" || r.whatsApp == nil {
-		return
-	}
-
-	// Retry hasta 2 veces: en cold-start de Lambda el contexto puede expirar durante la congelación
-	// antes de que el DNS resuelva. El segundo intento usa el DNS ya cacheado por el primero.
-	log.Printf("audit: downloading media msgId=%s type=%s instance=%s", msgID, mediaType, instanceName)
-	var mediaBin []byte
-	var mime string
-	var downloadErr error
-	for attempt := 1; attempt <= 2; attempt++ {
-		dlCtx, dlCancel := context.WithTimeout(ctx, 45*time.Second)
-		mediaBin, mime, downloadErr = r.whatsApp.DownloadMedia(dlCtx, instanceName, rawData)
-		dlCancel()
-		if downloadErr == nil {
-			break
-		}
-		log.Printf("audit: media download attempt=%d failed msgId=%s type=%s: %v", attempt, msgID, mediaType, downloadErr)
-		if attempt < 2 {
-			time.Sleep(3 * time.Second)
-		}
-	}
-	if downloadErr != nil {
-		log.Printf("audit: media download failed after retries msgId=%s type=%s: %v", msgID, mediaType, downloadErr)
-		return
-	}
-	log.Printf("audit: media downloaded msgId=%s type=%s size=%d mime=%s", msgID, mediaType, len(mediaBin), mime)
-
-	ext := mimeToExt(mime)
-	if _, err := r.auditS3Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(r.auditBucket),
-		Key:         aws.String(baseKey + ext),
-		Body:        bytes.NewReader(mediaBin),
-		ContentType: aws.String(mime),
-	}); err != nil {
-		log.Printf("audit: media upload failed key=%s%s: %v", baseKey, ext, err)
-	} else {
-		log.Printf("audit: saved media key=%s%s (%s, %d bytes)", baseKey, ext, mediaType, len(mediaBin))
-	}
-}
-
 // ProcessWhatsAppSQSRecord procesa un mensaje SQS del worker de WhatsApp.
 func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *service.WhatsAppService, aiSvc *service.WhatsAppAIService, repo store.WhatsAppRepository, authRepo store.AuthRepository) error {
 	if whatsAppSvc == nil || aiSvc == nil || repo == nil {
@@ -477,7 +323,7 @@ func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *ser
 		}
 	}
 
-	// Leer historial reciente (no bloqueante: ignorar errores para no perder el mensaje).
+	// Leer historial reciente (no bloqueante).
 	history, _ := repo.GetRecentConversation(ctx, msg.OrgID, msg.Phone, 10)
 
 	// Guardar turno del usuario antes de llamar al AI.
@@ -485,15 +331,30 @@ func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *ser
 		log.Printf("whatsapp worker: save user turn: %v", saveErr)
 	}
 
-	aiResponse, err := aiSvc.GenerateResponse(ctx, clinicName, cfg.KnowledgeBase, cfg.AssistantInstructions, history, msg.Message)
+	rawResponse, err := aiSvc.GenerateResponse(ctx, cfg, clinicName, history, msg.Message)
 	if err != nil {
 		return err
 	}
 
-	// Guardar turno del asistente (no bloqueante).
-	if saveErr := repo.SaveConversationTurn(ctx, msg.OrgID, msg.Phone, "assistant", aiResponse); saveErr != nil {
-		log.Printf("whatsapp worker: save assistant turn: %v", saveErr)
-	}
+	signal, cleanReply := parseAssistantSignal(rawResponse)
 
-	return whatsAppSvc.SendTextToPatient(ctx, msg.InstanceName, msg.Phone, aiResponse)
+	switch signal {
+	case "handoff":
+		if markErr := repo.MarkAwaitingHuman(ctx, msg.OrgID, msg.Phone, "no_kb_match"); markErr != nil {
+			log.Printf("whatsapp worker: mark awaiting human: %v", markErr)
+		}
+		if cfg.HandoffMode == store.HandoffNotifyOwner && cfg.OwnerNotificationChannel != "" {
+			notif := fmt.Sprintf("⚠️ El paciente %s requiere atención humana (WhatsApp).", msg.Phone)
+			if sendErr := whatsAppSvc.SendTextToPatient(ctx, msg.InstanceName, cfg.OwnerNotificationChannel, notif); sendErr != nil {
+				log.Printf("whatsapp worker: notify owner: %v", sendErr)
+			}
+		}
+		return nil
+
+	default: // "answer"
+		if saveErr := repo.SaveConversationTurn(ctx, msg.OrgID, msg.Phone, "assistant", cleanReply); saveErr != nil {
+			log.Printf("whatsapp worker: save assistant turn: %v", saveErr)
+		}
+		return whatsAppSvc.SendTextToPatient(ctx, msg.InstanceName, msg.Phone, cleanReply)
+	}
 }
