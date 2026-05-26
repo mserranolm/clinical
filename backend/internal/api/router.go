@@ -14,7 +14,6 @@ import (
 	"clinical-backend/internal/store"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
@@ -147,8 +146,6 @@ type Router struct {
 	sqsClient             *sqs.Client
 	whatsAppQueueURL      string
 	whatsAppWebhookSecret string
-	auditS3Client         *s3.Client
-	auditBucket           string
 }
 
 func (r *Router) resendAppointmentConfirmation(ctx context.Context, id string, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -188,8 +185,6 @@ type RouterOptions struct {
 	SQSClient             *sqs.Client
 	WhatsAppQueueURL      string
 	WhatsAppWebhookSecret string
-	AuditS3Client         *s3.Client
-	AuditBucket           string
 }
 
 func NewRouter(appointments *service.AppointmentService, patients *service.PatientService, consents *service.ConsentService, auth *service.AuthService, odontogram *OdontogramHandler, payments *service.PaymentService, budgets *service.BudgetService, chat *service.ChatService, platformSettings *service.PlatformSettingsService, opts ...RouterOptions) *Router {
@@ -211,8 +206,6 @@ func NewRouter(appointments *service.AppointmentService, patients *service.Patie
 		r.sqsClient = o.SQSClient
 		r.whatsAppQueueURL = o.WhatsAppQueueURL
 		r.whatsAppWebhookSecret = o.WhatsAppWebhookSecret
-		r.auditS3Client = o.AuditS3Client
-		r.auditBucket = o.AuditBucket
 	}
 	return r
 }

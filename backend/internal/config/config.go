@@ -41,8 +41,6 @@ type Config struct {
 	WhatsAppModelID      string
 	WhatsAppQueueURL     string
 	APIGatewayURL        string
-	WhatsAppAuditEnabled bool
-	WhatsAppAuditBucket  string
 }
 
 func Load() Config {
@@ -92,8 +90,6 @@ func Load() Config {
 		WhatsAppModelID:      getEnv("WHATSAPP_MODEL_ID", "us.anthropic.claude-sonnet-4-6"),
 		WhatsAppQueueURL:     getEnv("WHATSAPP_QUEUE_URL", ""),
 		APIGatewayURL:        getEnv("API_GATEWAY_URL", ""),
-		WhatsAppAuditEnabled: getEnv("WHATSAPP_AUDIT_ENABLED", "false") == "true",
-		WhatsAppAuditBucket:  getEnv("WHATSAPP_AUDIT_BUCKET", ""),
 	}
 }
 
