@@ -319,7 +319,7 @@ Resources:
       Timeout: 120
       MemorySize: 512
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref WhatsAppConfigTable
         - Statement:
             - Effect: Allow
