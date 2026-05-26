@@ -214,7 +214,6 @@ export function BotModeSelector({ token }: Props) {
               }}
               style={{
                 flex: "1 1 0",
-                minWidth: 0,
                 padding: "1rem",
                 borderRadius: "var(--r-lg)",
                 border: `2px solid ${mode === "beta" ? "#f59e0b" : "var(--border-strong)"}`,
@@ -225,11 +224,32 @@ export function BotModeSelector({ token }: Props) {
                 cursor: "pointer",
                 transition: "all 0.18s ease",
                 textAlign: "left",
-                overflow: "hidden",
               }}
             >
-              <div style={{ fontSize: "1.25rem", marginBottom: "0.4rem" }}>
-                🧪
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                <span style={{ fontSize: "1.25rem" }}>🧪</span>
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    border: `2px solid ${mode === "beta" ? "#f59e0b" : "var(--border-strong)"}`,
+                    background: mode === "beta" ? "#f59e0b" : "transparent",
+                    flexShrink: 0,
+                    marginTop: 2,
+                    boxShadow:
+                      mode === "beta"
+                        ? "inset 0 0 0 3px var(--surface-2)"
+                        : "none",
+                  }}
+                />
               </div>
               <div
                 style={{
@@ -237,9 +257,6 @@ export function BotModeSelector({ token }: Props) {
                   fontWeight: 700,
                   color: mode === "beta" ? "#d97706" : "var(--text-primary)",
                   marginBottom: "0.2rem",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
                 }}
               >
                 Beta
@@ -251,7 +268,7 @@ export function BotModeSelector({ token }: Props) {
                   lineHeight: 1.4,
                 }}
               >
-                Solo números
+                Solo números configurados
               </div>
             </button>
 
@@ -262,7 +279,6 @@ export function BotModeSelector({ token }: Props) {
               }}
               style={{
                 flex: "1 1 0",
-                minWidth: 0,
                 padding: "1rem",
                 borderRadius: "var(--r-lg)",
                 border: `2px solid ${mode === "production" ? "var(--accent)" : "var(--border-strong)"}`,
@@ -273,11 +289,33 @@ export function BotModeSelector({ token }: Props) {
                 cursor: "pointer",
                 transition: "all 0.18s ease",
                 textAlign: "left",
-                overflow: "hidden",
               }}
             >
-              <div style={{ fontSize: "1.25rem", marginBottom: "0.4rem" }}>
-                🌍
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                <span style={{ fontSize: "1.25rem" }}>🌍</span>
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    border: `2px solid ${mode === "production" ? "var(--accent)" : "var(--border-strong)"}`,
+                    background:
+                      mode === "production" ? "var(--accent)" : "transparent",
+                    flexShrink: 0,
+                    marginTop: 2,
+                    boxShadow:
+                      mode === "production"
+                        ? "inset 0 0 0 3px var(--surface-2)"
+                        : "none",
+                  }}
+                />
               </div>
               <div
                 style={{
@@ -288,9 +326,6 @@ export function BotModeSelector({ token }: Props) {
                       ? "var(--accent)"
                       : "var(--text-primary)",
                   marginBottom: "0.2rem",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
                 }}
               >
                 Producción
@@ -302,7 +337,7 @@ export function BotModeSelector({ token }: Props) {
                   lineHeight: 1.4,
                 }}
               >
-                Todos los chats
+                Responde a todos
               </div>
             </button>
           </div>

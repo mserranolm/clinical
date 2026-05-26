@@ -415,12 +415,26 @@ func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJ
 		return
 	}
 
-	dlCtx, dlCancel := context.WithTimeout(ctx, 25*time.Second)
-	defer dlCancel()
+	// Retry hasta 2 veces: en cold-start de Lambda el contexto puede expirar durante la congelación
+	// antes de que el DNS resuelva. El segundo intento usa el DNS ya cacheado por el primero.
 	log.Printf("audit: downloading media msgId=%s type=%s instance=%s", msgID, mediaType, instanceName)
-	mediaBin, mime, err := r.whatsApp.DownloadMedia(dlCtx, instanceName, rawData)
-	if err != nil {
-		log.Printf("audit: media download failed msgId=%s type=%s: %v", msgID, mediaType, err)
+	var mediaBin []byte
+	var mime string
+	var downloadErr error
+	for attempt := 1; attempt <= 2; attempt++ {
+		dlCtx, dlCancel := context.WithTimeout(ctx, 45*time.Second)
+		mediaBin, mime, downloadErr = r.whatsApp.DownloadMedia(dlCtx, instanceName, rawData)
+		dlCancel()
+		if downloadErr == nil {
+			break
+		}
+		log.Printf("audit: media download attempt=%d failed msgId=%s type=%s: %v", attempt, msgID, mediaType, downloadErr)
+		if attempt < 2 {
+			time.Sleep(3 * time.Second)
+		}
+	}
+	if downloadErr != nil {
+		log.Printf("audit: media download failed after retries msgId=%s type=%s: %v", msgID, mediaType, downloadErr)
 		return
 	}
 	log.Printf("audit: media downloaded msgId=%s type=%s size=%d mime=%s", msgID, mediaType, len(mediaBin), mime)
