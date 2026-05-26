@@ -33,3 +33,10 @@ coverage.out
 # npm (global safety net)
 node_modules/
 .worktrees/
+
+
+.history/
+.scheduled_tasks.lock
+
+.DS_Store
+
