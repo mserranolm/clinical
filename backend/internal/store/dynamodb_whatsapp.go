@@ -73,6 +73,59 @@ func (r *dynamoWhatsAppRepo) SetConnected(ctx context.Context, orgID string, con
 	return err
 }
 
+// convTurnItem es el ítem DynamoDB para un turno de conversación.
+type convTurnItem struct {
+	PK      string `dynamodbav:"PK"`
+	SK      string `dynamodbav:"SK"`
+	Role    string `dynamodbav:"role"`
+	Content string `dynamodbav:"content"`
+}
+
+func (r *dynamoWhatsAppRepo) SaveConversationTurn(ctx context.Context, orgID, phone, role, content string) error {
+	sk := fmt.Sprintf("CONV#%s#%s", phone, time.Now().UTC().Format(time.RFC3339Nano))
+	item := convTurnItem{
+		PK:      "ORG#" + orgID,
+		SK:      sk,
+		Role:    role,
+		Content: content,
+	}
+	av, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		return fmt.Errorf("whatsapp conv marshal: %w", err)
+	}
+	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.tableName),
+		Item:      av,
+	})
+	return err
+}
+
+func (r *dynamoWhatsAppRepo) GetRecentConversation(ctx context.Context, orgID, phone string, limit int) ([]ConversationTurn, error) {
+	prefix := fmt.Sprintf("CONV#%s#", phone)
+	out, err := r.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(r.tableName),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :prefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":     &types.AttributeValueMemberS{Value: "ORG#" + orgID},
+			":prefix": &types.AttributeValueMemberS{Value: prefix},
+		},
+		ScanIndexForward: aws.Bool(false),
+		Limit:            aws.Int32(int32(limit)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("whatsapp conv query: %w", err)
+	}
+	// Los items llegan del más reciente al más antiguo; invertir para orden cronológico.
+	turns := make([]ConversationTurn, 0, len(out.Items))
+	for i := len(out.Items) - 1; i >= 0; i-- {
+		var item convTurnItem
+		if unmarshalErr := attributevalue.UnmarshalMap(out.Items[i], &item); unmarshalErr == nil {
+			turns = append(turns, ConversationTurn{Role: item.Role, Content: item.Content})
+		}
+	}
+	return turns, nil
+}
+
 func (r *dynamoWhatsAppRepo) SetBotMode(ctx context.Context, orgID string, enabled bool, mode string, phones []string) error {
 	if phones == nil {
 		phones = []string{}

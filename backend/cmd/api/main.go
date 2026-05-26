@@ -231,7 +231,7 @@ func main() {
 			sqsEvt.Records[0].EventSource == "aws:sqs" {
 			log.Printf("Processing SQS WhatsApp event: %d records", len(sqsEvt.Records))
 			for _, record := range sqsEvt.Records {
-				if procErr := api.ProcessWhatsAppSQSRecord(ctx, record.Body, whatsAppService, whatsAppAIService, repos.WhatsApp); procErr != nil {
+				if procErr := api.ProcessWhatsAppSQSRecord(ctx, record.Body, whatsAppService, whatsAppAIService, repos.WhatsApp, repos.Users); procErr != nil {
 					log.Printf("WhatsApp SQS record error: %v", procErr)
 				}
 			}

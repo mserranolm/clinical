@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"clinical-backend/internal/bedrock"
+	"clinical-backend/internal/store"
 )
 
 // WhatsAppAIService genera respuestas para el asistente de WhatsApp usando Bedrock.
@@ -22,12 +23,15 @@ func NewWhatsAppAIService(bedrockClient *bedrock.Client) *WhatsAppAIService {
 // clinicName: nombre de la clínica
 // knowledgeBase: información de la clínica (servicios, horarios, precios)
 // assistantInstructions: reglas clínicas específicas escritas por el doctor/admin
-// userMessage: mensaje del paciente
-func (s *WhatsAppAIService) GenerateResponse(ctx context.Context, clinicName, knowledgeBase, assistantInstructions, userMessage string) (string, error) {
+// history: turnos previos de la conversación (user/assistant, cronológico)
+// userMessage: mensaje actual del paciente
+func (s *WhatsAppAIService) GenerateResponse(ctx context.Context, clinicName, knowledgeBase, assistantInstructions string, history []store.ConversationTurn, userMessage string) (string, error) {
 	systemPrompt := buildWhatsAppSystemPrompt(clinicName, knowledgeBase, assistantInstructions)
-	msgs := []bedrock.Message{
-		{Role: "user", Content: userMessage},
+	msgs := make([]bedrock.Message, 0, len(history)+1)
+	for _, turn := range history {
+		msgs = append(msgs, bedrock.Message{Role: turn.Role, Content: turn.Content})
 	}
+	msgs = append(msgs, bedrock.Message{Role: "user", Content: userMessage})
 	reply, err := s.bedrock.Invoke(ctx, systemPrompt, msgs)
 	if err != nil {
 		return "", fmt.Errorf("whatsapp ai: bedrock invoke: %w", err)

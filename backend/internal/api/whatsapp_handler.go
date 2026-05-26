@@ -372,7 +372,7 @@ func (r *Router) auditWhatsAppMessage(ctx context.Context, instanceName, remoteJ
 }
 
 // ProcessWhatsAppSQSRecord procesa un mensaje SQS del worker de WhatsApp.
-func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *service.WhatsAppService, aiSvc *service.WhatsAppAIService, repo store.WhatsAppRepository) error {
+func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *service.WhatsAppService, aiSvc *service.WhatsAppAIService, repo store.WhatsAppRepository, authRepo store.AuthRepository) error {
 	if whatsAppSvc == nil || aiSvc == nil || repo == nil {
 		log.Printf("whatsapp worker: services not configured, skipping record")
 		return nil
@@ -388,9 +388,30 @@ func ProcessWhatsAppSQSRecord(ctx context.Context, body string, whatsAppSvc *ser
 		return err
 	}
 
-	aiResponse, err := aiSvc.GenerateResponse(ctx, "la clínica", cfg.KnowledgeBase, cfg.AssistantInstructions, msg.Message)
+	// Nombre de la clínica desde la organización; fallback genérico si no está disponible.
+	clinicName := "la clínica"
+	if authRepo != nil {
+		if org, orgErr := authRepo.GetOrganization(ctx, msg.OrgID); orgErr == nil && org.Name != "" {
+			clinicName = org.Name
+		}
+	}
+
+	// Leer historial reciente (no bloqueante: ignorar errores para no perder el mensaje).
+	history, _ := repo.GetRecentConversation(ctx, msg.OrgID, msg.Phone, 10)
+
+	// Guardar turno del usuario antes de llamar al AI.
+	if saveErr := repo.SaveConversationTurn(ctx, msg.OrgID, msg.Phone, "user", msg.Message); saveErr != nil {
+		log.Printf("whatsapp worker: save user turn: %v", saveErr)
+	}
+
+	aiResponse, err := aiSvc.GenerateResponse(ctx, clinicName, cfg.KnowledgeBase, cfg.AssistantInstructions, history, msg.Message)
 	if err != nil {
 		return err
+	}
+
+	// Guardar turno del asistente (no bloqueante).
+	if saveErr := repo.SaveConversationTurn(ctx, msg.OrgID, msg.Phone, "assistant", aiResponse); saveErr != nil {
+		log.Printf("whatsapp worker: save assistant turn: %v", saveErr)
 	}
 
 	return whatsAppSvc.SendTextToPatient(ctx, msg.InstanceName, msg.Phone, aiResponse)
