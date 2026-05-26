@@ -85,6 +85,8 @@ export function WhatsAppSettingsPage({ session }: Props) {
             gap: "1.25rem",
             position: "sticky",
             top: "1.5rem",
+            maxHeight: "calc(100vh - 3rem)",
+            overflowY: "auto",
           }}
         >
           <BotModeSelector token={session.token} />

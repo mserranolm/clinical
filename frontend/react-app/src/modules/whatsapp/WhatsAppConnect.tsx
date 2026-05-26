@@ -220,7 +220,7 @@ export function WhatsAppConnect({ token }: Props) {
                 />
               )}
               {isConnected
-                ? "CONECTADO"
+                ? phoneNumber || "CONECTADO"
                 : isBusy
                   ? "PROCESANDO..."
                   : isQrReady
