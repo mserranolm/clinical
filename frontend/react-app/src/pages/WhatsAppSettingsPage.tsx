@@ -80,85 +80,74 @@ export function WhatsAppSettingsPage({ session }: Props) {
         {/* Columna lateral */}
         <div
           style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1.25rem",
             position: "sticky",
             top: "1.5rem",
-            maxHeight: "calc(100vh - 3rem)",
           }}
         >
+          <BotModeSelector token={session.token} />
+
+          {/* Tips de uso */}
           <div
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.25rem",
-              height: "100%",
-              maxHeight: "inherit",
-              overflowY: "auto",
-              overflowX: "clip",
-              paddingRight: "2px",
+              background: "var(--accent-soft)",
+              border: "1px solid var(--accent-border)",
+              borderRadius: "var(--r-xl)",
+              padding: "1.25rem 1.5rem",
             }}
           >
-            <BotModeSelector token={session.token} />
-
-            {/* Tips de uso */}
-            <div
+            <h4
               style={{
-                background: "var(--accent-soft)",
-                border: "1px solid var(--accent-border)",
-                borderRadius: "var(--r-xl)",
-                padding: "1.25rem 1.5rem",
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                color: "var(--accent)",
+                marginBottom: "0.75rem",
               }}
             >
-              <h4
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 700,
-                  color: "var(--accent)",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                💡 Buenas prácticas
-              </h4>
-              <ul
-                style={{
-                  listStyle: "none",
-                  padding: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.6rem",
-                }}
-              >
-                {[
-                  "Empieza en modo Beta con tu número personal para probar.",
-                  "Detalla los servicios y precios en la base de conocimiento.",
-                  "El asistente nunca hace diagnósticos — solo agenda citas.",
-                  "Activa producción cuando hayas validado las respuestas.",
-                ].map((tip) => (
-                  <li
-                    key={tip}
+              💡 Buenas prácticas
+            </h4>
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.6rem",
+              }}
+            >
+              {[
+                "Empieza en modo Beta con tu número personal para probar.",
+                "Detalla los servicios y precios en la base de conocimiento.",
+                "El asistente nunca hace diagnósticos — solo agenda citas.",
+                "Activa producción cuando hayas validado las respuestas.",
+              ].map((tip) => (
+                <li
+                  key={tip}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "0.5rem",
+                    fontSize: "0.8rem",
+                    color: "var(--text-secondary)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span
                     style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "0.5rem",
-                      fontSize: "0.8rem",
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.5,
+                      color: "var(--accent)",
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      marginTop: 1,
                     }}
                   >
-                    <span
-                      style={{
-                        color: "var(--accent)",
-                        fontWeight: 700,
-                        flexShrink: 0,
-                        marginTop: 1,
-                      }}
-                    >
-                      ·
-                    </span>
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    ·
+                  </span>
+                  {tip}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

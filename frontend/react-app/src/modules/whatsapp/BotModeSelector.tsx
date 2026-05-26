@@ -203,8 +203,7 @@ export function BotModeSelector({ token }: Props) {
           {/* Toggle segmentado beta/producción */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              display: "flex",
               gap: "0.75rem",
             }}
           >
@@ -214,6 +213,8 @@ export function BotModeSelector({ token }: Props) {
                 setError("");
               }}
               style={{
+                flex: "1 1 0",
+                minWidth: 0,
                 padding: "1rem",
                 borderRadius: "var(--r-lg)",
                 border: `2px solid ${mode === "beta" ? "#f59e0b" : "var(--border-strong)"}`,
@@ -224,6 +225,7 @@ export function BotModeSelector({ token }: Props) {
                 cursor: "pointer",
                 transition: "all 0.18s ease",
                 textAlign: "left",
+                overflow: "hidden",
               }}
             >
               <div style={{ fontSize: "1.25rem", marginBottom: "0.4rem" }}>
@@ -235,6 +237,9 @@ export function BotModeSelector({ token }: Props) {
                   fontWeight: 700,
                   color: mode === "beta" ? "#d97706" : "var(--text-primary)",
                   marginBottom: "0.2rem",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 Beta
@@ -246,7 +251,7 @@ export function BotModeSelector({ token }: Props) {
                   lineHeight: 1.4,
                 }}
               >
-                Solo números configurados
+                Solo números
               </div>
             </button>
 
@@ -256,6 +261,8 @@ export function BotModeSelector({ token }: Props) {
                 setError("");
               }}
               style={{
+                flex: "1 1 0",
+                minWidth: 0,
                 padding: "1rem",
                 borderRadius: "var(--r-lg)",
                 border: `2px solid ${mode === "production" ? "var(--accent)" : "var(--border-strong)"}`,
@@ -266,6 +273,7 @@ export function BotModeSelector({ token }: Props) {
                 cursor: "pointer",
                 transition: "all 0.18s ease",
                 textAlign: "left",
+                overflow: "hidden",
               }}
             >
               <div style={{ fontSize: "1.25rem", marginBottom: "0.4rem" }}>
@@ -280,6 +288,9 @@ export function BotModeSelector({ token }: Props) {
                       ? "var(--accent)"
                       : "var(--text-primary)",
                   marginBottom: "0.2rem",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 Producción
@@ -291,7 +302,7 @@ export function BotModeSelector({ token }: Props) {
                   lineHeight: 1.4,
                 }}
               >
-                Responde a todos
+                Todos los chats
               </div>
             </button>
           </div>
