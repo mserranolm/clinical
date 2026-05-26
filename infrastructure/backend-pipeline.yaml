@@ -1,32 +1,32 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Clinical Backend CI/CD Pipeline - Deploys only when backend/ changes'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Clinical Backend CI/CD Pipeline - Deploys only when backend/ changes"
 
 Parameters:
   ProjectName:
     Type: String
     Default: clinical-backend
     Description: Name of the backend project
-    
+
   Environment:
     Type: String
     Default: production
     AllowedValues: [dev, staging, production]
     Description: Environment name
-    
+
   GitHubOwner:
     Type: String
     Description: GitHub repository owner (e.g., mserranolm)
-    
+
   GitHubRepo:
     Type: String
     Default: clinical
     Description: GitHub repository name
-    
+
   CodeConnectionArn:
     Type: String
     Default: "arn:aws:codeconnections:us-east-1:952191196224:connection/20a344cd-d905-45a4-878b-5055fed809a1"
     Description: AWS CodeConnections ARN for GitHub integration
-    
+
   BranchName:
     Type: String
     Default: main
@@ -60,7 +60,7 @@ Resources:
     Properties:
       RoleName: !Sub "${ProjectName}-codebuild-role"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -76,7 +76,7 @@ Resources:
       Policies:
         - PolicyName: CodeBuildBackendPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               # CloudWatch Logs
               - Effect: Allow
@@ -85,7 +85,7 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-*"
-              
+
               # S3 Access
               - Effect: Allow
                 Action:
@@ -94,19 +94,19 @@ Resources:
                   - s3:PutObject
                   - s3:GetBucketAcl
                   - s3:GetBucketLocation
-                Resource: 
+                Resource:
                   - !Sub "${BackendArtifactStore.Arn}/*"
                   - !GetAtt BackendArtifactStore.Arn
-              
+
               # CloudFormation permissions for SAM deploy
               - Effect: Allow
                 Action:
                   - cloudformation:*
-                Resource: 
+                Resource:
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}*/*"
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/sam-*/*"
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/aws-sam-cli-managed-default*"
-              
+
               # IAM permissions for Lambda roles
               - Effect: Allow
                 Action:
@@ -122,31 +122,31 @@ Resources:
                   - iam:TagRole
                   - iam:UntagRole
                 Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}*"
-              
+
               # Lambda permissions
               - Effect: Allow
                 Action:
                   - lambda:*
                 Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}*"
-              
+
               # API Gateway permissions
               - Effect: Allow
                 Action:
                   - apigateway:*
                 Resource: "*"
-              
+
               # DynamoDB permissions
               - Effect: Allow
                 Action:
                   - dynamodb:*
                 Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/clinical-*"
-              
+
               # EventBridge permissions
               - Effect: Allow
                 Action:
                   - events:*
                 Resource: "*"
-              
+
               # S3 for SAM deployments
               - Effect: Allow
                 Action:
@@ -155,9 +155,15 @@ Resources:
                   - s3:PutObject
                   - s3:GetObject
                   - s3:DeleteObject
-                Resource: 
+                Resource:
                   - !Sub "arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*"
                   - !Sub "arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*/*"
+
+              # Secrets Manager - needed for {{resolve:secretsmanager:...}} in SAM template
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:clinical/*"
 
   # CodeBuild Project for Backend
   BackendCodeBuildProject:
@@ -238,7 +244,7 @@ Resources:
     Properties:
       RoleName: !Sub "${ProjectName}-pipeline-role"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -247,7 +253,7 @@ Resources:
       Policies:
         - PolicyName: CodePipelineBackendPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -271,7 +277,7 @@ Resources:
                   - codestar-connections:UseConnection
                   - codestar-connections:GetConnection
                   - codestar-connections:ListConnections
-                Resource: 
+                Resource:
                   - !Ref CodeConnectionArn
                   - !Sub "arn:aws:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
                   - !Sub "arn:aws:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
@@ -308,7 +314,7 @@ Resources:
                 Category: Source
                 Owner: AWS
                 Provider: CodeStarSourceConnection
-                Version: '1'
+                Version: "1"
               Configuration:
                 ConnectionArn: !Ref CodeConnectionArn
                 FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
@@ -324,7 +330,7 @@ Resources:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
-                Version: '1'
+                Version: "1"
               Configuration:
                 ProjectName: !Ref BackendCodeBuildProject
               InputArtifacts:
