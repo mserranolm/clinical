@@ -11,6 +11,11 @@ Globals:
     MemorySize: 512
     Tags:
       product: clinisense
+      Product: docco
+      Environment: prod
+      ManagedBy: sam-cloudformation
+      Module: api
+      AgentType: platform
     Environment:
       Variables:
         ENVIRONMENT: prod
@@ -59,6 +64,9 @@ Resources:
       StageName: prod
       Tags:
         product: clinisense
+        Product: docco
+        Module: api
+        AgentType: platform
       EndpointConfiguration:
         Type: REGIONAL
       Cors:
@@ -255,6 +263,8 @@ Resources:
     Properties:
       CodeUri: .
       Handler: bootstrap
+      Tags:
+        Module: scheduler
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AppointmentsTable
@@ -287,6 +297,8 @@ Resources:
     Properties:
       CodeUri: .
       Handler: bootstrap
+      Tags:
+        Module: scheduler
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AppointmentsTable
@@ -316,6 +328,8 @@ Resources:
       Handler: bootstrap
       Timeout: 120
       MemorySize: 512
+      Tags:
+        Module: whatsapp
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref WhatsAppConfigTable
