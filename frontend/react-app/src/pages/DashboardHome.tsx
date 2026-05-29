@@ -66,6 +66,7 @@ function KpiCard({
   const t = useThemeTokens();
   return (
     <div
+      className="kpi-card"
       onClick={onClick}
       style={{
         background: t.surface,
@@ -76,16 +77,15 @@ function KpiCard({
           ? `3px solid ${highlight}`
           : `1px solid ${t.borderFaint}`,
         border: active
-          ? `2px solid ${highlight ?? "#0D9488"}`
+          ? `2px solid ${highlight ?? "#10b981"}`
           : highlight
             ? undefined
             : `1px solid ${t.borderFaint}`,
         boxShadow: active
-          ? `0 0 0 3px ${highlight ? highlight + "22" : "#0D948822"}`
+          ? `0 0 0 3px ${highlight ? highlight + "22" : "#10b98122"}`
           : t.isDark
-            ? "0 1px 4px rgba(0,0,0,0.3)"
+            ? "0 1px 4px rgba(0,0,0,0.4)"
             : "0 1px 4px rgba(148,163,184,0.08)",
-        transition: "box-shadow 0.15s ease, border 0.15s ease",
         position: "relative",
         overflow: "hidden",
       }}
@@ -109,8 +109,8 @@ function KpiCard({
       {/* Value — color del texto principal según tema */}
       <div
         style={{
-          fontSize: 28,
-          fontWeight: 800,
+          fontSize: 26,
+          fontWeight: 600,
           color: t.text,
           letterSpacing: "-0.03em",
           lineHeight: 1,
@@ -119,8 +119,17 @@ function KpiCard({
         {value}
       </div>
 
-      {/* Label — siempre muted */}
-      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>
+      {/* Label — uppercase tracking-widest */}
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: t.textMuted,
+          marginTop: 6,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
         {label}
       </div>
 

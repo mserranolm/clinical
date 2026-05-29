@@ -120,7 +120,10 @@ export function LoginView({
         style={{
           width: 420,
           flexShrink: 0,
-          background: "#0F172A",
+          background: "#060914",
+          backgroundImage:
+            "linear-gradient(rgba(99,102,241,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.025) 1px, transparent 1px)",
+          backgroundSize: "52px 52px",
           padding: "40px 48px",
           display: "flex",
           flexDirection: "column",
@@ -128,29 +131,31 @@ export function LoginView({
           overflow: "hidden",
         }}
       >
-        {/* Circulo decorativo 1 */}
+        {/* Radial glow indigo — esquina superior */}
         <div
           style={{
             position: "absolute",
-            top: -80,
-            left: -80,
-            width: 280,
-            height: 280,
+            top: -120,
+            right: -80,
+            width: 360,
+            height: 360,
             borderRadius: "50%",
-            background: "rgba(13,148,136,0.08)",
+            background:
+              "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />
-        {/* Circulo decorativo 2 */}
+        {/* Radial glow emerald — esquina inferior */}
         <div
           style={{
             position: "absolute",
-            bottom: -60,
-            right: -60,
-            width: 220,
-            height: 220,
+            bottom: -80,
+            left: -60,
+            width: 280,
+            height: 280,
             borderRadius: "50%",
-            background: "rgba(13,148,136,0.06)",
+            background:
+              "radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />
@@ -185,18 +190,18 @@ export function LoginView({
           <h2
             style={{
               fontSize: 26,
-              fontWeight: 800,
+              fontWeight: 600,
               color: "white",
               margin: "0 0 12px",
               lineHeight: 1.2,
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.025em",
             }}
           >
             El sistema clínico
             <br />
             que tu consultorio
             <br />
-            <span style={{ color: "#2DD4BF" }}>merece.</span>
+            <span style={{ color: "#a5b4fc" }}>merece.</span>
           </h2>
           <p
             style={{
@@ -234,9 +239,9 @@ export function LoginView({
                   width: 40,
                   height: 40,
                   borderRadius: 12,
-                  background: "rgba(13,148,136,0.15)",
-                  border: "1px solid rgba(45,212,191,0.2)",
-                  color: "#2DD4BF",
+                  background: "rgba(99,102,241,0.15)",
+                  border: "1px solid rgba(129,140,248,0.25)",
+                  color: "#a5b4fc",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -292,7 +297,7 @@ export function LoginView({
       <main
         style={{
           flex: 1,
-          background: "#FAFBFC",
+          background: "linear-gradient(160deg, #f0fdf4 0%, #f9fafb 50%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -372,8 +377,8 @@ export function LoginView({
           <h1
             style={{
               fontSize: 26,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
+              fontWeight: 600,
+              letterSpacing: "-0.025em",
               color: "#0F172A",
               margin: "0 0 28px",
             }}
@@ -391,10 +396,12 @@ export function LoginView({
                 <label
                   style={{
                     display: "block",
-                    fontSize: 13,
+                    fontSize: 10,
                     fontWeight: 600,
-                    color: "#374151",
+                    color: "#94A3B8",
                     marginBottom: 6,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
                   }}
                 >
                   Nombre Completo
@@ -563,16 +570,34 @@ export function LoginView({
                 padding: "12px",
                 borderRadius: 10,
                 border: "none",
-                background: loading ? "#94A3B8" : "#0F172A",
+                background: loading
+                  ? "#94A3B8"
+                  : "linear-gradient(135deg, #10b981, #059669)",
+                boxShadow: loading
+                  ? "none"
+                  : "0 1px 0 rgba(255,255,255,0.12) inset, 0 4px 14px rgba(16,185,129,0.3)",
                 color: "white",
                 fontSize: 15,
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: loading ? "not-allowed" : "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                transition: "background 0.15s ease",
+                transition: "all 150ms cubic-bezier(0.23,1,0.32,1)",
+              }}
+              onMouseEnter={(e) => {
+                if (!loading)
+                  e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "";
+              }}
+              onMouseDown={(e) => {
+                if (!loading) e.currentTarget.style.transform = "scale(0.97)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = "";
               }}
             >
               {loading ? (
