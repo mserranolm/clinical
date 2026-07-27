@@ -37,6 +37,3 @@ node_modules/
 
 .history/
 .scheduled_tasks.lock
-
-.DS_Store
-
