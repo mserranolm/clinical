@@ -133,3 +133,19 @@ React 18 SPA with React Router v6. Feature-organized under `src/modules/` (appoi
 - **Profile:** `aloai`
 - **Para deployar:** `aws sso login --profile aloai` + `sam deploy` (samconfig.toml ya incluye profile aloai)
 - **Frontend:** `https://docco.aloai.me`
+
+## Deploy — qué rama usar <!-- /aprende 2026-07-28 -->
+
+- El deploy **es** un push a `main`: CodePipeline observa esa rama. La regla global "nunca commitear a main" aplica al trabajo en curso, no al deploy; para publicar hay que llegar a `main`. Si el cambio es grande o arriesgado, trabajarlo en `feat/`/`fix/` y mergear a `main` para desplegar. <!-- /aprende 2026-07-28 -->
+- Cambio **sólo de frontend** → `git push origin main` y listo; lo recoge `clinical-frontend-pipeline` (Source → Build, ~2 min). **No** hace falta `sam deploy`. <!-- /aprende 2026-07-28 -->
+- Cambio de **backend** o `template.yaml` → además `sam deploy` + `scripts/fix-apigw-after-deploy.sh`. <!-- /aprende 2026-07-28 -->
+- Verificar el deploy por **contenido**, no por hash: CodeBuild compila con otras env vars, así que el nombre del bundle difiere del build local aunque el commit sea el mismo. Buscar en el JS servido un string que sólo exista en el fix. <!-- /aprende 2026-07-28 -->
+
+## Frontend — Design System <!-- /aprende 2026-05-29 -->
+
+- Dark mode via `document.documentElement.setAttribute("data-theme", "dark")` — NO clase CSS, NO `prefers-color-scheme`. Stored in `localStorage` as `"docco-theme"`. <!-- /aprende 2026-05-29 -->
+- El frontend usa **CSS puro** (`src/styles.css`, 9000+ líneas) con CSS Custom Properties. **Sin Tailwind. Sin Framer Motion.** Animaciones: React Spring 10 + CSS `@keyframes`. <!-- /aprende 2026-05-29 -->
+- Paleta: light = emerald `#10b981`, dark = indigo `#6366f1`/`#818cf8` (nav/botones) + emerald para CTAs/éxito. Fondo dark: `#060914` (no negro puro). <!-- /aprende 2026-05-29 -->
+- Motion tokens en `:root`: `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)`, `--dur-fast: 120ms`, `--dur-normal: 220ms`. <!-- /aprende 2026-05-29 -->
+- Botones CTA: gradiente + `inset highlight` + shadow de color + `:hover translateY(-1px)` + `:active scale(0.97)`. <!-- /aprende 2026-05-29 -->
+- Para bulk-replacements en `styles.css`, usar script Python en lugar de múltiples `Edit` (el formatter PostToolUse invalida el estado entre ediciones). <!-- /aprende 2026-05-29 -->
