@@ -4470,11 +4470,22 @@ button.ghost:active {
 .odn-radial-menu {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  /* transform lo calcula el componente (clamp al viewport + escala); aquí solo
+     se define la curva de entrada. */
+  transition:
+    opacity 0.18s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  transform-origin: center center;
 }
 .odn-radial-menu.odn-radial-visible {
   opacity: 1;
   pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .odn-radial-menu {
+    transition: opacity 0.1s linear;
+  }
 }
 
 .odn-radial-sector-path {
@@ -5896,12 +5907,16 @@ html[data-theme="dark"] .patient-row-active td {
 [data-theme="dark"] .auth-submit {
   background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
   color: white !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 14px rgba(99,102,241,0.3) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 4px 14px rgba(99, 102, 241, 0.3) !important;
 }
 [data-theme="dark"] .primary-btn:hover,
 [data-theme="dark"] .auth-submit:hover:not(:disabled) {
   transform: translateY(-1px) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 8px 20px rgba(99,102,241,0.4) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 8px 20px rgba(99, 102, 241, 0.4) !important;
 }
 [data-theme="dark"] .action-btn {
   background: var(--surface-2) !important;
@@ -5921,7 +5936,7 @@ html[data-theme="dark"] .patient-row-active td {
 }
 [data-theme="dark"] .action-btn-treat:hover:not(:disabled) {
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 18px rgba(99,102,241,0.35) !important;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35) !important;
 }
 [data-theme="dark"] .action-btn-confirm {
   background: rgba(99, 102, 241, 0.12) !important;

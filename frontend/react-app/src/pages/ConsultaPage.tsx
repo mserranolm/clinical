@@ -207,6 +207,8 @@ function historyToBackgrounds(
 
 type SoapParts = { S: string; O: string; A: string; P: string };
 
+const EMPTY_SOAP: SoapParts = { S: "", O: "", A: "", P: "" };
+
 function parseSoap(raw: string): SoapParts {
   if (!raw.trimStart().startsWith("S:")) {
     return { S: raw, O: "", A: "", P: "" };
@@ -253,7 +255,10 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
     {},
   );
   const [odontogramId, setOdontogramId] = useState<string | null>(null);
-  const [evolutionNotes, setEvolutionNotes] = useState("");
+  // El estado real son las 4 secciones SOAP. El string serializado se deriva
+  // sólo al enviarlo al backend: hacer el round-trip en cada tecla borraba los
+  // espacios en blanco que el usuario estaba escribiendo.
+  const [soapParts, setSoapParts] = useState<SoapParts>(EMPTY_SOAP);
   const [treatmentPlan, setTreatmentPlan] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [activeTab, setActiveTab] = useState<
@@ -344,7 +349,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
         };
         setAppointmentStatus(appt.status ?? "scheduled");
         setConsultationStartedAt((appt as any).consultationStartedAt ?? "");
-        if (appt.evolutionNotes) setEvolutionNotes(appt.evolutionNotes);
+        if (appt.evolutionNotes) setSoapParts(parseSoap(appt.evolutionNotes));
         if (appt.treatmentPlan) setTreatmentPlan(appt.treatmentPlan);
         if (appt.paymentAmount) setPaymentAmount(appt.paymentAmount);
         const apptAny = appt as unknown as { imageUrls?: string[] };
@@ -577,7 +582,7 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   }
 
   async function finalizarConsulta() {
-    if (!evolutionNotes.trim()) {
+    if (!hasEvolutionNotes) {
       notify.error(
         "Notas requeridas",
         "Agrega notas de evolución antes de finalizar.",
@@ -723,11 +728,13 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
   })();
 
   // SOAP helpers
-  const soapParts = parseSoap(evolutionNotes);
+  const evolutionNotes = serializeSoap(soapParts);
+  const hasEvolutionNotes = (
+    Object.keys(soapParts) as (keyof SoapParts)[]
+  ).some((k) => soapParts[k].trim() !== "");
 
   function handleSoapChange(value: string) {
-    const updated = { ...soapParts, [soapTab]: value };
-    setEvolutionNotes(serializeSoap(updated));
+    setSoapParts((prev) => ({ ...prev, [soapTab]: value }));
   }
 
   // Medication list from detail
@@ -945,15 +952,15 @@ export function ConsultaPage({ token, doctorId }: ConsultaPageProps) {
           {!isClosed && (
             <button
               onClick={finalizarConsulta}
-              disabled={saving || !evolutionNotes.trim()}
+              disabled={saving || !hasEvolutionNotes}
               style={{
-                background: saving || !evolutionNotes.trim() ? "#94A3B8" : teal,
+                background: saving || !hasEvolutionNotes ? "#94A3B8" : teal,
                 color: "#fff",
                 border: "none",
                 borderRadius: 8,
                 padding: "7px 16px",
                 cursor:
-                  saving || !evolutionNotes.trim() ? "not-allowed" : "pointer",
+                  saving || !hasEvolutionNotes ? "not-allowed" : "pointer",
                 fontSize: 13,
                 fontWeight: 600,
               }}
